@@ -19,6 +19,13 @@ export async function GET() {
       },
       include: {
         prototypes: true,
+        sessions: {
+          select: {
+            durationSec: true,
+            startedAt: true,
+            endedAt: true,
+          },
+        },
         _count: {
           select: {
             visitors: true,
@@ -30,28 +37,44 @@ export async function GET() {
       },
     });
 
-    const mapped = experiments.map((exp) => ({
-      id: exp.id,
-      name: exp.name,
-      productName: exp.productName,
-      problem: exp.problem,
-      targetAudience: exp.targetAudience,
-      productIdea: exp.productIdea,
-      keyHypothesis: exp.keyHypothesis,
-      learningGoal: exp.learningGoal,
-      prototypeUrl: exp.prototypeUrl,
-      testingMode: exp.testingMode,
-      status: exp.status,
-      createdAt: exp.createdAt.toISOString(),
-      updatedAt: exp.updatedAt.toISOString(),
-      metrics: {
-        visitorsCount: exp._count.visitors,
-        sessionsCount: exp._count.sessions,
-        interactionsCount: exp._count.events,
-        feedbackCount: exp._count.feedback,
-        avgTimeOnPrototype: 0,
-      },
-    }));
+    const mapped = experiments.map((exp) => {
+      let totalDuration = 0;
+      let durationCount = 0;
+      (exp.sessions || []).forEach((s) => {
+        let dur = s.durationSec;
+        if ((!dur || dur <= 0) && s.endedAt && s.startedAt) {
+          dur = Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 1000);
+        }
+        if (dur && dur > 0) {
+          totalDuration += dur;
+          durationCount++;
+        }
+      });
+      const avgDuration = durationCount > 0 ? Math.round(totalDuration / durationCount) : 0;
+
+      return {
+        id: exp.id,
+        name: exp.name,
+        productName: exp.productName,
+        problem: exp.problem,
+        targetAudience: exp.targetAudience,
+        productIdea: exp.productIdea,
+        keyHypothesis: exp.keyHypothesis,
+        learningGoal: exp.learningGoal,
+        prototypeUrl: exp.prototypeUrl,
+        testingMode: exp.testingMode,
+        status: exp.status,
+        createdAt: exp.createdAt.toISOString(),
+        updatedAt: exp.updatedAt.toISOString(),
+        metrics: {
+          visitorsCount: exp._count.visitors,
+          sessionsCount: exp._count.sessions,
+          interactionsCount: exp._count.events,
+          feedbackCount: exp._count.feedback,
+          avgTimeOnPrototype: avgDuration,
+        },
+      };
+    });
 
     return NextResponse.json({
       status: 'success',
@@ -60,6 +83,16 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching user experiments from Neon:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+function isValidPrototypeUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
   }
 }
 
@@ -87,6 +120,13 @@ export async function POST(req: NextRequest) {
     if (!name?.trim() || !productName?.trim() || !keyHypothesis?.trim() || !prototypeUrl?.trim()) {
       return NextResponse.json(
         { error: 'Missing mandatory experiment fields (name, productName, keyHypothesis, prototypeUrl)' },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidPrototypeUrl(prototypeUrl)) {
+      return NextResponse.json(
+        { error: 'Invalid prototype URL. Must be a valid HTTP or HTTPS web address.' },
         { status: 400 }
       );
     }

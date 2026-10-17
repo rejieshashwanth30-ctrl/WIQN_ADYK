@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Validate that the experiment exists in Neon
+    // 1. Validate that the experiment exists in Neon and is active
     const experiment = await prisma.experiment.findUnique({
       where: { id: experimentId },
     });
@@ -84,6 +84,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Experiment does not exist in registry' },
         { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    if (experiment.status === 'ARCHIVED' || experiment.status === 'PAUSED') {
+      return NextResponse.json(
+        { error: 'Experiment is paused or archived. Telemetry capture suspended.' },
+        { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
@@ -107,23 +114,46 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 3. Ensure session record exists in Neon
+    // Extract duration if present in payload or metadata
+    const durationSeconds = typeof payload.durationSeconds === 'number'
+      ? payload.durationSeconds
+      : (payload.metadata && typeof payload.metadata.durationSeconds === 'number' ? payload.metadata.durationSeconds : undefined);
+
+    // 3. Ensure session record exists in Neon and update duration
+    const existingSession = await prisma.session.findUnique({
+      where: { sessionId: sessionId },
+    });
+
+    let currentSessionSec = durationSeconds;
+    if (!currentSessionSec && existingSession) {
+      currentSessionSec = Math.max(0, Math.round((Date.now() - existingSession.startedAt.getTime()) / 1000));
+    }
+
     await prisma.session.upsert({
       where: { sessionId: sessionId },
       update: {
         endedAt: new Date(),
+        durationSec: currentSessionSec ? Math.max(existingSession?.durationSec || 0, currentSessionSec) : undefined,
       },
       create: {
         sessionId: sessionId,
         experimentId: experiment.id,
         visitorId: visitor.id,
         startedAt: new Date(),
+        endedAt: new Date(),
+        durationSec: currentSessionSec || 0,
         referrer: referrer || null,
       },
     });
 
-    // 4. Ingest telemetry event
+    // 4. Ingest telemetry event with metadata preserved
     const normalizedType = normalizeEventType(eventType);
+    const mergedMetadata = {
+      ...(payload.metadata || {}),
+      ...(device ? { device } : {}),
+      ...(durationSeconds ? { durationSeconds } : {}),
+    };
+
     const recordedEvent = await prisma.experimentEvent.create({
       data: {
         experimentId: experiment.id,
@@ -135,7 +165,7 @@ export async function POST(req: NextRequest) {
         page: page || '/',
         referrer: referrer || null,
         timestamp: timestamp ? new Date(timestamp) : new Date(),
-        metadata: device ? { device } : undefined,
+        metadata: Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined,
       },
     });
 

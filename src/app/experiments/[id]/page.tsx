@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardNav } from '@/components/DashboardNav';
 import { getExperimentById, REFERENCE_INSIGHTS, REFERENCE_FEEDBACK, REFERENCE_DECISION } from '@/lib/storage';
 import { Experiment, StructuredInsight, FeedbackItem, DecisionRecord, DecisionOutcome } from '@/lib/types';
+import { getPublicAppUrl, getTestUrl, getShareUrls, isLocalEnvironment, getProductionAppUrl } from '@/lib/urls';
 import {
   Layers,
   Activity,
@@ -21,7 +22,12 @@ import {
   HelpCircle,
   UserCheck,
   User,
-  ArrowRight
+  ArrowRight,
+  Share2,
+  Send,
+  RefreshCw,
+  X,
+  MessageSquare
 } from 'lucide-react';
 
 interface PageProps {
@@ -45,6 +51,15 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [showBenchmarkFeedback, setShowBenchmarkFeedback] = useState(false);
   const [showBenchmarkFunnel, setShowBenchmarkFunnel] = useState(false);
 
+  // Sharing link state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedTestUrl, setCopiedTestUrl] = useState(false);
+
+  // AI Analysis State
+  const [runningAI, setRunningAI] = useState(false);
+  const [aiResult, setAiResult] = useState<any | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // Qualitative feedback logging state
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackPrompt, setFeedbackPrompt] = useState('Observed Interaction Friction');
@@ -57,11 +72,25 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Compute production vs local snippet origins
-  const prodOrigin = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' && window.location.protocol === 'https:' ? window.location.origin : 'https://wiqn.adyk.io');
+  const isLocal = typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('.local'))
+    : process.env.NODE_ENV === 'development';
+
+  const [shareLinkMode, setShareLinkMode] = useState<'production' | 'local'>('production');
+
+  // Compute production vs local origins using centralized helper
+  const prodOrigin = getProductionAppUrl();
   const localOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const effectiveOrigin = snippetMode === 'production' ? prodOrigin : localOrigin;
   const currentSnippet = `<script src="${effectiveOrigin}/tracker.js" data-experiment="${experimentId}" data-endpoint="${effectiveOrigin}/api/capture" async></script>`;
+
+  // Centralized test and share URLs (defaults to https://wiqn.adyk.io/test/[id] for share links)
+  const shareUrls = getShareUrls(
+    experimentId,
+    experiment?.productName || experiment?.name || 'product prototype',
+    { forceLocal: shareLinkMode === 'local' }
+  );
+  const publicTestUrl = shareUrls.testUrl;
 
   const loadExperiment = async () => {
     try {
@@ -102,6 +131,39 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     navigator.clipboard.writeText(snippet);
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 2000);
+  };
+
+  const copyTestUrl = (customUrl?: unknown) => {
+    const textToCopy = typeof customUrl === 'string' ? customUrl : publicTestUrl;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedTestUrl(true);
+    setTimeout(() => setCopiedTestUrl(false), 2000);
+  };
+
+  // Run Server-Side AI Analysis
+  const handleRunAIAnalysis = async () => {
+    setRunningAI(true);
+    setAiError(null);
+    try {
+      const res = await fetch(`/api/experiments/${experimentId}/ai-analysis`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        setAiResult(data.data);
+        if (data.data.suggestedOutcome) {
+          setSelectedDecision(data.data.suggestedOutcome);
+        }
+        await loadExperiment();
+      } else {
+        setAiError(data.error || 'AI analysis service temporarily unavailable. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error running AI analysis:', err);
+      setAiError('Network error connecting to AI analysis service. Please try again.');
+    } finally {
+      setRunningAI(false);
+    }
   };
 
   // Persist Decision to database
@@ -300,6 +362,15 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           {/* Quick Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <button
+              onClick={() => setShowShareModal(true)}
+              className="btn-primary"
+              style={{ fontSize: '0.6875rem', padding: '9px 15px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Share2 size={13} />
+              <span>Share Testing Link</span>
+            </button>
+
+            <button
               onClick={() => copyTrackerSnippet(true)}
               className="btn-secondary"
               style={{ fontSize: '0.6875rem', padding: '9px 14px' }}
@@ -313,7 +384,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               href={experiment.prototypeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-primary"
+              className="btn-secondary"
               style={{ fontSize: '0.6875rem', padding: '9px 14px' }}
             >
               <span>Open Prototype</span>
@@ -417,20 +488,20 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Prototype Link */}
+              {/* Public Test Link Card */}
               <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '32px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  PROTOTYPE LINK
+                  SHAREABLE PUBLIC TEST LINK
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#ffffff', wordBreak: 'break-all', marginBottom: '16px' }}>
-                  {experiment.prototypeUrl}
+                  {publicTestUrl}
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                    MODE: {experiment.testingMode === 'CARDEX_ALPHA' ? 'CARDEX ALPHA' : 'PRIVATE'}
-                  </span>
-                  <button onClick={() => setActiveTab('prototype')} className="btn-ghost" style={{ padding: 0 }}>
-                    Test In Prototype Viewport →
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <button onClick={copyTestUrl} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                    {copiedTestUrl ? 'Link Copied!' : 'Copy Link'}
+                  </button>
+                  <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                    Share with Testers →
                   </button>
                 </div>
               </div>
@@ -463,15 +534,24 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <Share2 size={12} />
+                  <span>Share Testing Link</span>
+                </button>
+
                 <a
-                  href={experiment.prototypeUrl}
+                  href={isLocal ? shareUrls.localTestUrl : shareUrls.productionTestUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-secondary"
-                  style={{ fontSize: '0.6875rem', padding: '6px 12px' }}
+                  className="btn-primary"
+                  style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                 >
+                  <span>{isLocal ? 'Open Local Tester View' : 'Open Public Tester View'}</span>
                   <ExternalLink size={12} />
-                  <span>Open in New Tab</span>
                 </a>
               </div>
             </div>
@@ -627,12 +707,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   Open your prototype and interact with it, or share it with testers. Their supported interactions will appear here after tracking is installed correctly.
                 </p>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => copyTrackerSnippet(true)} className="btn-primary">
+                  <button onClick={() => setShowShareModal(true)} className="btn-primary">
+                    <span>Share Testing Link</span>
+                  </button>
+                  <button onClick={() => copyTrackerSnippet(true)} className="btn-secondary">
                     <span>Copy Tracking Code</span>
                   </button>
-                  <a href={experiment.prototypeUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                    <span>Open Prototype</span>
-                  </a>
                 </div>
               </div>
             ) : (
@@ -693,6 +773,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                             FORM_START: 'Form Inputs Started',
                             FORM_SUBMIT: 'Forms Submitted',
                             SCROLL_DEPTH: 'Scroll Milestones',
+                            TIME_ON_PAGE: 'Time-on-Page Pulses',
                           };
                           const label = humanLabels[type] || type.replace('_', ' ');
                           return (
@@ -796,13 +877,24 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowFeedbackModal(true)}
-                className="btn-primary"
-                style={{ fontSize: '0.6875rem', padding: '8px 14px' }}
-              >
-                + Add Observation
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.6875rem', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <Share2 size={12} />
+                  <span>Invite Testers</span>
+                </button>
+
+                <button
+                  onClick={() => setShowFeedbackModal(true)}
+                  className="btn-primary"
+                  style={{ fontSize: '0.6875rem', padding: '8px 14px' }}
+                >
+                  + Add Observation
+                </button>
+              </div>
             </div>
 
             {feedbackNotice && (
@@ -915,6 +1007,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     blocker: 'Difficulty',
                     value: 'Usefulness',
                     suggestion: 'Suggestions',
+                    usability: 'Usability',
                     general: 'General Note',
                   };
                   const categoryDisplay = categoryNameMap[fb.category?.toLowerCase()] || fb.category?.toUpperCase() || 'GENERAL';
@@ -994,9 +1087,14 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', maxWidth: '480px', margin: '0 auto 20px auto', lineHeight: 1.5 }}>
                   Feedback will appear here when testers share their experience. You can also record your own observations.
                 </p>
-                <button onClick={() => setShowFeedbackModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
-                  Add First Observation
-                </button>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button onClick={() => setShowFeedbackModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                    Add First Observation
+                  </button>
+                  <button onClick={() => setShowShareModal(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                    Invite Testers
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1042,22 +1140,47 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* TAB 5: INSIGHTS & SUGGESTIONS */}
+        {/* TAB 5: INSIGHTS & SUGGESTIONS (AI VALIDATION ENGINE) */}
         {activeTab === 'insights' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            {/* A. Page Heading */}
-            <div style={{ maxWidth: '820px' }}>
-              <div className="eyebrow" style={{ marginBottom: '8px' }}>
-                <span className="eyebrow-dot" />
-                <span>UNDERSTAND YOUR RESULTS</span>
+            {/* A. Page Heading with Run AI Action */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+              <div style={{ maxWidth: '780px' }}>
+                <div className="eyebrow" style={{ marginBottom: '8px' }}>
+                  <span className="eyebrow-dot" />
+                  <span>UNDERSTAND YOUR RESULTS</span>
+                </div>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+                  Understand Your Results
+                </h2>
+                <p style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
+                  See what people do on your prototype, where they struggle, and what you can improve.
+                </p>
               </div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
-                Understand Your Results
-              </h2>
-              <p style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
-                See what people do on your prototype, where they struggle, and what you can improve.
-              </p>
+
+              <button
+                onClick={handleRunAIAnalysis}
+                disabled={runningAI}
+                className="btn-primary"
+                style={{ padding: '10px 18px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                {runningAI ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                <span>{runningAI ? 'Analyzing Evidence...' : 'Run AI Analysis'}</span>
+              </button>
             </div>
+
+            {/* AI Error Notice */}
+            {aiError && (
+              <div style={{ backgroundColor: '#18110b', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '14px 18px', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8125rem', color: 'var(--color-silver-200)' }}>
+                  <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
+                  <span>{aiError}</span>
+                </div>
+                <button onClick={handleRunAIAnalysis} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '5px 10px' }}>
+                  Retry Analysis
+                </button>
+              </div>
+            )}
 
             {/* B. Three Summary Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
@@ -1097,6 +1220,115 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </div>
               </div>
             </div>
+
+            {/* AI Synthesized Results (if run) */}
+            {aiResult && (
+              <div
+                style={{
+                  backgroundColor: '#0a0a0d',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  padding: '32px',
+                  borderRadius: '2px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '24px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+                  <div>
+                    <div className="eyebrow" style={{ marginBottom: '4px' }}>
+                      <span className="eyebrow-dot" />
+                      <span>AI EVIDENCE SYNTHESIS // {aiResult.provider.toUpperCase()}</span>
+                    </div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
+                      AI Analysis &amp; Directional Findings
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span className="badge badge-active">CONFIDENCE: {aiResult.confidence}</span>
+                    <span className="badge">RECOMMENDATION: {aiResult.suggestedOutcome}</span>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.9375rem', color: '#ffffff', lineHeight: 1.6 }}>
+                  {aiResult.summary}
+                </p>
+
+                {/* Say-vs-Do Signals Section */}
+                {aiResult.sayVsDoSignals && aiResult.sayVsDoSignals.length > 0 && (
+                  <div style={{ backgroundColor: '#13110a', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '20px', borderRadius: '2px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>
+                      POTENTIAL SAY-VS-DO SIGNAL
+                    </div>
+                    {aiResult.sayVsDoSignals.map((sig: any, idx: number) => (
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>
+                          {sig.title}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
+                          <strong>Stated Feedback:</strong> {sig.statedFeedback}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
+                          <strong>Observed Behavior:</strong> {sig.observedBehavior}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginTop: '4px' }}>
+                          <em>{sig.interpretation}</em>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Hypotheses & Recommendations Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                  {/* Hypotheses */}
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      WORKING HYPOTHESES (INTERPRETATIONS)
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {aiResult.hypotheses.map((hyp: any, i: number) => (
+                        <div key={i} style={{ backgroundColor: '#121215', padding: '14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
+                            {hyp.statement}
+                          </div>
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                            Basis: {hyp.basis}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                      RECOMMENDED NEXT ACTIONS
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {aiResult.recommendations.map((rec: any, i: number) => (
+                        <div key={i} style={{ backgroundColor: '#121215', padding: '14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
+                            {rec.action}
+                          </div>
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                            Rationale: {rec.rationale}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evidence Limitations */}
+                {aiResult.limitations && aiResult.limitations.length > 0 && (
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                    <strong>EVIDENCE LIMITATIONS: </strong> {aiResult.limitations.join(' | ')}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* C. Testing Progress Panel (When sample is too small) */}
             {!isSufficientEvidence && (
@@ -1152,12 +1384,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     These targets are guidelines for collecting initial evidence, not proof of statistical significance.
                   </span>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => copyTrackerSnippet(true)} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
-                      Copy Tracking Link
+                    <button onClick={copyTestUrl} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                      {copiedTestUrl ? 'Link Copied!' : 'Copy Test Link'}
                     </button>
-                    <a href={experiment.prototypeUrl} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                    <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
                       Share with More Testers
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1252,7 +1484,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     GENERAL SUGGESTION (NOT AN EXPERIMENT FINDING)
                   </div>
                   <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                    Because your experiment is still in the early stages with {visitorsCount} visitor(s), we do not have enough evidence to identify specific usability problems yet.
+                    Because your experiment is still in the early stages with ${visitorsCount} visitor(s), we do not have enough evidence to identify specific usability problems yet.
                   </p>
                   <div style={{ backgroundColor: '#121215', padding: '14px 18px', borderRadius: '2px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '4px' }}>
@@ -1645,6 +1877,214 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           </div>
         )}
       </main>
+
+      {/* Share Testing Link Modal */}
+      {showShareModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0a0a0d',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '3px',
+              padding: '32px',
+              maxWidth: '540px',
+              width: '100%',
+              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+              position: 'relative',
+            }}
+          >
+            <button
+              onClick={() => setShowShareModal(false)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-silver-300)',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="eyebrow" style={{ marginBottom: '6px' }}>
+              <span className="eyebrow-dot" />
+              <span>SHAREABLE TEST LINK</span>
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+              Invite Real Testers
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginBottom: '20px' }}>
+              Anyone with this link can test your prototype and submit feedback directly. No Wiqn account or login required.
+            </p>
+
+            {/* Environment Toggle if in Local Dev */}
+            {isLocal && (
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
+                    TARGET ENVIRONMENT
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: shareLinkMode === 'production' ? '#52c41a' : '#faad14' }}>
+                    {shareLinkMode === 'production' ? '● PRODUCTION (HTTPS)' : '● LOCALHOST'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShareLinkMode('production')}
+                    style={{
+                      flex: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      padding: '7px 12px',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      border: shareLinkMode === 'production' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
+                      backgroundColor: shareLinkMode === 'production' ? '#ffffff' : 'transparent',
+                      color: shareLinkMode === 'production' ? '#000000' : 'var(--color-silver-300)',
+                      fontWeight: shareLinkMode === 'production' ? 600 : 400,
+                    }}
+                  >
+                    PRODUCTION (wiqn.adyk.io)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShareLinkMode('local')}
+                    style={{
+                      flex: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      padding: '7px 12px',
+                      borderRadius: '2px',
+                      cursor: 'pointer',
+                      border: shareLinkMode === 'local' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
+                      backgroundColor: shareLinkMode === 'local' ? '#ffffff' : 'transparent',
+                      color: shareLinkMode === 'local' ? '#000000' : 'var(--color-silver-300)',
+                      fontWeight: shareLinkMode === 'local' ? 600 : 400,
+                    }}
+                  >
+                    LOCAL DEV (localhost)
+                  </button>
+                </div>
+                {shareLinkMode === 'local' && (
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
+                    Notice: This localhost URL only opens on this machine. Switch to PRODUCTION (wiqn.adyk.io) to share with external testers on other phones or computers.
+                  </p>
+                )}
+                {shareLinkMode === 'production' && (
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
+                    Production URL: Anyone with this link can test your prototype from any device across the internet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Test URL Box */}
+            <div
+              style={{
+                backgroundColor: '#121215',
+                padding: '12px 16px',
+                borderRadius: '2px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                color: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                overflowX: 'auto',
+              }}
+            >
+              <span style={{ wordBreak: 'break-all' }}>{publicTestUrl}</span>
+              <button
+                onClick={() => copyTestUrl(publicTestUrl)}
+                className="btn-ghost"
+                style={{ flexShrink: 0, marginLeft: '12px', fontSize: '0.6875rem', padding: '4px 8px' }}
+              >
+                {copiedTestUrl ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+
+            {/* One-Click Share Destinations */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+                SHARE DIRECTLY VIA:
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                <a
+                  href={shareUrls.whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                >
+                  WhatsApp
+                </a>
+
+                <a
+                  href={shareUrls.x}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                >
+                  X (Twitter)
+                </a>
+
+                <a
+                  href={shareUrls.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                >
+                  LinkedIn
+                </a>
+
+                <a
+                  href={shareUrls.email}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                >
+                  Email
+                </a>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
+                Attribution: Tied automatically to Experiment {experiment.id}
+              </span>
+              <a
+                href={publicTestUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+                style={{ fontSize: '0.6875rem', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              >
+                <span>Open Test View</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

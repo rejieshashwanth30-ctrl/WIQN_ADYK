@@ -45,6 +45,16 @@ export default function NewExperimentPage() {
         setError('Please provide your live prototype URL.');
         return;
       }
+      try {
+        const u = new URL(prototypeUrl.trim());
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+          setError('Prototype URL must start with http:// or https://');
+          return;
+        }
+      } catch {
+        setError('Please enter a valid website URL (e.g. https://myprototype.vercel.app)');
+        return;
+      }
     }
     setCurrentStep((prev) => Math.min(prev + 1, 4));
   };

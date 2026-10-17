@@ -189,13 +189,48 @@
     });
   }, { capture: true, passive: true });
 
-  // 4. Session Exit / Engagement Duration
+  // 4. Session Exit & Engagement Duration (Reliable multi-event measurement)
   const startTime = Date.now();
-  window.addEventListener('beforeunload', function () {
-    const duration = Math.round((Date.now() - startTime) / 1000);
+  let lastReportedDuration = 0;
+
+  function reportDuration(isFinal) {
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+    // Avoid spamming if elapsed hasn't changed noticeably (at least 3 seconds difference unless final)
+    if (!isFinal && elapsedSeconds - lastReportedDuration < 3) return;
+    lastReportedDuration = elapsedSeconds;
+
     sendEvent('TIME_ON_PAGE', {
-      durationSeconds: duration,
+      durationSeconds: elapsedSeconds,
+      isFinal: Boolean(isFinal),
+      metadata: { durationSeconds: elapsedSeconds, isFinal: Boolean(isFinal) },
     });
+  }
+
+  // Periodic heartbeat pulses (15s, 30s, 60s, 120s, 300s)
+  const pulseIntervals = [15, 30, 60, 120, 300];
+  pulseIntervals.forEach(function (sec) {
+    setTimeout(function () {
+      if (document.visibilityState !== 'hidden') {
+        reportDuration(false);
+      }
+    }, sec * 1000);
+  });
+
+  // Track on visibility change (tab hidden or switched away)
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      reportDuration(false);
+    }
+  });
+
+  // Track on page hide (recommended for mobile/modern browsers)
+  window.addEventListener('pagehide', function () {
+    reportDuration(true);
+  });
+
+  // Fallback for desktop window close
+  window.addEventListener('beforeunload', function () {
+    reportDuration(true);
   });
 
   // Expose global API for optional manual custom events

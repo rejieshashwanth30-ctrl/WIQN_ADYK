@@ -44,6 +44,28 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       }
     });
 
+    // Query sessions to incorporate real session durations
+    const sessions = await prisma.session.findMany({
+      where: { experimentId: experiment.id },
+      select: { durationSec: true, startedAt: true, endedAt: true },
+    });
+
+    let sessionTotalDur = 0;
+    let sessionDurCount = 0;
+    sessions.forEach((s) => {
+      let dur = s.durationSec;
+      if ((!dur || dur <= 0) && s.endedAt && s.startedAt) {
+        dur = Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 1000);
+      }
+      if (dur && dur > 0) {
+        sessionTotalDur += dur;
+        sessionDurCount++;
+      }
+    });
+
+    const finalTotalDuration = durationCount > 0 ? totalDurationSeconds : sessionTotalDur;
+    const finalDurationCount = durationCount > 0 ? durationCount : sessionDurCount;
+
     const topInteractions = Object.entries(clickedElements)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -55,7 +77,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
     const totalVisitors = experiment._count.visitors;
     const totalEvents = experiment._count.events;
-    const avgDuration = durationCount > 0 ? Math.round(totalDurationSeconds / durationCount) : 0;
+    const avgDuration = finalDurationCount > 0 ? Math.round(finalTotalDuration / finalDurationCount) : 0;
     const isSufficientEvidence = totalVisitors >= 5 && totalEvents >= 20;
 
     // Build what we know so far directly from measured records (No fabricated claims)
