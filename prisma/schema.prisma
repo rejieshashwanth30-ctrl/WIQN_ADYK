@@ -1,0 +1,280 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ExperimentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum TestingMode {
+  PRIVATE
+  CARDEX_ALPHA
+}
+
+enum DecisionOutcome {
+  BUILD
+  IMPROVE
+  PIVOT
+  STOP
+  TEST_AGAIN
+}
+
+enum InsightType {
+  FACT
+  HYPOTHESIS
+  RECOMMENDATION
+  LIMITATION
+}
+
+enum ConfidenceLevel {
+  VERY_LOW
+  LOW
+  MODERATE
+  HIGH
+  VERY_HIGH
+}
+
+enum EventType {
+  PAGE_VIEW
+  CLICK
+  SCROLL_DEPTH
+  FORM_START
+  FORM_SUBMIT
+  TIME_ON_PAGE
+  ENGAGEMENT_MILESTONE
+  EXIT
+  CUSTOM
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String?
+  passwordHash  String
+  organization  String?
+  role          String       @default("FOUNDER")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  projects      Project[]
+  sessions      AuthSession[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id           String    @id @default(cuid())
+  userId       String
+  token        String    @unique
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiments Experiment[]
+
+  @@map("projects")
+}
+
+model Experiment {
+  id                String            @id @default(cuid())
+  name              String
+  productName       String
+  problem           String            @db.Text
+  targetAudience    String            @db.Text
+  productIdea       String            @db.Text
+  keyHypothesis     String            @db.Text
+  learningGoal      String            @db.Text
+  prototypeUrl      String
+  testingMode       TestingMode       @default(PRIVATE)
+  status            ExperimentStatus  @default(DRAFT)
+  projectId         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  project           Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  prototypes        Prototype[]
+  visitors          Visitor[]
+  sessions          Session[]
+  events            ExperimentEvent[]
+  feedback          Feedback[]
+  insights          Insight[]
+  decisions         Decision[]
+  cardexPublication CardexPublication?
+
+  @@index([status])
+  @@index([testingMode])
+  @@map("experiments")
+}
+
+model Prototype {
+  id            String       @id @default(cuid())
+  experimentId  String
+  version       String       @default("1.0.0")
+  url           String
+  embedAllowed  Boolean      @default(true)
+  notes         String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@map("prototypes")
+}
+
+model Visitor {
+  id            String            @id @default(cuid())
+  experimentId  String
+  visitorId     String
+  firstSeenAt   DateTime          @default(now())
+  lastSeenAt    DateTime          @default(now())
+  deviceType    String?
+  browser       String?
+  os            String?
+  country       String?
+
+  experiment    Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  sessions      Session[]
+  events        ExperimentEvent[]
+  feedback      Feedback[]
+
+  @@unique([experimentId, visitorId])
+  @@map("visitors")
+}
+
+model Session {
+  id            String            @id @default(cuid())
+  sessionId     String            @unique
+  experimentId  String
+  visitorId     String
+  startedAt     DateTime          @default(now())
+  endedAt       DateTime?
+  durationSec   Int?
+  referrer      String?
+  utmSource     String?
+
+  experiment    Experiment        @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  visitor       Visitor           @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  events        ExperimentEvent[]
+
+  @@map("sessions")
+}
+
+model ExperimentEvent {
+  id            String       @id @default(cuid())
+  experimentId  String
+  sessionId     String
+  visitorId     String
+  eventType     EventType
+  element       String?
+  elementText   String?
+  page          String
+  referrer      String?
+  timestamp     DateTime     @default(now())
+  metadata      Json?
+
+  experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  session       Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  visitor       Visitor      @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId, eventType])
+  @@index([timestamp])
+  @@map("experiment_events")
+}
+
+model Feedback {
+  id            String             @id @default(cuid())
+  experimentId  String
+  visitorId     String?
+  prompt        String
+  category      String?
+  rating        Int?
+  comment       String?            @db.Text
+  createdAt     DateTime           @default(now())
+
+  experiment    Experiment         @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  visitor       Visitor?           @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  responses     FeedbackResponse[]
+
+  @@map("feedback")
+}
+
+model FeedbackResponse {
+  id            String       @id @default(cuid())
+  feedbackId    String
+  questionKey   String
+  answerValue   String       @db.Text
+  createdAt     DateTime     @default(now())
+
+  feedback      Feedback     @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@map("feedback_responses")
+}
+
+model Insight {
+  id            String           @id @default(cuid())
+  experimentId  String
+  type          InsightType
+  statement     String           @db.Text
+  evidence      String           @db.Text
+  confidence    ConfidenceLevel  @default(MODERATE)
+  limitations   String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  experiment    Experiment       @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId, type])
+  @@map("insights")
+}
+
+model Decision {
+  id                  String           @id @default(cuid())
+  experimentId        String
+  outcome             DecisionOutcome
+  evidenceSummary     String           @db.Text
+  reasoning           String           @db.Text
+  confidence          ConfidenceLevel  @default(MODERATE)
+  recommendedNextStep String           @db.Text
+  limitations         String?          @db.Text
+  decidedAt           DateTime         @default(now())
+
+  experiment          Experiment       @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@map("decisions")
+}
+
+model CardexPublication {
+  id            String       @id @default(cuid())
+  experimentId  String       @unique
+  publishedAt   DateTime     @default(now())
+  targetTesterCount Int      @default(50)
+  currentTesters Int         @default(0)
+  isActive      Boolean      @default(true)
+  notes         String?      @db.Text
+
+  experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@map("cardex_publications")
+}
