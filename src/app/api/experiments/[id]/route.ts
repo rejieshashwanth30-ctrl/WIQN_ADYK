@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     const avgDuration = durationCount > 0 ? Math.round(totalDurationSeconds / durationCount) : 0;
     const isSufficientEvidence = totalVisitors >= 5 && totalEvents >= 20;
 
-    // Build empirical facts directly from measured records (No fabricated AI claims)
+    // Build what we know so far directly from measured records (No fabricated claims)
     const empiricalFacts: Array<{
       id: string;
       title: string;
@@ -68,29 +68,63 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       limitations: string;
     }> = [];
 
-    if (totalEvents > 0) {
+    // 1. Visitor Activity Fact
+    if (totalVisitors === 0) {
       empiricalFacts.push({
         id: 'fact_volume',
-        title: 'Telemetry Event Volume',
-        statement: `Captured ${totalEvents} interaction event(s) across ${totalVisitors} unique visitor(s) and ${experiment._count.sessions} session(s).`,
-        evidence: `Directly measured via Wiqn Autocapture. Event distribution: ${Object.entries(eventBreakdown)
-          .map(([t, c]) => `${t}: ${c}`)
-          .join(', ')}.`,
-        confidence: totalVisitors >= 10 ? 'HIGH' : 'LOW',
-        limitations: totalVisitors < 10 ? `Preliminary sample (${totalVisitors} visitor(s)). High variance expected until sample size reaches at least 50 visitors.` : 'Sample reflects recruited alpha cohort.',
+        title: 'Visitor Activity So Far',
+        statement: 'No one has visited your prototype yet.',
+        evidence: '0 prototype visits recorded.',
+        confidence: 'HIGH',
+        limitations: 'Share your prototype link with testers or verify that the tracking code is added.',
       });
+    } else {
+      const visitorWord = totalVisitors === 1 ? '1 person' : `${totalVisitors} people`;
+      const actionWord = totalEvents === 1 ? '1 action' : `${totalEvents} actions`;
+      empiricalFacts.push({
+        id: 'fact_volume',
+        title: 'Visitor Activity So Far',
+        statement: `${visitorWord} visited your prototype and took ${actionWord}.`,
+        evidence: `Automatically tracked from real prototype visits (${Object.entries(eventBreakdown)
+          .map(([t, c]) => `${c} ${t.toLowerCase().replace('_', ' ')}`)
+          .join(', ')}).`,
+        confidence: totalVisitors >= 10 ? 'HIGH' : 'LOW',
+        limitations: totalVisitors < 5 ? `Early testing: Only ${totalVisitors} visitor(s) recorded so far. Share with more people to see clearer patterns.` : 'Initial testing cohort.',
+      });
+    }
 
-      if (topInteractions.length > 0) {
-        const top = topInteractions[0];
-        empiricalFacts.push({
-          id: 'fact_top_element',
-          title: 'Primary Interaction Focal Point',
-          statement: `The most triggered element is ${top.element}, accounting for ${top.count} event(s) (${top.percentage}% of all captured interactions).`,
-          evidence: `Telemetry event stream recorded ${top.count} discrete click triggers on this selector.`,
-          confidence: totalEvents >= 20 ? 'HIGH' : 'MODERATE',
-          limitations: 'Element position on mobile viewports has not been isolated from desktop.',
-        });
-      }
+    // 2. Most-Clicked Element Fact (if clicks exist)
+    if (topInteractions.length > 0) {
+      const top = topInteractions[0];
+      empiricalFacts.push({
+        id: 'fact_top_element',
+        title: 'Most-Clicked Element',
+        statement: `Visitors clicked on "${top.element}" ${top.count} time(s) (${top.percentage}% of all clicks).`,
+        evidence: `Real click events recorded on this button or link.`,
+        confidence: totalEvents >= 20 ? 'HIGH' : 'MODERATE',
+        limitations: 'A click shows curiosity or engagement, but does not guarantee satisfaction or purchase intent.',
+      });
+    }
+
+    // 3. Tester Feedback Fact
+    if (experiment._count.feedback === 0) {
+      empiricalFacts.push({
+        id: 'fact_feedback',
+        title: 'Tester Feedback So Far',
+        statement: 'No one has submitted feedback yet.',
+        evidence: '0 feedback submissions recorded.',
+        confidence: 'HIGH',
+        limitations: 'You can add your own testing observations or ask testers for their thoughts.',
+      });
+    } else {
+      empiricalFacts.push({
+        id: 'fact_feedback',
+        title: 'Tester Feedback So Far',
+        statement: `${experiment._count.feedback} feedback note(s) have been recorded.`,
+        evidence: `Saved in your tester feedback log.`,
+        confidence: 'HIGH',
+        limitations: 'Individual feedback notes highlight specific viewpoints and should be weighed alongside general activity.',
+      });
     }
 
     return NextResponse.json({

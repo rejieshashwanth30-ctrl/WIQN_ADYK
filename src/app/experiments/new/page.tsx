@@ -100,7 +100,7 @@ export default function NewExperimentPage() {
         <div style={{ marginBottom: '48px' }}>
           <div className="eyebrow" style={{ marginBottom: '8px' }}>
             <span className="eyebrow-dot" />
-            <span>EXPERIMENT SPECIFICATION ARCHITECTURE</span>
+            <span>NEW EXPERIMENT SETUP</span>
           </div>
 
           <h1
@@ -128,8 +128,8 @@ export default function NewExperimentPage() {
             }}
           >
             {[
-              { num: 1, label: 'FOUNDATION' },
-              { num: 2, label: 'THESIS' },
+              { num: 1, label: 'BASICS' },
+              { num: 2, label: 'YOUR IDEA' },
               { num: 3, label: 'PROTOTYPE' },
               { num: 4, label: 'REVIEW' },
             ].map((s) => (
@@ -292,10 +292,10 @@ export default function NewExperimentPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
               <div>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 600, color: 'var(--color-white)', marginBottom: '8px' }}>
-                  Validation Thesis
+                  Your Idea to Test
                 </h2>
                 <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
-                  State the core assumption you need to prove before engineering commits resources.
+                  State the core assumption you want to test before investing significant time or engineering resources.
                 </p>
               </div>
 
@@ -324,12 +324,12 @@ export default function NewExperimentPage() {
 
               <div>
                 <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
-                  Key Hypothesis * (Must be falsifiable)
+                  Your Idea to Test * (The assumption you want to check)
                 </label>
                 <textarea
                   value={keyHypothesis}
                   onChange={(e) => setKeyHypothesis(e.target.value)}
-                  placeholder="e.g. Non-custodial direct settlement will increase checkout completion by at least 25% compared to redirect gateways."
+                  placeholder="e.g. Visitors will click our primary CTA because they want direct settlement without extra redirects."
                   rows={3}
                   style={{
                     width: '100%',
@@ -514,7 +514,7 @@ export default function NewExperimentPage() {
                   <span style={{ color: '#ffffff' }}>{productName}</span>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--color-gray-500)' }}>HYPOTHESIS: </span>
+                  <span style={{ color: 'var(--color-gray-500)' }}>YOUR IDEA TO TEST: </span>
                   <span style={{ color: 'var(--color-silver-200)' }}>{keyHypothesis}</span>
                 </div>
                 <div>
@@ -572,7 +572,7 @@ export default function NewExperimentPage() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
               <Check size={16} />
-              <span>{submitting ? 'Initializing Workspace...' : 'Launch Experiment'}</span>
+              <span>{submitting ? 'Setting Up Experiment...' : 'Start Experiment'}</span>
             </button>
           )}
         </div>

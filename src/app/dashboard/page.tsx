@@ -82,7 +82,7 @@ export default function DashboardPage() {
           <div>
             <div className="eyebrow" style={{ marginBottom: '8px' }}>
               <span className="eyebrow-dot" />
-              <span>PRODUCT INTELLIGENCE WORKSPACE</span>
+              <span>PRODUCT EXPERIMENTS</span>
             </div>
             <h1
               style={{
@@ -94,7 +94,7 @@ export default function DashboardPage() {
                 color: 'var(--color-white)',
               }}
             >
-              Evidence Registry
+              My Experiments
             </h1>
             <p
               style={{
@@ -104,7 +104,7 @@ export default function DashboardPage() {
                 marginTop: '8px',
               }}
             >
-              Monitor live experiments, examine autocaptured telemetry, and commit defensible product decisions.
+              Track visitor actions on your prototypes, collect real tester feedback, and make confident decisions about what to build next.
             </p>
           </div>
 
@@ -117,7 +117,7 @@ export default function DashboardPage() {
                 style={{ fontSize: '0.75rem', padding: '10px 16px' }}
               >
                 <BookOpen size={14} />
-                <span>{creatingReference ? 'Creating in Neon...' : 'Load Reference Experiment'}</span>
+                <span>{creatingReference ? 'Creating in Neon...' : 'Load Example Experiment (Demo)'}</span>
               </button>
             )}
 
@@ -131,10 +131,10 @@ export default function DashboardPage() {
         {/* Empty State vs Real Neon Experiments */}
         {loading ? (
           <div style={{ padding: '80px 0', textAlign: 'center', color: 'var(--color-gray-500)', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-            QUERYING WORKSPACE STATE FROM NEON POSTGRESQL...
+            Loading your experiments...
           </div>
         ) : experiments.length === 0 ? (
-          /* Intentional Empty State (No fake metrics!) */
+          /* Plain-English Encouraging Empty State */
           <div
             style={{
               backgroundColor: '#0a0a0d',
@@ -173,7 +173,7 @@ export default function DashboardPage() {
                 marginBottom: '12px',
               }}
             >
-              STATUS: IDLE
+              GETTING STARTED
             </div>
 
             <h2
@@ -185,7 +185,7 @@ export default function DashboardPage() {
                 marginBottom: '16px',
               }}
             >
-              NO EXPERIMENTS YET
+              Start Your First Experiment
             </h2>
 
             <p
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 margin: '0 auto 36px auto',
               }}
             >
-              Start your first experiment and begin collecting evidence. Connect a live deployed URL and test your hypothesis against real user interaction.
+              Test your product idea with real visitors. Connect a link to your prototype or website, and see what people actually do.
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
                 className="btn-secondary"
                 style={{ padding: '12px 22px' }}
               >
-                <span>{creatingReference ? 'Creating in Neon...' : 'Inspect Reference Experiment'}</span>
+                <span>{creatingReference ? 'Creating in Neon...' : 'Load Example Experiment (Demo)'}</span>
               </button>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function DashboardPage() {
                           marginBottom: '24px',
                         }}
                       >
-                        <strong style={{ color: 'var(--color-silver-200)', fontWeight: 600 }}>Hypothesis: </strong>
+                        <strong style={{ color: 'var(--color-silver-200)', fontWeight: 600 }}>Your Idea to Test: </strong>
                         {exp.keyHypothesis}
                       </p>
                     </div>
@@ -331,14 +331,14 @@ export default function DashboardPage() {
                         </div>
 
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>EVENTS</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>ACTIONS</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 600, color: '#ffffff' }}>
                             {exp.metrics ? exp.metrics.interactionsCount : 0}
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>SIGNALS</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>FEEDBACK</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 600, color: '#ffffff' }}>
                             {exp.metrics ? exp.metrics.feedbackCount : 0}
                           </div>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                         className="btn-secondary"
                         style={{ width: '100%', justifyContent: 'space-between', padding: '10px 16px', fontSize: '0.75rem' }}
                       >
-                        <span>Open Research Workspace</span>
+                        <span>View Results &amp; Details</span>
                         <ArrowUpRight size={14} />
                       </Link>
                     </div>
@@ -386,19 +386,19 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '14px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      POSTGRESQL // NEONDB
+                      DATABASE STORAGE
                     </div>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--color-white)', marginTop: '2px' }}>
-                      Active experiments synchronized with schema &quot;wiqn&quot;
+                      All experiments and live visitor counts are saved securely.
                     </div>
                   </div>
 
                   <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '14px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      AUTHENTICATION // SUPABASE
+                      ACCOUNT ACCESS
                     </div>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                      Founder session validated via secure HTTP-only cookies
+                      Signed in and protected with secure authentication.
                     </div>
                   </div>
                 </div>
