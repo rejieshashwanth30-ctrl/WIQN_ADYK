@@ -116,20 +116,74 @@ export default function SignupPage() {
         {errorMessage && (
           <div
             style={{
-              backgroundColor: '#121215',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              padding: '14px 16px',
+              backgroundColor: '#0c0c0e',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              padding: '16px 18px',
               borderRadius: '2px',
               marginBottom: '20px',
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px',
+              flexDirection: 'column',
+              gap: '10px',
             }}
           >
-            <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
-              REGISTRATION ERROR: {errorMessage}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                REGISTRATION NOTICE: {errorMessage}
+              </div>
             </div>
+
+            {errorMessage.toLowerCase().includes('rate limit') && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  lineHeight: 1.6,
+                  color: 'var(--color-silver-300)',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  paddingTop: '10px',
+                  marginTop: '2px',
+                }}
+              >
+                <div style={{ fontWeight: 600, color: '#ffffff', marginBottom: '4px' }}>
+                  Why this happens & 10-Second Fix:
+                </div>
+                <p style={{ margin: '0 0 6px 0' }}>
+                  Supabase built-in mailer limits projects to 3–4 confirmation emails/hour. To enable instant registration without rate limits:
+                </p>
+                <ol style={{ margin: '0 0 8px 18px', padding: 0 }}>
+                  <li>Go to your <strong>Supabase Dashboard &rarr; Authentication &rarr; Providers &rarr; Email</strong></li>
+                  <li>Turn <strong>Confirm email</strong> to <strong>OFF</strong>, then click <strong>Save</strong></li>
+                </ol>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                  <a
+                    href="https://supabase.com/dashboard/project/_/auth/providers"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      color: '#ffffff',
+                      textDecoration: 'underline',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    Open Supabase Providers &rarr;
+                  </a>
+                  <Link
+                    href="/login"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      color: 'var(--color-silver-300)',
+                      textDecoration: 'underline',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    Already Registered? Sign In &rarr;
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
