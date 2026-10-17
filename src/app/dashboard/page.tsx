@@ -413,11 +413,16 @@ export default function DashboardPage() {
                   borderRadius: '2px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                  <Sparkles size={16} style={{ color: 'var(--color-silver-300)' }} />
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-silver-300)' }}>
-                    LATEST SYNTHESIZED INSIGHTS
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={16} style={{ color: 'var(--color-silver-300)' }} />
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-silver-300)' }}>
+                      SYNTHESIZED INSIGHTS
+                    </div>
                   </div>
+                  <span className="badge" style={{ fontSize: '0.5625rem' }}>
+                    BENCHMARK SPECIFICATION
+                  </span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -425,7 +430,7 @@ export default function DashboardPage() {
                     <div key={ins.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#ffffff', letterSpacing: '0.1em' }}>
-                          // {ins.type}
+                          // {ins.type} (SAMPLE MODEL)
                         </span>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
                           CONFIDENCE: {ins.confidence}

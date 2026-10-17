@@ -47,13 +47,78 @@
   const visitorId = getVisitorId();
   const sessionId = getSessionId();
 
-  // Helper to extract clean element description
+  // Strict privacy and sensitive data filters
+  const SENSITIVE_REGEX = /password|passwd|pass|pin|cvv|cvc|card|credit|pan|ssn|social|secret|token|auth|bearer|private|key/i;
+
+  function isSensitive(el) {
+    if (!el) return false;
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    if (type === 'password' || type === 'hidden') return true;
+
+    const name = el.getAttribute('name') || '';
+    const id = el.id || '';
+    const autocomplete = el.getAttribute('autocomplete') || '';
+    const ariaLabel = el.getAttribute('aria-label') || '';
+    const placeholder = el.getAttribute('placeholder') || '';
+    const dataPrivate = el.hasAttribute('data-private') || el.hasAttribute('data-wiqn-ignore');
+
+    if (dataPrivate) return true;
+    if (SENSITIVE_REGEX.test(name) || SENSITIVE_REGEX.test(id) || SENSITIVE_REGEX.test(autocomplete)) return true;
+    if (SENSITIVE_REGEX.test(ariaLabel) || SENSITIVE_REGEX.test(placeholder)) return true;
+    return false;
+  }
+
+  // Sanitize URLs to remove tokens or keys in query parameters
+  function sanitizeUrl(rawUrl) {
+    if (!rawUrl) return null;
+    try {
+      const u = new URL(rawUrl, window.location.origin);
+      const keysToDrop = [];
+      u.searchParams.forEach(function (_, key) {
+        if (SENSITIVE_REGEX.test(key)) {
+          keysToDrop.push(key);
+        }
+      });
+      keysToDrop.forEach(function (k) {
+        u.searchParams.set(k, '[REDACTED]');
+      });
+      return u.pathname + u.search;
+    } catch (e) {
+      return rawUrl.substring(0, 150);
+    }
+  }
+
+  // Helper to extract clean element description WITHOUT sensitive field values
   function describeElement(el) {
     if (!el || el === document.body) return null;
     const tag = el.tagName.toLowerCase();
     const id = el.id ? '#' + el.id : '';
     const className = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
-    const text = (el.innerText || el.textContent || el.value || '').trim().substring(0, 60);
+    
+    // Privacy safeguard: If element is sensitive, redact completely
+    if (isSensitive(el)) {
+      return {
+        selector: tag + id + className,
+        text: '[REDACTED]',
+        tag: tag,
+      };
+    }
+
+    // Never capture user input values from inputs or textareas
+    let text = '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      text = (el.getAttribute('placeholder') || el.getAttribute('aria-label') || el.name || '').trim();
+    } else {
+      text = (el.innerText || el.textContent || '').trim();
+    }
+
+    // Double check text does not contain password/key patterns
+    if (SENSITIVE_REGEX.test(text) && text.length > 20) {
+      text = '[REDACTED]';
+    } else {
+      text = text.substring(0, 60);
+    }
+
     return {
       selector: tag + id + className,
       text: text || undefined,
@@ -70,8 +135,8 @@
       sessionId: sessionId,
       eventType: eventType,
       timestamp: new Date().toISOString(),
-      page: window.location.pathname + window.location.search,
-      referrer: document.referrer || null,
+      page: sanitizeUrl(window.location.pathname + window.location.search),
+      referrer: sanitizeUrl(document.referrer),
       device: {
         width: window.innerWidth,
         height: window.innerHeight,
@@ -98,7 +163,7 @@
 
   // 1. Automatic Page View
   sendEvent('PAGE_VIEW', {
-    title: document.title,
+    title: document.title ? document.title.substring(0, 100) : undefined,
   });
 
   // 2. Automatic Click & Interaction Capture
@@ -109,7 +174,7 @@
       sendEvent('CLICK', {
         element: desc ? desc.selector : null,
         elementText: desc ? desc.text : null,
-        targetHref: target.getAttribute('href') || undefined,
+        targetHref: sanitizeUrl(target.getAttribute('href')) || undefined,
       });
     }
   }, { capture: true, passive: true });
@@ -119,7 +184,7 @@
     const form = e.target;
     sendEvent('FORM_SUBMIT', {
       element: describeElement(form)?.selector || 'form',
-      formAction: form.action || undefined,
+      formAction: sanitizeUrl(form.action) || undefined,
       formMethod: form.method || 'POST',
     });
   }, { capture: true, passive: true });
