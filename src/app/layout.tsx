@@ -17,14 +17,14 @@ export const metadata: Metadata = {
   authors: [{ name: 'ADYK' }],
   creator: 'ADYK — A Multi-Venture Technology Company',
   publisher: 'ADYK',
-  metadataBase: new URL('https://wiqn.adyk.io'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     title: 'ADYK Wiqn | From Idea to Evidence',
     description: 'Validate your product with real users, real behavior and real feedback before investing heavily in building it.',
-    url: 'https://wiqn.adyk.io',
+    url: process.env.NEXT_PUBLIC_APP_URL || '/',
     siteName: 'ADYK Wiqn',
     images: [
       {

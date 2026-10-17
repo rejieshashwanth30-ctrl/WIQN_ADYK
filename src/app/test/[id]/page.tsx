@@ -229,9 +229,9 @@ export default function PublicTestingPage({ params }: PageProps) {
           <p style={{ color: 'var(--color-silver-300)', fontSize: '0.9375rem', lineHeight: 1.6, marginBottom: '28px' }}>
             {errorStatus || 'This experiment is currently unavailable or has been concluded by the founder.'}
           </p>
-          <a href="https://adyk.io" className="btn-secondary" style={{ fontSize: '0.75rem', padding: '10px 18px' }}>
-            Learn More About ADYK
-          </a>
+          <Link href="/" className="btn-secondary" style={{ fontSize: '0.75rem', padding: '10px 18px' }}>
+            Return to Wiqn
+          </Link>
         </div>
       </div>
     );

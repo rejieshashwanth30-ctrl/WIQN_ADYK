@@ -24,9 +24,9 @@ async function testUrlGeneration() {
   // 1. Inspect source files
   console.log('--- TEST 1: CENTRALIZED HELPER INTEGRITY ---');
   const urlsCode = fs.readFileSync('src/lib/urls.ts', 'utf8');
-  assert(urlsCode.includes("PRODUCTION_DOMAIN = 'https://wiqn.adyk.io'"),
-    'Production domain accurately defined as https://wiqn.adyk.io',
-    'Guaranteed production fallback'
+  assert(!urlsCode.includes("PRODUCTION_DOMAIN = 'https://wiqn.adyk.io'"),
+    'No unowned adyk.io domain hardcoded in urls.ts',
+    'Unowned domain cleanly removed'
   );
   assert(urlsCode.includes("LOCAL_DEV_DOMAIN = 'http://localhost:3000'"),
     'Local development domain accurately defined as http://localhost:3000',
@@ -48,9 +48,13 @@ async function testUrlGeneration() {
   // 2. Check environment files
   console.log('\n--- TEST 2: ENVIRONMENT CONFIGURATION ---');
   const envContent = fs.readFileSync('.env', 'utf8');
-  assert(envContent.includes('NEXT_PUBLIC_APP_URL="https://wiqn.adyk.io"'),
-    '.env contains production NEXT_PUBLIC_APP_URL="https://wiqn.adyk.io"',
-    'Repository default is production HTTPS'
+  assert(!envContent.includes('NEXT_PUBLIC_APP_URL="https://wiqn.adyk.io"'),
+    '.env does not contain unowned wiqn.adyk.io domain',
+    'Configured with Vercel deployment URL'
+  );
+  assert(envContent.includes('NEXT_PUBLIC_APP_URL="https://'),
+    '.env contains production HTTPS deployment URL',
+    'Production Vercel deployment target configured'
   );
 
   const envLocalContent = fs.readFileSync('.env.local', 'utf8');
@@ -61,23 +65,25 @@ async function testUrlGeneration() {
 
   // 3. Test functional behavior of helper
   console.log('\n--- TEST 3: FUNCTIONAL URL GENERATION ---');
-  // Load TypeScript module using ts-node or compiled equivalent, or compile on the fly
   const testExpId = 'cmvcfqm2t0001b4nbzsullffy';
   const testProductName = 'ADYK Collab Platform';
 
-  // Simulate production environment
+  // Test dynamic Vercel resolution
+  const testVercelProjectUrl = 'https://wiqn-testing.vercel.app';
   process.env.NODE_ENV = 'production';
-  process.env.NEXT_PUBLIC_APP_URL = 'https://wiqn.adyk.io';
+  process.env.NEXT_PUBLIC_APP_URL = testVercelProjectUrl;
 
-  // We can test the exact logic in src/lib/urls.ts directly
-  function mockGetPublicAppUrl(options) {
-    if (options?.forceProduction) return 'https://wiqn.adyk.io';
-    if (process.env.NODE_ENV === 'development') return 'http://localhost:3000';
-    return process.env.NEXT_PUBLIC_APP_URL || 'https://wiqn.adyk.io';
+  function mockGetProductionAppUrl() {
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
+    if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io')) {
+      return envUrl;
+    }
+    return 'https://adyk-wiqn.vercel.app';
   }
 
   function mockGetTestUrl(expId, options) {
-    return `${mockGetPublicAppUrl(options)}/test/${expId}`;
+    if (options?.forceLocal) return `http://localhost:3000/test/${expId}`;
+    return `${mockGetProductionAppUrl()}/test/${expId}`;
   }
 
   function mockGetShareUrls(expId, prodName, options) {
@@ -97,31 +103,31 @@ async function testUrlGeneration() {
   }
 
   const prodShare = mockGetShareUrls(testExpId, testProductName, { forceProduction: true });
-  assert(prodShare.testUrl === `https://wiqn.adyk.io/test/${testExpId}`,
-    'Production test URL resolved to https://wiqn.adyk.io/test/[id]',
+  assert(prodShare.testUrl === `${testVercelProjectUrl}/test/${testExpId}`,
+    `Production test URL resolved to ${testVercelProjectUrl}/test/[id]`,
     prodShare.testUrl
   );
-  assert(prodShare.whatsapp.includes(encodeURIComponent(`https://wiqn.adyk.io/test/${testExpId}`)),
-    'WhatsApp share link encodes https://wiqn.adyk.io/test/[id]',
+  assert(prodShare.whatsapp.includes(encodeURIComponent(`${testVercelProjectUrl}/test/${testExpId}`)),
+    'WhatsApp share link encodes Vercel test URL',
     prodShare.whatsapp
   );
-  assert(prodShare.x.includes(encodeURIComponent(`https://wiqn.adyk.io/test/${testExpId}`)),
-    'X (Twitter) share link encodes https://wiqn.adyk.io/test/[id]',
+  assert(prodShare.x.includes(encodeURIComponent(`${testVercelProjectUrl}/test/${testExpId}`)),
+    'X (Twitter) share link encodes Vercel test URL',
     prodShare.x
   );
-  assert(prodShare.linkedin.includes(encodeURIComponent(`https://wiqn.adyk.io/test/${testExpId}`)),
-    'LinkedIn share link encodes https://wiqn.adyk.io/test/[id]',
+  assert(prodShare.linkedin.includes(encodeURIComponent(`${testVercelProjectUrl}/test/${testExpId}`)),
+    'LinkedIn share link encodes Vercel test URL',
     prodShare.linkedin
   );
-  assert(prodShare.email.includes(encodeURIComponent(`https://wiqn.adyk.io/test/${testExpId}`)),
-    'Email share link contains https://wiqn.adyk.io/test/[id]',
+  assert(prodShare.email.includes(encodeURIComponent(`${testVercelProjectUrl}/test/${testExpId}`)),
+    'Email share link contains Vercel test URL',
     prodShare.email
   );
 
   // Test local development fallback
   process.env.NODE_ENV = 'development';
   process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000';
-  const localShare = mockGetShareUrls(testExpId, testProductName, { forceProduction: false });
+  const localShare = mockGetShareUrls(testExpId, testProductName, { forceLocal: true });
   assert(localShare.testUrl === `http://localhost:3000/test/${testExpId}`,
     'Local development test URL resolved to http://localhost:3000/test/[id]',
     localShare.testUrl
@@ -133,6 +139,10 @@ async function testUrlGeneration() {
   assert(pageCode.includes("import { getPublicAppUrl, getTestUrl, getShareUrls, isLocalEnvironment, getProductionAppUrl } from '@/lib/urls';"),
     'Centralized URL helper imported in experiment detail page',
     'Clean single-source imports'
+  );
+  assert(!pageCode.includes('wiqn.adyk.io'),
+    'Page code contains zero references to wiqn.adyk.io',
+    'Unowned domain references completely eliminated'
   );
   assert(pageCode.includes('href={shareUrls.whatsapp}'),
     'WhatsApp button binds to shareUrls.whatsapp',
@@ -149,10 +159,6 @@ async function testUrlGeneration() {
   assert(pageCode.includes('href={shareUrls.email}'),
     'Email button binds to shareUrls.email',
     'Uses centralized URL'
-  );
-  assert(pageCode.includes('PRODUCTION (wiqn.adyk.io)'),
-    'Environment toggle allows 1-click switch to Production link in local dev',
-    'Founder can copy production link even while developing locally'
   );
 
   console.log('\n====================================================');

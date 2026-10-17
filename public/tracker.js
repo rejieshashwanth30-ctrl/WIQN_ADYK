@@ -4,7 +4,7 @@
  * 
  * Usage:
  * <script 
- *   src="https://wiqn.adyk.io/tracker.js" 
+ *   src="https://[WIQN-VERCEL-PROJECT].vercel.app/tracker.js" 
  *   data-experiment="YOUR_EXPERIMENT_ID" 
  *   data-endpoint="/api/capture"
  *   async>

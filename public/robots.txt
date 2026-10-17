@@ -1,10 +1,8 @@
 # ADYK Wiqn
-# https://wiqn.adyk.io
+# Production Web Application
 
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /dashboard/
 Disallow: /experiments/*/prototype/live
-
-Sitemap: https://wiqn.adyk.io/sitemap.xml

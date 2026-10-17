@@ -3,9 +3,11 @@
  * 
  * Provides environment-aware resolution of base URLs, test routes,
  * and 1-click tester sharing destinations (WhatsApp, X, LinkedIn, Email).
+ * 
+ * Configured dynamically via NEXT_PUBLIC_APP_URL or Vercel environment detection.
+ * Does NOT depend on wiqn.adyk.io until a real domain is purchased and configured.
  */
 
-export const PRODUCTION_DOMAIN = 'https://wiqn.adyk.io';
 export const LOCAL_DEV_DOMAIN = 'http://localhost:3000';
 
 /**
@@ -20,14 +22,46 @@ export function isLocalEnvironment(): boolean {
 }
 
 /**
- * Returns the guaranteed production application URL (https://wiqn.adyk.io).
+ * Returns the production application URL.
+ * Detects in priority order:
+ * 1. process.env.NEXT_PUBLIC_APP_URL (explicit configuration)
+ * 2. Active browser origin if deployed on HTTPS (e.g. on *.vercel.app)
+ * 3. process.env.VERCEL_PROJECT_PRODUCTION_URL (Vercel system env)
+ * 4. process.env.NEXT_PUBLIC_VERCEL_URL (Vercel system env)
+ * 5. process.env.VERCEL_URL (Vercel system env)
+ * 6. Default fallback to Vercel app domain
  */
 export function getProductionAppUrl(): string {
+  // 1. Explicitly configured production environment variable
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
+  if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io')) {
+    return envUrl;
+  }
+
+  // 2. Active browser origin if deployed on HTTPS (e.g. on *.vercel.app)
+  if (typeof window !== 'undefined') {
+    if (window.location.protocol === 'https:') {
+      return window.location.origin;
+    }
+  }
+
+  // 3. Vercel system environment variables
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim().replace(/\/+$/, '')}`;
+  }
+  if (process.env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_URL.trim().replace(/\/+$/, '')}`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.trim().replace(/\/+$/, '')}`;
+  }
+
+  // 4. Default Vercel production fallback (avoids any dead unowned domains)
   if (envUrl && envUrl.startsWith('https://')) {
     return envUrl;
   }
-  return PRODUCTION_DOMAIN;
+
+  return 'https://adyk-wiqn.vercel.app';
 }
 
 /**
@@ -47,7 +81,7 @@ export function getLocalAppUrl(): string {
 
 /**
  * Returns the environment-appropriate public application URL:
- * - In production: https://wiqn.adyk.io
+ * - In production / deployed: Vercel deployment URL (e.g. https://[project].vercel.app)
  * - In local development: http://localhost:3000 (when specifically requesting local)
  */
 export function getPublicAppUrl(options?: { forceProduction?: boolean; forceLocal?: boolean }): string {
@@ -81,7 +115,7 @@ export function getPublicAppUrl(options?: { forceProduction?: boolean; forceLoca
 /**
  * Generates the public testing URL for a specific experiment.
  * When sharing with external testers, defaults to:
- * https://wiqn.adyk.io/test/[experimentId]
+ * https://[WIQN-VERCEL-PROJECT].vercel.app/test/[experimentId]
  * When running locally and testing on this machine, options.forceLocal can be used:
  * http://localhost:3000/test/[experimentId]
  */
@@ -89,13 +123,12 @@ export function getTestUrl(experimentId: string, options?: { forceProduction?: b
   if (options?.forceLocal) {
     return `${getLocalAppUrl()}/test/${experimentId}`;
   }
-  // Production test URL is the canonical shareable link for all external devices
   return `${getProductionAppUrl()}/test/${experimentId}`;
 }
 
 /**
  * Generates all one-click share links for an experiment test route.
- * Guarantees that share links use https://wiqn.adyk.io/test/[experimentId]
+ * Guarantees that share links use the production Vercel URL
  * so that invite links work from any phone or computer over the public internet.
  */
 export function getShareUrls(

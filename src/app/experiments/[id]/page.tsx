@@ -84,7 +84,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const effectiveOrigin = snippetMode === 'production' ? prodOrigin : localOrigin;
   const currentSnippet = `<script src="${effectiveOrigin}/tracker.js" data-experiment="${experimentId}" data-endpoint="${effectiveOrigin}/api/capture" async></script>`;
 
-  // Centralized test and share URLs (defaults to https://wiqn.adyk.io/test/[id] for share links)
+  // Centralized test and share URLs (defaults to production Vercel deployment URL for share links)
   const shareUrls = getShareUrls(
     experimentId,
     experiment?.productName || experiment?.name || 'product prototype',
@@ -1959,7 +1959,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       fontWeight: shareLinkMode === 'production' ? 600 : 400,
                     }}
                   >
-                    PRODUCTION (wiqn.adyk.io)
+                    PRODUCTION (VERCEL / PUBLIC)
                   </button>
                   <button
                     type="button"
@@ -1982,12 +1982,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </div>
                 {shareLinkMode === 'local' && (
                   <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
-                    Notice: This localhost URL only opens on this machine. Switch to PRODUCTION (wiqn.adyk.io) to share with external testers on other phones or computers.
+                    Notice: This localhost URL only opens on this computer. Switch to PRODUCTION (VERCEL / PUBLIC) to share with external testers on other phones or computers.
                   </p>
                 )}
                 {shareLinkMode === 'production' && (
                   <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
-                    Production URL: Anyone with this link can test your prototype from any device across the internet.
+                    Production URL: Anyone with this link can test your prototype from any phone or computer across the internet.
                   </p>
                 )}
               </div>
