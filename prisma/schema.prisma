@@ -1,10 +1,12 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["wiqn"]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 enum ExperimentStatus {
@@ -13,11 +15,15 @@ enum ExperimentStatus {
   PAUSED
   COMPLETED
   ARCHIVED
+
+  @@schema("wiqn")
 }
 
 enum TestingMode {
   PRIVATE
   CARDEX_ALPHA
+
+  @@schema("wiqn")
 }
 
 enum DecisionOutcome {
@@ -26,6 +32,8 @@ enum DecisionOutcome {
   PIVOT
   STOP
   TEST_AGAIN
+
+  @@schema("wiqn")
 }
 
 enum InsightType {
@@ -33,6 +41,8 @@ enum InsightType {
   HYPOTHESIS
   RECOMMENDATION
   LIMITATION
+
+  @@schema("wiqn")
 }
 
 enum ConfidenceLevel {
@@ -41,6 +51,8 @@ enum ConfidenceLevel {
   MODERATE
   HIGH
   VERY_HIGH
+
+  @@schema("wiqn")
 }
 
 enum EventType {
@@ -53,34 +65,25 @@ enum EventType {
   ENGAGEMENT_MILESTONE
   EXIT
   CUSTOM
+
+  @@schema("wiqn")
 }
 
 model User {
-  id            String       @id @default(cuid())
-  email         String       @unique
-  name          String?
-  passwordHash  String
-  organization  String?
-  role          String       @default("FOUNDER")
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id              String        @id @default(cuid())
+  supabaseUserId  String        @unique
+  email           String        @unique
+  name            String?
+  organization    String?
+  role            String        @default("FOUNDER")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  projects      Project[]
-  sessions      AuthSession[]
+  projects        Project[]
+  experiments     Experiment[]
 
   @@map("users")
-}
-
-model AuthSession {
-  id           String    @id @default(cuid())
-  userId       String
-  token        String    @unique
-  expiresAt    DateTime
-  createdAt    DateTime  @default(now())
-
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("auth_sessions")
+  @@schema("wiqn")
 }
 
 model Project {
@@ -95,10 +98,12 @@ model Project {
   experiments Experiment[]
 
   @@map("projects")
+  @@schema("wiqn")
 }
 
 model Experiment {
   id                String            @id @default(cuid())
+  userId            String
   name              String
   productName       String
   problem           String            @db.Text
@@ -113,6 +118,7 @@ model Experiment {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   project           Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
   prototypes        Prototype[]
   visitors          Visitor[]
@@ -123,9 +129,11 @@ model Experiment {
   decisions         Decision[]
   cardexPublication CardexPublication?
 
+  @@index([userId])
   @@index([status])
   @@index([testingMode])
   @@map("experiments")
+  @@schema("wiqn")
 }
 
 model Prototype {
@@ -141,6 +149,7 @@ model Prototype {
   experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   @@map("prototypes")
+  @@schema("wiqn")
 }
 
 model Visitor {
@@ -161,6 +170,7 @@ model Visitor {
 
   @@unique([experimentId, visitorId])
   @@map("visitors")
+  @@schema("wiqn")
 }
 
 model Session {
@@ -179,6 +189,7 @@ model Session {
   events        ExperimentEvent[]
 
   @@map("sessions")
+  @@schema("wiqn")
 }
 
 model ExperimentEvent {
@@ -195,12 +206,13 @@ model ExperimentEvent {
   metadata      Json?
 
   experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
-  session       Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session       Session      @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
   visitor       Visitor      @relation(fields: [visitorId], references: [id], onDelete: Cascade)
 
   @@index([experimentId, eventType])
   @@index([timestamp])
   @@map("experiment_events")
+  @@schema("wiqn")
 }
 
 model Feedback {
@@ -218,6 +230,7 @@ model Feedback {
   responses     FeedbackResponse[]
 
   @@map("feedback")
+  @@schema("wiqn")
 }
 
 model FeedbackResponse {
@@ -230,6 +243,7 @@ model FeedbackResponse {
   feedback      Feedback     @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
 
   @@map("feedback_responses")
+  @@schema("wiqn")
 }
 
 model Insight {
@@ -247,6 +261,7 @@ model Insight {
 
   @@index([experimentId, type])
   @@map("insights")
+  @@schema("wiqn")
 }
 
 model Decision {
@@ -263,6 +278,7 @@ model Decision {
   experiment          Experiment       @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   @@map("decisions")
+  @@schema("wiqn")
 }
 
 model CardexPublication {
@@ -277,4 +293,5 @@ model CardexPublication {
   experiment    Experiment   @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   @@map("cardex_publications")
+  @@schema("wiqn")
 }

@@ -36,10 +36,39 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [selectedDecision, setSelectedDecision] = useState<DecisionOutcome>('IMPROVE');
   const [loading, setLoading] = useState(true);
 
+  const [authError, setAuthError] = useState<string | null>(null);
+
   useEffect(() => {
-    const data = getExperimentById(experimentId);
-    setExperiment(data);
-    setLoading(false);
+    async function loadExperiment() {
+      try {
+        setLoading(true);
+        setAuthError(null);
+        const res = await fetch(`/api/experiments/${experimentId}`);
+        if (res.status === 403) {
+          setAuthError('ACCESS RESTRICTED (403): This experiment belongs to another founder workspace. Insecure Direct Object References (IDOR) are strictly rejected.');
+          setExperiment(null);
+          return;
+        }
+
+        if (res.ok) {
+          const json = await res.json();
+          setExperiment(json.data);
+          return;
+        }
+
+        // Fallback for architectural reference experiment in development
+        const fallback = getExperimentById(experimentId);
+        setExperiment(fallback);
+      } catch (err: any) {
+        console.error('Error fetching experiment from Neon:', err);
+        const fallback = getExperimentById(experimentId);
+        setExperiment(fallback);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadExperiment();
   }, [experimentId]);
 
   const copyTrackerSnippet = () => {
@@ -54,7 +83,29 @@ export default function ExperimentDetailPage({ params }: PageProps) {
       <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#ffffff' }}>
         <DashboardNav />
         <div style={{ padding: '80px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
-          LOADING EXPERIMENT SPECIFICATION...
+          QUERYING EXPERIMENT SPECIFICATION FROM NEON POSTGRESQL...
+        </div>
+      </div>
+    );
+  }
+
+  if (authError) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#ffffff' }}>
+        <DashboardNav />
+        <div style={{ padding: '120px 24px', textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
+            AUTHORIZATION GATE // IDOR_REJECTED
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px' }}>
+            Resource Access Denied
+          </h1>
+          <p style={{ color: 'var(--color-silver-300)', fontSize: '0.9375rem', marginBottom: '28px', lineHeight: 1.6 }}>
+            {authError}
+          </p>
+          <Link href="/dashboard" className="btn-primary">
+            Return to Authorized Workspace
+          </Link>
         </div>
       </div>
     );
@@ -72,7 +123,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             Experiment Not Found
           </h1>
           <p style={{ color: 'var(--color-silver-300)', fontSize: '0.9375rem', marginBottom: '28px' }}>
-            No recorded experiment matches ID: <code style={{ color: '#ffffff' }}>{experimentId}</code>.
+            No recorded experiment matches ID: <code style={{ color: '#ffffff' }}>{experimentId}</code> in Neon database.
           </p>
           <Link href="/dashboard" className="btn-primary">
             Return to Dashboard

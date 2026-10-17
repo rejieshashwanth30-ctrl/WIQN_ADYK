@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { BrandLogo } from './BrandLogo';
-import { Plus, ArrowLeft, ExternalLink, Shield } from 'lucide-react';
+import { Plus, ExternalLink, LogOut } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 
 interface DashboardNavProps {
   currentExperimentId?: string;
@@ -16,10 +17,28 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
   currentExperimentName,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   const isDashboard = pathname === '/dashboard';
   const isNew = pathname === '/experiments/new';
   const isDetail = pathname.startsWith('/experiments/') && !isNew;
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) {
+        setUserEmail(user.email);
+      }
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.refresh();
+    router.push('/');
+  };
 
   return (
     <header
@@ -83,7 +102,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         </div>
 
         {/* Right: Actions & User Context */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <Link
             href="/"
             style={{
@@ -119,8 +138,8 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '6px 12px',
+              gap: '8px',
+              padding: '6px 10px',
               backgroundColor: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '2px',
@@ -128,8 +147,8 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
           >
             <div
               style={{
-                width: '20px',
-                height: '20px',
+                width: '18px',
+                height: '18px',
                 borderRadius: '50%',
                 backgroundColor: '#ffffff',
                 color: '#000000',
@@ -137,11 +156,11 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '0.625rem',
+                fontSize: '0.5625rem',
                 fontWeight: 700,
               }}
             >
-              F
+              {userEmail ? userEmail.charAt(0).toUpperCase() : 'F'}
             </div>
             <span
               style={{
@@ -149,11 +168,27 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
                 fontSize: '0.6875rem',
                 color: 'var(--color-silver-200)',
                 letterSpacing: '0.04em',
+                maxWidth: '140px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
+              title={userEmail || 'Authenticated Founder'}
             >
-              FOUNDER
+              {userEmail ? userEmail.split('@')[0] : 'FOUNDER'}
             </span>
           </div>
+
+          {/* Logout Action */}
+          <button
+            onClick={handleLogout}
+            className="btn-ghost"
+            style={{ padding: '6px 10px', fontSize: '0.6875rem' }}
+            title="Log out of Wiqn"
+          >
+            <LogOut size={13} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
     </header>

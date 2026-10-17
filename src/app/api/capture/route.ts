@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { EventType } from '@prisma/client';
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -9,6 +11,31 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, X-Wiqn-Key',
     },
   });
+}
+
+// Map client event strings to valid Prisma EventType enum values
+function normalizeEventType(rawType: string): EventType {
+  const upper = (rawType || '').toUpperCase();
+  switch (upper) {
+    case 'PAGE_VIEW':
+      return EventType.PAGE_VIEW;
+    case 'CLICK':
+      return EventType.CLICK;
+    case 'SCROLL_DEPTH':
+      return EventType.SCROLL_DEPTH;
+    case 'FORM_START':
+      return EventType.FORM_START;
+    case 'FORM_SUBMIT':
+      return EventType.FORM_SUBMIT;
+    case 'TIME_ON_PAGE':
+      return EventType.TIME_ON_PAGE;
+    case 'ENGAGEMENT_MILESTONE':
+      return EventType.ENGAGEMENT_MILESTONE;
+    case 'EXIT':
+      return EventType.EXIT;
+    default:
+      return EventType.CUSTOM;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -37,22 +64,87 @@ export async function POST(req: NextRequest) {
       timestamp,
       element,
       elementText,
+      referrer,
+      device,
     } = payload;
 
-    // Structured logging for telemetry observation
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[WIQN AUTOCAPTURE] [${eventType}] exp=${experimentId} vis=${visitorId} path=${page} el=${element || '-'}`);
+    if (!experimentId || !visitorId || !sessionId) {
+      return NextResponse.json(
+        { error: 'Missing mandatory tracking parameters (experimentId, visitorId, sessionId)' },
+        { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
     }
 
-    // In a live environment with DATABASE_URL set, events are persisted to PostgreSQL:
-    // await prisma.experimentEvent.create({ data: { ... } });
+    // 1. Validate that the experiment exists in Neon
+    const experiment = await prisma.experiment.findUnique({
+      where: { id: experimentId },
+    });
+
+    if (!experiment) {
+      return NextResponse.json(
+        { error: 'Experiment does not exist in registry' },
+        { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    // 2. Ensure anonymous visitor record exists in Neon
+    const visitor = await prisma.visitor.upsert({
+      where: {
+        experimentId_visitorId: {
+          experimentId: experiment.id,
+          visitorId: visitorId,
+        },
+      },
+      update: {
+        lastSeenAt: new Date(),
+        browser: device?.userAgent?.substring(0, 100),
+      },
+      create: {
+        experimentId: experiment.id,
+        visitorId: visitorId,
+        deviceType: device?.width && device.width < 768 ? 'mobile' : 'desktop',
+        browser: device?.userAgent?.substring(0, 100),
+      },
+    });
+
+    // 3. Ensure session record exists in Neon
+    await prisma.session.upsert({
+      where: { sessionId: sessionId },
+      update: {
+        endedAt: new Date(),
+      },
+      create: {
+        sessionId: sessionId,
+        experimentId: experiment.id,
+        visitorId: visitor.id,
+        startedAt: new Date(),
+        referrer: referrer || null,
+      },
+    });
+
+    // 4. Ingest telemetry event
+    const normalizedType = normalizeEventType(eventType);
+    const recordedEvent = await prisma.experimentEvent.create({
+      data: {
+        experimentId: experiment.id,
+        sessionId: sessionId,
+        visitorId: visitor.id,
+        eventType: normalizedType,
+        element: element || null,
+        elementText: elementText || null,
+        page: page || '/',
+        referrer: referrer || null,
+        timestamp: timestamp ? new Date(timestamp) : new Date(),
+        metadata: device ? { device } : undefined,
+      },
+    });
 
     return NextResponse.json(
       {
         received: true,
-        experimentId: experimentId || 'unknown',
-        eventType: eventType || 'UNKNOWN',
-        timestamp: timestamp || new Date().toISOString(),
+        eventId: recordedEvent.id,
+        experimentId: experiment.id,
+        eventType: normalizedType,
       },
       {
         status: 200,
@@ -63,10 +155,10 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('Error processing autocapture beacon:', error);
+    console.error('Error ingesting telemetry beacon into Neon:', error);
     return NextResponse.json(
-      { error: 'Invalid beacon payload' },
-      { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+      { error: 'Internal ingest error' },
+      { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
     );
   }
 }

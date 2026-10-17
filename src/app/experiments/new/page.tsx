@@ -54,34 +54,41 @@ export default function NewExperimentPage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     setSubmitting(true);
-    const id = `exp_${Date.now().toString(36)}`;
-    const newExp: Experiment = {
-      id,
-      name,
-      productName,
-      problem,
-      targetAudience,
-      productIdea,
-      keyHypothesis,
-      learningGoal,
-      prototypeUrl,
-      testingMode,
-      status,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      metrics: {
-        visitorsCount: 0,
-        sessionsCount: 0,
-        interactionsCount: 0,
-        feedbackCount: 0,
-        avgTimeOnPrototype: 0,
-      },
-    };
+    setError(null);
 
-    saveStoredExperiment(newExp);
-    router.push(`/experiments/${id}`);
+    try {
+      const res = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          productName: productName.trim(),
+          problem: problem.trim(),
+          targetAudience: targetAudience.trim(),
+          productIdea: productIdea.trim(),
+          keyHypothesis: keyHypothesis.trim(),
+          learningGoal: learningGoal.trim(),
+          prototypeUrl: prototypeUrl.trim(),
+          testingMode,
+          status,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Failed to persist experiment to Neon PostgreSQL');
+        setSubmitting(false);
+        return;
+      }
+
+      const json = await res.json();
+      router.push(`/experiments/${json.data.id}`);
+    } catch (err: any) {
+      setError(err?.message || 'Network error communicating with Neon database');
+      setSubmitting(false);
+    }
   };
 
   return (

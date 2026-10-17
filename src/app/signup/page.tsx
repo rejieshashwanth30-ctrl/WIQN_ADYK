@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -13,15 +14,53 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // In Phase 1: Simulate account creation and route to dashboard
-    setTimeout(() => {
-      sessionStorage.setItem('__wiqn_auth', 'true');
-      router.push('/dashboard');
-    }, 400);
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            name: name.trim(),
+            organization: org.trim() || undefined,
+          },
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setSubmitting(false);
+        return;
+      }
+
+      if (data?.session) {
+        // Active session established immediately
+        router.refresh();
+        router.push('/dashboard');
+      } else if (data?.user) {
+        // Confirmation email required by Supabase project settings
+        setSuccessNotice('Account created. Please check your email to confirm your account, then log in.');
+        setSubmitting(false);
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to complete registration.');
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -73,6 +112,46 @@ export default function SignupPage() {
             Provision a private research workspace for your ventures.
           </p>
         </div>
+
+        {errorMessage && (
+          <div
+            style={{
+              backgroundColor: '#121215',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              padding: '14px 16px',
+              borderRadius: '2px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}
+          >
+            <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
+              REGISTRATION ERROR: {errorMessage}
+            </div>
+          </div>
+        )}
+
+        {successNotice && (
+          <div
+            style={{
+              backgroundColor: '#0e1410',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              padding: '16px 20px',
+              borderRadius: '2px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+            }}
+          >
+            <CheckCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5 }}>
+              {successNotice}
+            </div>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
@@ -238,7 +317,7 @@ export default function SignupPage() {
               textAlign: 'center',
             }}
           >
-            DATA OWNERSHIP: STRICT FOUNDER ISOLATION
+            SUPABASE IDENTITY &bull; NEON APPLICATION DATA
           </div>
         </form>
 

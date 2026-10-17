@@ -3,23 +3,62 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { DashboardNav } from '@/components/DashboardNav';
-import { getStoredExperiments, saveStoredExperiment, REFERENCE_EXPERIMENT, REFERENCE_INSIGHTS } from '@/lib/storage';
+import { REFERENCE_EXPERIMENT, REFERENCE_INSIGHTS } from '@/lib/storage';
 import { Experiment } from '@/lib/types';
-import { Plus, ArrowUpRight, Activity, Layers, Sparkles, Shield, Compass, BookOpen, Clock } from 'lucide-react';
+import { Plus, ArrowUpRight, Compass, BookOpen, Clock, Sparkles } from 'lucide-react';
 
 export default function DashboardPage() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creatingReference, setCreatingReference] = useState(false);
+
+  const fetchExperiments = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/experiments');
+      if (res.ok) {
+        const json = await res.json();
+        setExperiments(json.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to query experiments from Neon:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const list = getStoredExperiments();
-    setExperiments(list);
-    setLoading(false);
+    fetchExperiments();
   }, []);
 
-  const handleLoadReference = () => {
-    saveStoredExperiment(REFERENCE_EXPERIMENT);
-    setExperiments([REFERENCE_EXPERIMENT]);
+  const handleLoadReference = async () => {
+    try {
+      setCreatingReference(true);
+      const res = await fetch('/api/experiments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: REFERENCE_EXPERIMENT.name,
+          productName: REFERENCE_EXPERIMENT.productName,
+          problem: REFERENCE_EXPERIMENT.problem,
+          targetAudience: REFERENCE_EXPERIMENT.targetAudience,
+          productIdea: REFERENCE_EXPERIMENT.productIdea,
+          keyHypothesis: REFERENCE_EXPERIMENT.keyHypothesis,
+          learningGoal: REFERENCE_EXPERIMENT.learningGoal,
+          prototypeUrl: REFERENCE_EXPERIMENT.prototypeUrl,
+          testingMode: REFERENCE_EXPERIMENT.testingMode,
+          status: 'ACTIVE',
+        }),
+      });
+
+      if (res.ok) {
+        await fetchExperiments();
+      }
+    } catch (err) {
+      console.error('Failed to create reference experiment in Neon:', err);
+    } finally {
+      setCreatingReference(false);
+    }
   };
 
   return (
@@ -73,11 +112,12 @@ export default function DashboardPage() {
             {experiments.length === 0 && (
               <button
                 onClick={handleLoadReference}
+                disabled={creatingReference}
                 className="btn-secondary"
                 style={{ fontSize: '0.75rem', padding: '10px 16px' }}
               >
                 <BookOpen size={14} />
-                <span>Load Reference Experiment</span>
+                <span>{creatingReference ? 'Creating in Neon...' : 'Load Reference Experiment'}</span>
               </button>
             )}
 
@@ -88,10 +128,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Empty State vs Real Experiments */}
+        {/* Empty State vs Real Neon Experiments */}
         {loading ? (
           <div style={{ padding: '80px 0', textAlign: 'center', color: 'var(--color-gray-500)', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-            QUERYING WORKSPACE STATE...
+            QUERYING WORKSPACE STATE FROM NEON POSTGRESQL...
           </div>
         ) : experiments.length === 0 ? (
           /* Intentional Empty State (No fake metrics!) */
@@ -168,8 +208,13 @@ export default function DashboardPage() {
                 <span>Start New Experiment</span>
               </Link>
 
-              <button onClick={handleLoadReference} className="btn-secondary" style={{ padding: '12px 22px' }}>
-                <span>Inspect Reference Experiment</span>
+              <button
+                onClick={handleLoadReference}
+                disabled={creatingReference}
+                className="btn-secondary"
+                style={{ padding: '12px 22px' }}
+              >
+                <span>{creatingReference ? 'Creating in Neon...' : 'Inspect Reference Experiment'}</span>
               </button>
             </div>
           </div>
@@ -266,7 +311,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    {/* Metrics Footer (Real counts, not fake) */}
+                    {/* Metrics Footer (Real counts from Neon PostgreSQL) */}
                     <div>
                       <div
                         style={{
@@ -341,28 +386,19 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '14px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      TODAY 10:15 UTC
+                      POSTGRESQL // NEONDB
                     </div>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--color-white)', marginTop: '2px' }}>
-                      Telemetry beacon cluster ingested from Cardex Alpha testers
+                      Active experiments synchronized with schema &quot;wiqn&quot;
                     </div>
                   </div>
 
                   <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '14px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      YESTERDAY 18:40 UTC
+                      AUTHENTICATION // SUPABASE
                     </div>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                      Structured friction observation captured on modal checkout
-                    </div>
-                  </div>
-
-                  <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '14px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      2 DAYS AGO
-                    </div>
-                    <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                      Experiment prototype connected: SovereignPay SDK
+                      Founder session validated via secure HTTP-only cookies
                     </div>
                   </div>
                 </div>
