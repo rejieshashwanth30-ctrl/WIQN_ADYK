@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const auth = await getCurrentUser();
+    const auth = await getCurrentUser(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
     }
@@ -98,7 +98,7 @@ function isValidPrototypeUrl(url: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await getCurrentUser();
+    const auth = await getCurrentUser(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
     }
@@ -131,10 +131,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Securely associate with the authenticated application user ID (never trusted from body)
+    // Ensure the application user record exists in Neon PostgreSQL before creating experiment
+    let targetUserId = auth.applicationUser.id;
+    const existingDbUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!existingDbUser) {
+      const ensuredUser = await prisma.user.upsert({
+        where: { supabaseUserId: auth.supabaseUser.id },
+        update: {
+          email: auth.supabaseUser.email || 'founder@wiqn.app',
+        },
+        create: {
+          supabaseUserId: auth.supabaseUser.id,
+          email: auth.supabaseUser.email || 'founder@wiqn.app',
+          name: auth.applicationUser.name,
+          organization: auth.applicationUser.organization,
+          role: 'FOUNDER',
+        },
+      });
+      targetUserId = ensuredUser.id;
+    }
+
+    // Securely associate with the authenticated application user ID
     const newExperiment = await prisma.experiment.create({
       data: {
-        userId: auth.applicationUser.id,
+        userId: targetUserId,
         name: name.trim(),
         productName: productName.trim(),
         problem: (problem || '').trim(),

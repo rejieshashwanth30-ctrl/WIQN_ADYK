@@ -9,7 +9,7 @@ interface RouteContext {
 
 export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
-    const auth = await getCurrentUser();
+    const auth = await getCurrentUser(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
     }

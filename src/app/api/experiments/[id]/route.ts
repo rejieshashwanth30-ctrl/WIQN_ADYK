@@ -8,7 +8,7 @@ interface RouteContext {
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
-    const auth = await getCurrentUser();
+    const auth = await getCurrentUser(req);
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
     }
