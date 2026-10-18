@@ -4,18 +4,26 @@ import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams?.get('redirect') || '/dashboard';
+  const isVerified = searchParams?.get('verified') === 'true';
+  const rawError = searchParams?.get('error');
+
+  const initialError = rawError
+    ? rawError === 'auth_exchange_failed'
+      ? 'The verification link has expired or has already been used. Please sign in with your password.'
+      : decodeURIComponent(rawError)
+    : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +81,51 @@ function LoginForm() {
         </p>
       </div>
 
+      {/* Email Verification Success Notification */}
+      {isVerified && (
+        <div
+          style={{
+            backgroundColor: '#0c1610',
+            border: '1px solid rgba(34, 197, 94, 0.45)',
+            padding: '16px 18px',
+            borderRadius: '2px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            boxShadow: '0 0 20px rgba(34, 197, 94, 0.08)',
+          }}
+        >
+          <CheckCircle size={18} style={{ color: '#22c55e', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                color: '#ffffff',
+                marginBottom: '4px',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Email verified successfully.
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-primary)',
+                fontSize: '0.8125rem',
+                color: 'var(--color-silver-300)',
+                lineHeight: 1.5,
+              }}
+            >
+              Your Wiqn account is ready. Sign in to continue.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error Notification */}
-      {errorMessage && (
+      {errorMessage && !isVerified && (
         <div
           style={{
             backgroundColor: '#121215',
