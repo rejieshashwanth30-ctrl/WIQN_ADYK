@@ -10,23 +10,18 @@ export const Footer: React.FC = () => {
       style={{
         borderTop: '1px solid var(--border-subtle)',
         backgroundColor: '#030304',
-        padding: '100px 0 60px 0',
+        padding: '80px 0 48px 0',
         position: 'relative',
       }}
     >
       <div className="container">
         {/* Top Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '64px',
-            marginBottom: '80px',
-          }}
-        >
+        <div className="footer-grid">
           {/* Brand Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <BrandLogo size={36} showWordmark={true} wordmarkVariant="default" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <Link href="/" aria-label="ADYK Wiqn Homepage">
+              <BrandLogo size={32} showWordmark={true} wordmarkVariant="default" />
+            </Link>
             
             <p
               style={{
@@ -57,7 +52,7 @@ export const Footer: React.FC = () => {
 
           {/* Navigation Columns */}
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '16px' }}>
               Platform
             </div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
@@ -70,7 +65,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '16px' }}>
               Execution
             </div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
@@ -82,7 +77,7 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.18em', color: 'var(--color-white)', textTransform: 'uppercase', marginBottom: '16px' }}>
               Philosophy
             </div>
             <div
@@ -108,25 +103,11 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Legal & Identity */}
-        <div
-          style={{
-            borderTop: '1px solid var(--border-subtle)',
-            paddingTop: '32px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '16px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.6875rem',
-            color: 'var(--color-gray-500)',
-            letterSpacing: '0.06em',
-          }}
-        >
+        <div className="footer-bottom">
           <div>
             © {new Date().getFullYear()} ADYK WIQN. ALL RIGHTS RESERVED.
           </div>
-          <div style={{ display: 'flex', gap: '24px' }}>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             <span>PRIVACY ARCHITECTURE</span>
             <span>DATA PROVENANCE</span>
             <span>SYSTEM STATUS: NORMAL</span>

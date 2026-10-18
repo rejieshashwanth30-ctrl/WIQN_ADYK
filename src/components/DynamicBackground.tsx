@@ -157,14 +157,15 @@ export const DynamicBackground: React.FC<DynamicBackgroundProps> = ({ currentSta
       <div
         style={{
           position: 'fixed',
-          bottom: '16px',
-          left: '20px',
+          bottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
+          left: 'max(16px, env(safe-area-inset-left, 16px))',
           fontFamily: 'var(--font-mono)',
           fontSize: '0.625rem',
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
           color: 'rgba(255, 255, 255, 0.22)',
           zIndex: 10,
+          pointerEvents: 'none',
         }}
       >
         STATE // {activeState.toUpperCase()}

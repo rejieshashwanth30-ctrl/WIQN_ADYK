@@ -57,10 +57,10 @@ const CHAPTERS = [
 
 export const ScrollStory: React.FC = () => {
   return (
-    <section id="story" style={{ position: 'relative', padding: '160px 0', borderTop: '1px solid var(--border-subtle)' }}>
+    <section id="story" className="section-responsive">
       <div className="container-editorial">
         {/* Story Prelude */}
-        <div style={{ textAlign: 'center', marginBottom: '140px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <div className="eyebrow" style={{ justifyContent: 'center' }}>
             <span className="eyebrow-dot" />
             <span>THE EVIDENCE CHRONICLE</span>
@@ -68,7 +68,7 @@ export const ScrollStory: React.FC = () => {
           <h2
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.4rem, 5vw, 4rem)',
+              fontSize: 'clamp(1.75rem, 5vw, 4rem)',
               fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.05,
@@ -82,16 +82,9 @@ export const ScrollStory: React.FC = () => {
         </div>
 
         {/* Chapters Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '120px', position: 'relative' }}>
+        <div className="timeline-container">
           {CHAPTERS.map((item) => (
-            <div
-              key={item.num}
-              style={{
-                position: 'relative',
-                paddingLeft: '36px',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.12)',
-              }}
-            >
+            <div key={item.num} className="timeline-item">
               <div
                 style={{
                   position: 'absolute',
@@ -107,10 +100,10 @@ export const ScrollStory: React.FC = () => {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.6875rem',
                   letterSpacing: '0.22em',
                   color: 'var(--color-silver-300)',
-                  marginBottom: '14px',
+                  marginBottom: '12px',
                   textTransform: 'uppercase',
                 }}
               >
@@ -120,12 +113,12 @@ export const ScrollStory: React.FC = () => {
               <blockquote
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(1.5rem, 3.2vw, 2.4rem)',
+                  fontSize: 'clamp(1.25rem, 3.5vw, 2.4rem)',
                   fontWeight: 600,
                   letterSpacing: '-0.01em',
                   lineHeight: 1.25,
                   color: 'var(--color-white)',
-                  marginBottom: '16px',
+                  marginBottom: '14px',
                 }}
               >
                 &ldquo;{item.quote}&rdquo;
@@ -134,7 +127,7 @@ export const ScrollStory: React.FC = () => {
               <p
                 style={{
                   fontFamily: 'var(--font-primary)',
-                  fontSize: '1.0625rem',
+                  fontSize: 'clamp(0.875rem, 2.5vw, 1.0625rem)',
                   color: 'var(--color-silver-300)',
                   lineHeight: 1.7,
                   maxWidth: '680px',
@@ -146,19 +139,8 @@ export const ScrollStory: React.FC = () => {
           ))}
 
           {/* Section 9: Final Story Climax & CTA */}
-          <div
-            style={{
-              position: 'relative',
-              padding: '80px 48px',
-              backgroundColor: '#0a0a0d',
-              border: '1px solid rgba(255, 255, 255, 0.22)',
-              boxShadow: '0 0 60px rgba(255, 255, 255, 0.04)',
-              textAlign: 'center',
-              marginTop: '40px',
-              borderRadius: '2px',
-            }}
-          >
-            <div className="eyebrow" style={{ justifyContent: 'center', marginBottom: '20px' }}>
+          <div className="timeline-cta-card card-responsive">
+            <div className="eyebrow" style={{ justifyContent: 'center', marginBottom: '16px' }}>
               <span className="eyebrow-dot" />
               <span>SECTION 09 // CONCLUSION</span>
             </div>
@@ -166,12 +148,12 @@ export const ScrollStory: React.FC = () => {
             <h3
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
+                fontSize: 'clamp(1.85rem, 6vw, 4.5rem)',
                 fontWeight: 700,
                 letterSpacing: '-0.03em',
                 lineHeight: 1,
                 color: 'var(--color-white)',
-                marginBottom: '20px',
+                marginBottom: '18px',
               }}
             >
               DON&apos;T JUST BUILD.
@@ -184,17 +166,17 @@ export const ScrollStory: React.FC = () => {
             <p
               style={{
                 fontFamily: 'var(--font-primary)',
-                fontSize: '1.125rem',
+                fontSize: 'clamp(0.9375rem, 3vw, 1.125rem)',
                 color: 'var(--color-silver-300)',
                 maxWidth: '620px',
-                margin: '0 auto 40px auto',
+                margin: '0 auto 36px auto',
                 lineHeight: 1.6,
               }}
             >
               Stop committing precious engineering capital on unproven assumptions. Move from uncertainty to defensible evidence today.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
               <Link href="/experiments/new" className="btn-primary">
                 <span>Start An Experiment</span>
                 <ArrowUpRight size={16} />
@@ -206,7 +188,7 @@ export const ScrollStory: React.FC = () => {
 
             <div
               style={{
-                marginTop: '48px',
+                marginTop: '36px',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.6875rem',
                 letterSpacing: '0.2em',

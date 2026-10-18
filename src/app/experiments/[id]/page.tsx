@@ -317,20 +317,11 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: 'var(--color-off-white)' }}>
       <DashboardNav currentExperimentId={experiment.id} currentExperimentName={experiment.name} />
 
-      <main style={{ padding: '36px 24px 80px 24px', maxWidth: '1320px', margin: '0 auto' }}>
+      <main className="dash-main-container" style={{ maxWidth: '1320px', margin: '0 auto' }}>
         {/* Workspace Title Bar */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-            gap: '24px',
-            marginBottom: '32px',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <div className="dash-welcome-header" style={{ marginBottom: '24px' }}>
+          <div className="dash-welcome-text">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
               <span className={`badge ${experiment.status === 'ACTIVE' ? 'badge-active' : ''}`}>
                 {experiment.status === 'ACTIVE' ? 'ACTIVE TEST' : experiment.status}
               </span>
@@ -342,16 +333,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </span>
             </div>
 
-            <h1
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(1.75rem, 3vw, 2.5rem)',
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.15,
-                color: 'var(--color-white)',
-              }}
-            >
+            <h1 className="dash-title">
               {experiment.name}
             </h1>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '6px' }}>
@@ -360,7 +342,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           </div>
 
           {/* Quick Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div className="dash-header-actions">
             <button
               onClick={() => setShowShareModal(true)}
               className="btn-primary"

@@ -16,25 +16,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 }) => {
   return (
     <div
-      className={`brand-mark-container ${className}`}
+      className={`brand-logo-root ${className}`}
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
         gap: size > 40 ? '16px' : '10px',
-        userSelect: 'none',
+        ['--logo-mark-size' as any]: `${size}px`,
       }}
     >
       {/* Official ADYK / Wiqn geometric brand mark */}
       <div
+        className="brand-mark-box"
         style={{
           width: size,
           height: size,
-          position: 'relative',
-          flexShrink: 0,
           borderRadius: size > 48 ? '4px' : '2px',
-          overflow: 'hidden',
-          backgroundColor: '#000000',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
         <Image
@@ -53,9 +47,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       </div>
 
       {showWordmark && (
-        <div style={{ display: 'flex', flexDirection: wordmarkVariant === 'stacked' ? 'column' : 'row', alignItems: wordmarkVariant === 'stacked' ? 'flex-start' : 'center', gap: wordmarkVariant === 'stacked' ? '0px' : '8px', lineHeight: 1.1 }}>
+        <div
+          className={wordmarkVariant === 'default' ? 'brand-wordmark-default' : ''}
+          style={{
+            display: 'flex',
+            flexDirection: wordmarkVariant === 'stacked' ? 'column' : 'row',
+            alignItems: wordmarkVariant === 'stacked' ? 'flex-start' : 'center',
+            gap: wordmarkVariant === 'stacked' ? '0px' : '8px',
+            lineHeight: 1.1,
+          }}
+        >
           {wordmarkVariant === 'wiqn-only' ? (
             <span
+              className="brand-wordmark-wiqn"
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
@@ -69,6 +73,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           ) : wordmarkVariant === 'stacked' ? (
             <>
               <span
+                className="brand-wordmark-adyk"
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 500,
@@ -80,6 +85,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 ADYK
               </span>
               <span
+                className="brand-wordmark-wiqn"
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,
@@ -94,6 +100,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           ) : (
             <>
               <span
+                className="brand-wordmark-adyk"
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 500,
@@ -105,6 +112,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 ADYK
               </span>
               <span
+                className="brand-wordmark-divider"
                 style={{
                   color: 'rgba(255,255,255,0.25)',
                   fontSize: '0.75rem',
@@ -113,6 +121,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 /
               </span>
               <span
+                className="brand-wordmark-wiqn"
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 700,

@@ -1,15 +1,14 @@
 'use client';
 
 import React from 'react';
-import { ShieldCheck, Globe, Users, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { ShieldCheck, Globe } from 'lucide-react';
 
 export const CardexSection: React.FC = () => {
   return (
-    <section id="cardex" style={{ position: 'relative', padding: '140px 0', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#070709' }}>
+    <section id="cardex" className="section-responsive" style={{ backgroundColor: '#070709' }}>
       <div className="container">
         {/* Header */}
-        <div style={{ maxWidth: '820px', marginBottom: '80px' }}>
+        <div style={{ maxWidth: '820px', marginBottom: '48px' }}>
           <div className="eyebrow">
             <span className="eyebrow-dot" />
             <span>COMMUNITY ECOSYSTEM</span>
@@ -21,7 +20,7 @@ export const CardexSection: React.FC = () => {
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
               color: 'var(--color-silver-300)',
-              marginBottom: '12px',
+              marginBottom: '10px',
             }}
           >
             ADYK CARDEX // ALPHA NETWORK
@@ -29,12 +28,12 @@ export const CardexSection: React.FC = () => {
           <h2
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.4rem, 5vw, 3.75rem)',
+              fontSize: 'clamp(1.75rem, 4.5vw, 3.5rem)',
               fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.05,
               color: 'var(--color-white)',
-              marginBottom: '24px',
+              marginBottom: '18px',
             }}
           >
             NEED REAL TESTERS?
@@ -42,7 +41,7 @@ export const CardexSection: React.FC = () => {
           <p
             style={{
               fontFamily: 'var(--font-primary)',
-              fontSize: '1.125rem',
+              fontSize: 'clamp(0.9375rem, 3.2vw, 1.125rem)',
               color: 'var(--color-silver-300)',
               lineHeight: 1.6,
             }}
@@ -53,42 +52,33 @@ export const CardexSection: React.FC = () => {
 
         {/* Ecosystem Flow Diagram */}
         <div
+          className="card-responsive"
           style={{
             backgroundColor: '#0a0a0d',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '36px',
-            marginBottom: '64px',
-            borderRadius: '2px',
+            marginBottom: '48px',
           }}
         >
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.18em', color: 'var(--color-gray-500)', marginBottom: '20px' }}>
             ECOSYSTEM VALUE CHAIN
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}
-          >
-            <div style={{ textAlign: 'center', flex: 1, minWidth: '140px' }}>
+          <div className="cardex-flow-container">
+            <div className="cardex-flow-step">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>CARDEX</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>Curated Builder Pool</div>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.2)' }}>→</div>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: '140px' }}>
+            <div className="cardex-flow-arrow">→</div>
+            <div className="cardex-flow-step">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>TESTERS</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>Genuine Early Adopters</div>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.2)' }}>→</div>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: '140px' }}>
+            <div className="cardex-flow-arrow">→</div>
+            <div className="cardex-flow-step">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>WIQN</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>Autocapture & Synthesis</div>
             </div>
-            <div style={{ color: 'rgba(255, 255, 255, 0.2)' }}>→</div>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: '140px' }}>
+            <div className="cardex-flow-arrow">→</div>
+            <div className="cardex-flow-step">
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>EVIDENCE</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>Defensible Truth</div>
             </div>
@@ -96,20 +86,13 @@ export const CardexSection: React.FC = () => {
         </div>
 
         {/* Two Strict Modes: Private vs Cardex Alpha */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '32px',
-          }}
-        >
+        <div className="grid-2col-responsive">
           {/* Private Testing Card */}
           <div
+            className="card-responsive"
             style={{
-              backgroundColor: '#0a0a0c',
+              backgroundColor: '#0a0a0d',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '44px 36px',
-              borderRadius: '2px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -125,10 +108,10 @@ export const CardexSection: React.FC = () => {
               <h3
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '1.5rem',
+                  fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
                   fontWeight: 700,
                   color: 'var(--color-white)',
-                  marginBottom: '14px',
+                  marginBottom: '12px',
                 }}
               >
                 Private Testing
@@ -161,12 +144,11 @@ export const CardexSection: React.FC = () => {
 
           {/* Cardex Alpha Card */}
           <div
+            className="card-responsive"
             style={{
               backgroundColor: '#111116',
               border: '1px solid rgba(255, 255, 255, 0.28)',
               boxShadow: '0 0 35px rgba(255, 255, 255, 0.03)',
-              padding: '44px 36px',
-              borderRadius: '2px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -182,10 +164,10 @@ export const CardexSection: React.FC = () => {
               <h3
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '1.5rem',
+                  fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
                   fontWeight: 700,
                   color: 'var(--color-white)',
-                  marginBottom: '14px',
+                  marginBottom: '12px',
                 }}
               >
                 CARDEX Alpha Network
@@ -213,6 +195,8 @@ export const CardexSection: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
               }}
             >
               <span>ACCESS: VERIFIED COMMUNITY BUILDERS</span>

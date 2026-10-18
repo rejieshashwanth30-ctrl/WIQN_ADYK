@@ -114,8 +114,8 @@ export const OpeningExperience: React.FC<OpeningExperienceProps> = ({ onComplete
         {/* Supplied Official Mark */}
         <div
           style={{
-            width: '84px',
-            height: '84px',
+            width: 'clamp(60px, 16vw, 84px)',
+            height: 'clamp(60px, 16vw, 84px)',
             position: 'relative',
             opacity: phase >= 1 ? 1 : 0,
             transform: phase >= 1 ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.96)',
@@ -150,7 +150,7 @@ export const OpeningExperience: React.FC<OpeningExperienceProps> = ({ onComplete
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.8125rem',
+              fontSize: 'clamp(0.6875rem, 2vw, 0.8125rem)',
               letterSpacing: '0.3em',
               textTransform: 'uppercase',
               color: 'var(--color-silver-300)',
@@ -166,7 +166,7 @@ export const OpeningExperience: React.FC<OpeningExperienceProps> = ({ onComplete
           <span
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: '2rem',
+              fontSize: 'clamp(1.5rem, 6vw, 2rem)',
               fontWeight: 700,
               letterSpacing: '0.18em',
               color: 'var(--color-white)',
@@ -191,14 +191,14 @@ export const OpeningExperience: React.FC<OpeningExperienceProps> = ({ onComplete
           <p
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.875rem',
-              letterSpacing: '0.24em',
+              fontSize: 'clamp(0.6875rem, 2.5vw, 0.875rem)',
+              letterSpacing: 'clamp(0.12em, 2vw, 0.24em)',
               textTransform: 'uppercase',
               color: 'var(--color-silver-200)',
               borderTop: '1px solid rgba(255, 255, 255, 0.1)',
               paddingTop: '14px',
-              paddingLeft: '20px',
-              paddingRight: '20px',
+              paddingLeft: '16px',
+              paddingRight: '16px',
             }}
           >
             FROM IDEA TO EVIDENCE.
@@ -211,14 +211,14 @@ export const OpeningExperience: React.FC<OpeningExperienceProps> = ({ onComplete
         onClick={skipIntro}
         style={{
           position: 'absolute',
-          bottom: '36px',
+          bottom: 'max(24px, env(safe-area-inset-bottom, 24px))',
           fontFamily: 'var(--font-mono)',
           fontSize: '0.6875rem',
           letterSpacing: '0.18em',
           color: 'var(--color-gray-500)',
           background: 'none',
           border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '6px 14px',
+          padding: '8px 16px',
           borderRadius: '2px',
           cursor: 'pointer',
           transition: 'color 200ms ease, border-color 200ms ease',

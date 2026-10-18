@@ -46,36 +46,41 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: 'rgba(7, 7, 9, 0.92)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        backgroundColor: 'rgba(7, 7, 9, 0.94)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         borderBottom: '1px solid var(--border-subtle)',
       }}
     >
       <div
+        className="dashboard-nav-inner"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          height: '64px',
-          padding: '0 24px',
+          height: '60px',
+          paddingLeft: 'max(16px, env(safe-area-inset-left, 16px))',
+          paddingRight: 'max(16px, env(safe-area-inset-right, 16px))',
+          boxSizing: 'border-box',
+          width: '100%',
         }}
       >
         {/* Left: Brand & Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <Link href="/dashboard" aria-label="Wiqn Workspace">
-            <BrandLogo size={28} showWordmark={true} wordmarkVariant="stacked" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+          <Link href="/dashboard" aria-label="Wiqn Workspace" style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <BrandLogo size={26} showWordmark={true} wordmarkVariant="stacked" />
           </Link>
 
-          <span style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>/</span>
+          <span className="dash-breadcrumb-sep" style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>/</span>
 
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+          <nav className="dash-breadcrumb-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', minWidth: 0, overflow: 'hidden' }}>
             <Link
               href="/dashboard"
               style={{
                 color: isDashboard ? 'var(--color-white)' : 'var(--color-silver-300)',
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
+                flexShrink: 0,
               }}
             >
               Workspace
@@ -84,8 +89,8 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             {isNew && (
               <>
                 <span style={{ color: 'var(--color-gray-500)' }}>/</span>
-                <span style={{ color: 'var(--color-white)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  New Experiment
+                <span style={{ color: 'var(--color-white)', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                  New
                 </span>
               </>
             )}
@@ -93,7 +98,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             {isDetail && currentExperimentName && (
               <>
                 <span style={{ color: 'var(--color-gray-500)' }}>/</span>
-                <span style={{ color: 'var(--color-white)', letterSpacing: '0.04em', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: 'var(--color-white)', letterSpacing: '0.04em', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {currentExperimentName}
                 </span>
               </>
@@ -102,34 +107,28 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         </div>
 
         {/* Right: Actions & User Context */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Right: Actions & User Context */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <Link
             href="/"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.6875rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--color-silver-300)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+            className="dash-icon-btn"
+            title="Public Site"
+            aria-label="Public Site"
           >
-            <span>Public Site</span>
-            <ExternalLink size={12} />
+            <span className="dash-desktop-text">Public Site</span>
+            <ExternalLink size={13} />
           </Link>
 
           {!isNew && (
             <Link
               href="/experiments/new"
-              className="btn-primary"
-              style={{ padding: '8px 14px', fontSize: '0.6875rem' }}
+              className="dash-new-btn"
+              title="New Experiment"
+              aria-label="New Experiment"
             >
-              <Plus size={14} />
-              <span>New Experiment</span>
+              <Plus size={12} strokeWidth={2.4} />
+              <span className="dash-desktop-text">New Experiment</span>
+              <span className="dash-mobile-text">New</span>
             </Link>
           )}
 
@@ -138,17 +137,18 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '6px 10px',
+              gap: '6px',
+              padding: '4px 6px',
               backgroundColor: 'rgba(255, 255, 255, 0.04)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '2px',
             }}
+            title={userEmail || 'Authenticated Founder'}
           >
             <div
               style={{
-                width: '18px',
-                height: '18px',
+                width: '20px',
+                height: '20px',
                 borderRadius: '50%',
                 backgroundColor: '#ffffff',
                 color: '#000000',
@@ -156,24 +156,25 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontFamily: 'var(--font-mono)',
-                fontSize: '0.5625rem',
+                fontSize: '0.625rem',
                 fontWeight: 700,
+                flexShrink: 0,
               }}
             >
               {userEmail ? userEmail.charAt(0).toUpperCase() : 'F'}
             </div>
             <span
+              className="dash-desktop-text"
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.6875rem',
                 color: 'var(--color-silver-200)',
                 letterSpacing: '0.04em',
-                maxWidth: '140px',
+                maxWidth: '110px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
               }}
-              title={userEmail || 'Authenticated Founder'}
             >
               {userEmail ? userEmail.split('@')[0] : 'FOUNDER'}
             </span>
@@ -181,16 +182,32 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
           {/* Logout Action */}
           <button
+            type="button"
             onClick={handleLogout}
-            className="btn-ghost"
-            style={{ padding: '6px 10px', fontSize: '0.6875rem' }}
+            className="dash-icon-btn"
             title="Log out of Wiqn"
+            aria-label="Sign Out"
           >
             <LogOut size={13} />
-            <span>Sign Out</span>
+            <span className="dash-desktop-text">Sign Out</span>
           </button>
         </div>
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .dash-desktop-text {
+            display: none !important;
+          }
+          .dash-mobile-text {
+            display: inline !important;
+          }
+          .dash-breadcrumb-sep,
+          .dash-breadcrumb-nav {
+            display: none !important;
+          }
+        }
+      `}</style>
     </header>
   );
 };

@@ -105,25 +105,15 @@ export default function NewExperimentPage() {
     <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: 'var(--color-off-white)' }}>
       <DashboardNav />
 
-      <main style={{ padding: '60px 24px 100px 24px', maxWidth: '880px', margin: '0 auto' }}>
+      <main className="dash-main-container" style={{ maxWidth: '880px', margin: '0 auto' }}>
         {/* Step Indicator Header */}
-        <div style={{ marginBottom: '48px' }}>
-          <div className="eyebrow" style={{ marginBottom: '8px' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <div className="eyebrow dash-eyebrow">
             <span className="eyebrow-dot" />
             <span>NEW EXPERIMENT SETUP</span>
           </div>
 
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2rem, 3.5vw, 2.75rem)',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              color: 'var(--color-white)',
-              lineHeight: 1.1,
-              marginBottom: '28px',
-            }}
-          >
+          <h1 className="dash-title" style={{ marginBottom: '20px' }}>
             Create Product Experiment
           </h1>
 

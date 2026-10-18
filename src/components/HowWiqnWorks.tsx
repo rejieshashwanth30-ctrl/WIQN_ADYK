@@ -56,10 +56,10 @@ const STEPS = [
 
 export const HowWiqnWorks: React.FC = () => {
   return (
-    <section id="method" style={{ position: 'relative', padding: '120px 0', borderTop: '1px solid var(--border-subtle)' }}>
+    <section id="method" className="section-responsive">
       <div className="container">
         {/* Section Header */}
-        <div style={{ maxWidth: '780px', marginBottom: '80px' }}>
+        <div style={{ maxWidth: '780px', marginBottom: '48px' }}>
           <div className="eyebrow">
             <span className="eyebrow-dot" />
             <span>OPERATIONAL ARCHITECTURE</span>
@@ -67,12 +67,12 @@ export const HowWiqnWorks: React.FC = () => {
           <h2
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2rem, 4vw, 3.25rem)',
+              fontSize: 'clamp(1.75rem, 4.5vw, 3.25rem)',
               fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.1,
               color: 'var(--color-white)',
-              marginBottom: '20px',
+              marginBottom: '16px',
             }}
           >
             THE SEVEN-STEP
@@ -82,7 +82,7 @@ export const HowWiqnWorks: React.FC = () => {
           <p
             style={{
               fontFamily: 'var(--font-primary)',
-              fontSize: '1.0625rem',
+              fontSize: 'clamp(0.9375rem, 3.2vw, 1.0625rem)',
               color: 'var(--color-silver-300)',
               lineHeight: 1.6,
             }}
@@ -93,9 +93,9 @@ export const HowWiqnWorks: React.FC = () => {
 
         {/* Seven Steps Grid */}
         <div
+          className="steps-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '2px',
             backgroundColor: 'rgba(255, 255, 255, 0.08)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -104,13 +104,13 @@ export const HowWiqnWorks: React.FC = () => {
           {STEPS.map((step) => (
             <div
               key={step.num}
+              className="card-responsive"
               style={{
                 backgroundColor: 'var(--color-surface)',
-                padding: '40px 32px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                minHeight: '340px',
+                minHeight: '280px',
                 position: 'relative',
                 transition: 'background-color 240ms ease',
               }}

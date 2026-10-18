@@ -23,10 +23,10 @@ const WIQN_FLOW = [
 
 export const ProductDifference: React.FC = () => {
   return (
-    <section style={{ position: 'relative', padding: '140px 0', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#070709' }}>
+    <section className="section-responsive" style={{ backgroundColor: '#070709' }}>
       <div className="container">
         {/* Header */}
-        <div style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto 80px auto' }}>
+        <div style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto 48px auto' }}>
           <div className="eyebrow" style={{ justifyContent: 'center' }}>
             <span className="eyebrow-dot" />
             <span>THE ARCHITECTURAL DIFFERENCE</span>
@@ -34,12 +34,12 @@ export const ProductDifference: React.FC = () => {
           <h2
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2.2rem, 4.5vw, 3.5rem)',
+              fontSize: 'clamp(1.75rem, 4.5vw, 3.5rem)',
               fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.1,
               color: 'var(--color-white)',
-              marginBottom: '20px',
+              marginBottom: '16px',
             }}
           >
             BUILDING FASTER DOES NOT
@@ -49,7 +49,7 @@ export const ProductDifference: React.FC = () => {
           <p
             style={{
               fontFamily: 'var(--font-primary)',
-              fontSize: '1.0625rem',
+              fontSize: 'clamp(0.9375rem, 3.2vw, 1.0625rem)',
               color: 'var(--color-silver-300)',
               lineHeight: 1.6,
             }}
@@ -60,27 +60,17 @@ export const ProductDifference: React.FC = () => {
         </div>
 
         {/* Dual Comparison Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '32px',
-            alignItems: 'stretch',
-            maxWidth: '1100px',
-            margin: '0 auto',
-          }}
-        >
+        <div className="grid-2col-responsive" style={{ maxWidth: '1100px', margin: '0 auto' }}>
           {/* Traditional Way */}
           <div
+            className="card-responsive"
             style={{
-              backgroundColor: '#0a0a0c',
+              backgroundColor: '#0a0a0d',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              padding: '48px 36px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               position: 'relative',
-              borderRadius: '2px',
             }}
           >
             <div>
@@ -171,16 +161,15 @@ export const ProductDifference: React.FC = () => {
 
           {/* Wiqn Evidence Loop */}
           <div
+            className="card-responsive"
             style={{
               backgroundColor: '#101014',
               border: '1px solid rgba(255, 255, 255, 0.25)',
               boxShadow: '0 0 40px rgba(255, 255, 255, 0.04)',
-              padding: '48px 36px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               position: 'relative',
-              borderRadius: '2px',
             }}
           >
             <div>

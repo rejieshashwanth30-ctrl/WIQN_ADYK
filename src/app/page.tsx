@@ -32,27 +32,9 @@ export default function HomePage() {
       <Navigation />
 
       {/* Hero Section */}
-      <section
-        style={{
-          position: 'relative',
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          paddingTop: '100px',
-          paddingBottom: '60px',
-          overflow: 'hidden',
-        }}
-      >
+      <section className="hero-section">
         <div className="container" style={{ position: 'relative', zIndex: 2 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '48px',
-              alignItems: 'center',
-            }}
-          >
+          <div className="hero-grid">
             {/* Hero Left: Strategic Copy & Identity */}
             <div style={{ maxWidth: '640px' }}>
               {/* Eyebrow */}
@@ -62,17 +44,7 @@ export default function HomePage() {
               </div>
 
               {/* Main Headline */}
-              <h1
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(2.75rem, 6.2vw, 5.25rem)',
-                  fontWeight: 700,
-                  letterSpacing: '-0.03em',
-                  lineHeight: 0.98,
-                  color: 'var(--color-white)',
-                  marginBottom: '28px',
-                }}
-              >
+              <h1 className="hero-headline">
                 FROM IDEA TO
                 <br />
                 <span
@@ -89,21 +61,12 @@ export default function HomePage() {
               </h1>
 
               {/* Supporting Text */}
-              <p
-                style={{
-                  fontFamily: 'var(--font-primary)',
-                  fontSize: 'clamp(1.0625rem, 1.8vw, 1.25rem)',
-                  color: 'var(--color-silver-300)',
-                  lineHeight: 1.6,
-                  marginBottom: '36px',
-                  maxWidth: '560px',
-                }}
-              >
+              <p className="hero-paragraph">
                 Validate your product with real users, real behavior and real feedback before investing heavily in building it.
               </p>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '32px' }}>
+              <div className="hero-actions">
                 <Link href="/experiments/new" className="btn-primary">
                   <span>Start An Experiment</span>
                   <ArrowUpRight size={16} />
@@ -125,18 +88,7 @@ export default function HomePage() {
               </div>
 
               {/* Supporting Line */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.14em',
-                  color: 'var(--color-gray-500)',
-                  textTransform: 'uppercase',
-                }}
-              >
+              <div className="hero-subpoints">
                 <span>Build.</span>
                 <span>•</span>
                 <span>Test.</span>
@@ -164,6 +116,7 @@ export default function HomePage() {
 
         {/* Scroll Indicator */}
         <div
+          className="hero-scroll-indicator"
           style={{
             position: 'absolute',
             bottom: '24px',
@@ -188,14 +141,13 @@ export default function HomePage() {
       {/* Brand Philosophy Overview */}
       <section
         id="overview"
+        className="section-responsive"
         style={{
-          padding: '140px 0',
-          borderTop: '1px solid var(--border-subtle)',
           backgroundColor: '#070709',
         }}
       >
         <div className="container-editorial">
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <div className="eyebrow" style={{ justifyContent: 'center' }}>
               <span className="eyebrow-dot" />
               <span>THE FIRST PRINCIPLE</span>
@@ -203,12 +155,12 @@ export default function HomePage() {
             <h2
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
+                fontSize: 'clamp(1.75rem, 4.5vw, 3.5rem)',
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
                 lineHeight: 1.15,
                 color: 'var(--color-white)',
-                marginBottom: '28px',
+                marginBottom: '20px',
               }}
             >
               BUILDING A PRODUCT DOES NOT
@@ -218,7 +170,7 @@ export default function HomePage() {
             <p
               style={{
                 fontFamily: 'var(--font-primary)',
-                fontSize: '1.125rem',
+                fontSize: 'clamp(0.9375rem, 3.2vw, 1.125rem)',
                 color: 'var(--color-silver-300)',
                 lineHeight: 1.7,
                 maxWidth: '720px',
@@ -231,22 +183,8 @@ export default function HomePage() {
           </div>
 
           {/* Approved Brand Quotes Grid */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '24px',
-              marginTop: '64px',
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: '#0a0a0d',
-                border: '1px solid var(--border-subtle)',
-                padding: '32px 28px',
-                borderRadius: '2px',
-              }}
-            >
+          <div className="grid-3col-responsive" style={{ marginTop: '48px' }}>
+            <div className="card-responsive" style={{ padding: '28px 24px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
                 SIGNAL // 01
               </div>
@@ -255,14 +193,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div
-              style={{
-                backgroundColor: '#0a0a0d',
-                border: '1px solid var(--border-subtle)',
-                padding: '32px 28px',
-                borderRadius: '2px',
-              }}
-            >
+            <div className="card-responsive" style={{ padding: '28px 24px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
                 SIGNAL // 02
               </div>
@@ -271,14 +202,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div
-              style={{
-                backgroundColor: '#0a0a0d',
-                border: '1px solid var(--border-subtle)',
-                padding: '32px 28px',
-                borderRadius: '2px',
-              }}
-            >
+            <div className="card-responsive" style={{ padding: '28px 24px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
                 SIGNAL // 03
               </div>

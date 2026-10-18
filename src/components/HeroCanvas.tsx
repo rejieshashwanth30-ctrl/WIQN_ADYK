@@ -199,27 +199,30 @@ export const HeroCanvas: React.FC = () => {
         ctx.stroke();
 
         // Node Stage Label
-        ctx.font = '600 11px var(--font-mono)';
+        const isCompact = width < 440;
+        ctx.font = isCompact ? '600 9px var(--font-mono)' : '600 11px var(--font-mono)';
         ctx.fillStyle = isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.75)';
-        ctx.letterSpacing = '1.5px';
+        ctx.letterSpacing = isCompact ? '0.8px' : '1.5px';
         ctx.textAlign = 'center';
         
-        const labelY = node.y + (node.y > cy ? 22 : -16);
+        const labelY = node.y + (node.y > cy ? (isCompact ? 16 : 22) : (isCompact ? -12 : -16));
         ctx.fillText(`0${i + 1} // ${node.name}`, node.x, labelY);
 
         // Technical Sub-coordinate telemetry on hover or active
-        if (isHovered) {
+        if (isHovered && !isCompact) {
           ctx.font = '400 9px var(--font-mono)';
           ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
           ctx.fillText(node.desc, node.x, labelY + (node.y > cy ? 14 : -12));
         }
       });
 
-      // Subtle architectural watermark at bottom corner of canvas
-      ctx.font = '400 9px var(--font-mono)';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-      ctx.textAlign = 'right';
-      ctx.fillText('COORD_SYS: RADIAL_EVIDENCE_MAP // V1.0', width - 20, height - 16);
+      // Subtle architectural watermark at bottom corner of canvas (desktop/tablet only)
+      if (width >= 440) {
+        ctx.font = '400 9px var(--font-mono)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.textAlign = 'right';
+        ctx.fillText('COORD_SYS: RADIAL_EVIDENCE_MAP // V1.0', width - 20, height - 16);
+      }
 
       animationFrameId = requestAnimationFrame(render);
     };
@@ -236,11 +239,10 @@ export const HeroCanvas: React.FC = () => {
 
   return (
     <div
+      className="hero-canvas-container"
       style={{
         position: 'relative',
         width: '100%',
-        height: '100%',
-        minHeight: '520px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
