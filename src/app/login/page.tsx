@@ -11,13 +11,14 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams?.get('redirect') || '/dashboard';
+  const isResetSuccess = searchParams?.get('reset') === 'success';
   const isVerified = searchParams?.get('verified') === 'true';
   const rawError = searchParams?.get('error');
 
   const initialError = rawError
     ? rawError === 'auth_exchange_failed'
-      ? 'The verification link has expired or has already been used. Please sign in with your password.'
-      : decodeURIComponent(rawError)
+      ? 'The authentication link has expired or is invalid. Please sign in.'
+      : 'Email or password is incorrect.'
     : null;
 
   const [email, setEmail] = useState('');
@@ -38,18 +39,17 @@ function LoginForm() {
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage('Email or password is incorrect.');
         setSubmitting(false);
         return;
       }
 
       if (data?.user) {
-        // Refresh session context and route to dashboard
         router.refresh();
         router.push(redirectTarget);
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'An unexpected error occurred during authentication.');
+    } catch {
+      setErrorMessage('Email or password is incorrect.');
       setSubmitting(false);
     }
   };
@@ -81,8 +81,8 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Email Verification Success Notification */}
-      {isVerified && (
+      {/* Password Reset Success Notification */}
+      {isResetSuccess && (
         <div
           style={{
             backgroundColor: '#0c1610',
@@ -105,19 +105,45 @@ function LoginForm() {
                 fontWeight: 600,
                 color: '#ffffff',
                 marginBottom: '4px',
-                letterSpacing: '-0.01em',
+              }}
+            >
+              Password updated successfully.
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
+              Your new password is now active. Please sign in to continue.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Notice (if user arrived from legacy callback) */}
+      {isVerified && !isResetSuccess && (
+        <div
+          style={{
+            backgroundColor: '#0c1610',
+            border: '1px solid rgba(34, 197, 94, 0.45)',
+            padding: '16px 18px',
+            borderRadius: '2px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+          }}
+        >
+          <CheckCircle size={18} style={{ color: '#22c55e', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                color: '#ffffff',
+                marginBottom: '4px',
               }}
             >
               Email verified successfully.
             </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-primary)',
-                fontSize: '0.8125rem',
-                color: 'var(--color-silver-300)',
-                lineHeight: 1.5,
-              }}
-            >
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
               Your Wiqn account is ready. Sign in to continue.
             </div>
           </div>
@@ -125,7 +151,7 @@ function LoginForm() {
       )}
 
       {/* Error Notification */}
-      {errorMessage && !isVerified && (
+      {errorMessage && !isResetSuccess && !isVerified && (
         <div
           style={{
             backgroundColor: '#121215',
@@ -140,7 +166,7 @@ function LoginForm() {
         >
           <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
-            AUTHENTICATION ERROR: {errorMessage}
+            AUTHENTICATION NOTICE: {errorMessage}
           </div>
         </div>
       )}
@@ -178,6 +204,7 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="founder@venture.com"
+            disabled={submitting}
             style={{
               width: '100%',
               padding: '12px 16px',
@@ -204,9 +231,17 @@ function LoginForm() {
             >
               Password
             </label>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-              ENCRYPTED
-            </span>
+            <Link
+              href="/auth/reset-password"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.6875rem',
+                color: 'var(--color-silver-300)',
+                textDecoration: 'none',
+              }}
+            >
+              Forgot password?
+            </Link>
           </div>
           <input
             type="password"
@@ -214,6 +249,7 @@ function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••••••"
+            disabled={submitting}
             style={{
               width: '100%',
               padding: '12px 16px',
