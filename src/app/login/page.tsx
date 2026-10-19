@@ -28,8 +28,15 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setErrorMessage(null);
+
+    // Client-side empty field validation
+    if (!email.trim() || !password) {
+      setErrorMessage('Please enter both your email address and password.');
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const supabase = createClient();
@@ -39,17 +46,53 @@ function LoginForm() {
       });
 
       if (error) {
-        setErrorMessage('Email or password is incorrect.');
+        console.error('[WIQN AUTH] Login failed:', error.message, 'Code:', error.code, 'Status:', error.status);
+        const msg = error.message.toLowerCase();
+
+        if (
+          msg.includes('invalid login credentials') ||
+          msg.includes('invalid credentials') ||
+          error.code === 'invalid_credentials'
+        ) {
+          setErrorMessage('Email or password is incorrect. Please check your credentials.');
+        } else if (msg.includes('email not confirmed')) {
+          setErrorMessage(
+            "Email confirmation is active in your Supabase project. Disable 'Confirm Email' in Supabase Authentication settings to enable instant login."
+          );
+        } else if (msg.includes('rate limit') || error.status === 429) {
+          setErrorMessage('Too many sign-in attempts. Please wait a moment and try again.');
+        } else {
+          setErrorMessage('Unable to sign in. Please check your credentials and try again.');
+        }
         setSubmitting(false);
         return;
       }
 
-      if (data?.user) {
+      if (data?.session) {
+        // Synchronize authenticated profile with Neon application data
+        try {
+          await fetch('/api/auth/sync-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({}),
+          });
+        } catch (syncErr) {
+          console.warn('[WIQN AUTH] Post-login profile sync warning:', syncErr);
+        }
+
+        router.refresh();
+        router.push(redirectTarget);
+      } else {
         router.refresh();
         router.push(redirectTarget);
       }
-    } catch {
-      setErrorMessage('Email or password is incorrect.');
+    } catch (err: any) {
+      console.error('[WIQN AUTH] Unexpected login error:', err?.message || err);
+      setErrorMessage('Unable to sign in right now. Please check your internet connection.');
       setSubmitting(false);
     }
   };

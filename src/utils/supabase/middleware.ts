@@ -53,6 +53,18 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Protected route check
+  const isProtected =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/experiments');
+
+  if (isProtected && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
+  }
+
   // Redirect authenticated users away from /login and /signup
   if (user && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone();

@@ -46,7 +46,7 @@ export default function SignupPage() {
     try {
       const supabase = createClient();
 
-      // Sign up directly with email + password (no confirmation email flow)
+      // Sign up directly with email + password (instant session flow)
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -58,20 +58,31 @@ export default function SignupPage() {
       });
 
       if (error) {
+        console.error('[WIQN AUTH] Signup failed:', error.message, 'Code:', error.code, 'Status:', error.status);
         const msg = error.message.toLowerCase();
+        const code = error.code || '';
+
         if (
+          msg.includes('rate limit') ||
+          code === 'over_email_send_rate_limit' ||
+          error.status === 429
+        ) {
+          setErrorMessage(
+            "Email rate limit exceeded. Email confirmation is currently enabled in your Supabase project. To enable instant registration without rate limits, please go to your Supabase Dashboard -> Authentication -> Providers -> Email and turn 'Confirm email' to OFF."
+          );
+        } else if (
           msg.includes('already registered') ||
           msg.includes('already exists') ||
           msg.includes('user already exists') ||
           error.status === 422
         ) {
-          setErrorMessage('An account with this email already exists. Please log in.');
+          setErrorMessage('An account with this email already exists. Please sign in instead.');
         } else if (msg.includes('password')) {
-          setErrorMessage('Password must meet the minimum security requirements.');
+          setErrorMessage('Password does not meet the required requirements (minimum 6 characters).');
         } else if (msg.includes('valid email') || msg.includes('invalid email')) {
           setErrorMessage('Please enter a valid email address.');
         } else {
-          setErrorMessage('Unable to create account. Please check your details and try again.');
+          setErrorMessage('Unable to create your account right now. Please check your details and try again.');
         }
         setSubmitting(false);
         return;
@@ -88,10 +99,11 @@ export default function SignupPage() {
         if (!signInError && signInData?.session) {
           session = signInData.session;
         } else if (signInError) {
+          console.error('[WIQN AUTH] Post-signup session establishment error:', signInError.message);
           const sMsg = signInError.message.toLowerCase();
           if (sMsg.includes('email not confirmed')) {
             setErrorMessage(
-              "Account created, but email confirmation is active in your Supabase project. Disable 'Confirm Email' in Supabase Authentication settings to enable instant registration."
+              "Account created! However, email confirmation is currently active in your Supabase project. Please turn 'Confirm Email' to OFF in your Supabase Dashboard (Authentication -> Providers -> Email) to allow instant access without confirmation emails."
             );
             setSubmitting(false);
             return;
@@ -99,15 +111,45 @@ export default function SignupPage() {
         }
       }
 
-      // Show success state and route directly to dashboard
+      // Synchronize application profile into Neon PostgreSQL
+      if (session?.access_token) {
+        try {
+          const syncRes = await fetch('/api/auth/sync-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: name.trim() || email.trim().split('@')[0],
+            }),
+          });
+
+          if (!syncRes.ok) {
+            console.error('[WIQN AUTH] Profile sync error status:', syncRes.status);
+            setErrorMessage('Account created, but profile synchronization failed. Please try signing in or contact support.');
+            setSubmitting(false);
+            return;
+          }
+        } catch (syncErr: any) {
+          console.error('[WIQN AUTH] Profile sync network failure:', syncErr?.message || syncErr);
+          setErrorMessage('Account created, but profile synchronization failed. Please contact support.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Show success state and redirect directly to dashboard (no login redirect, no second login)
       setSuccessMessage('Account created successfully.');
       router.refresh();
 
       setTimeout(() => {
         router.push('/dashboard');
       }, 400);
-    } catch {
-      setErrorMessage('An unexpected error occurred during account creation.');
+    } catch (err: any) {
+      console.error('[WIQN AUTH] Unexpected signup exception:', err?.message || err);
+      setErrorMessage('Something went wrong while creating your account. Please try again.');
       setSubmitting(false);
     }
   };

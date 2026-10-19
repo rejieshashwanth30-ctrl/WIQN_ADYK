@@ -22,9 +22,8 @@ export interface AuthenticatedContext {
 /**
  * Resolves the authenticated Supabase user and synchronizes
  * with the corresponding Wiqn application user record in Neon PostgreSQL.
- * Supports HTTP-only cookies, Authorization: Bearer <access_token> headers,
- * and seamlessly resolves to the workspace founder account when unauthenticated
- * so founders can launch experiments and track telemetry without roadblocks.
+ * Supports both HTTP-only cookies and Authorization: Bearer <access_token> headers.
+ * Uses the authenticated Supabase identity as the strict source of truth.
  */
 export async function getCurrentUser(req?: Request | any): Promise<AuthenticatedContext | null> {
   try {
@@ -43,7 +42,7 @@ export async function getCurrentUser(req?: Request | any): Promise<Authenticated
               user = userData.user;
             }
           } catch (tErr) {
-            console.warn('[getCurrentUser] Token resolution warning:', tErr);
+            console.warn('[getCurrentUser] Bearer token error:', tErr);
           }
         }
       }
@@ -61,36 +60,48 @@ export async function getCurrentUser(req?: Request | any): Promise<Authenticated
           user = cookieUser;
         }
       } catch (cErr) {
-        // Safe bypass if cookies are inaccessible or unparseable
+        // Safe bypass if cookies are inaccessible
       }
     }
 
-    // 3. If an authenticated Supabase user was resolved, synchronize with Neon
+    if (!user || !user.id) {
+      return null;
+    }
+
+    // Look for existing Wiqn application user in Neon strictly by supabaseUserId
     let appUser = null;
-    if (user) {
+    try {
+      appUser = await prisma.user.findUnique({
+        where: { supabaseUserId: user.id },
+      });
+    } catch (dbErr) {
+      console.error('[getCurrentUser] Database query error:', dbErr);
+    }
+
+    // If not found in Neon, synchronize and create the record idempotently
+    if (!appUser && user.email) {
+      const metadata = user.user_metadata || {};
+      const name = metadata.name || metadata.full_name || user.email.split('@')[0];
+      const organization = metadata.organization || null;
+
       try {
-        appUser = await prisma.user.findUnique({
-          where: { supabaseUserId: user.id },
+        // Check if user with same email exists from previous registration
+        const existingEmailUser = await prisma.user.findUnique({
+          where: { email: user.email },
         });
-      } catch (dbErr) {
-        console.error('[getCurrentUser] Database query error:', dbErr);
-      }
 
-      // If not found in Neon, synchronize and create the record
-      if (!appUser && user.email) {
-        const metadata = user.user_metadata || {};
-        const name = metadata.name || metadata.full_name || user.email.split('@')[0];
-        const organization = metadata.organization || null;
-
-        try {
-          appUser = await prisma.user.upsert({
-            where: { supabaseUserId: user.id },
-            update: {
-              email: user.email,
-              name: name,
-              organization: organization,
+        if (existingEmailUser) {
+          appUser = await prisma.user.update({
+            where: { id: existingEmailUser.id },
+            data: {
+              supabaseUserId: user.id,
+              name: name || existingEmailUser.name,
+              organization: organization || existingEmailUser.organization,
             },
-            create: {
+          });
+        } else {
+          appUser = await prisma.user.create({
+            data: {
               supabaseUserId: user.id,
               email: user.email,
               name: name,
@@ -98,122 +109,38 @@ export async function getCurrentUser(req?: Request | any): Promise<Authenticated
               role: 'FOUNDER',
             },
           });
-        } catch (upsertErr) {
-          // If email uniqueness conflicts or race condition occurs, retry fetch
-          try {
-            appUser = await prisma.user.findFirst({
-              where: {
-                OR: [
-                  { supabaseUserId: user.id },
-                  { email: user.email },
-                ],
-              },
-            });
-
-            if (appUser && appUser.supabaseUserId !== user.id) {
-              appUser = await prisma.user.update({
-                where: { id: appUser.id },
-                data: { supabaseUserId: user.id },
-              });
-            }
-          } catch (findErr) {
-            console.error('[getCurrentUser] Fallback user resolution error:', findErr);
-          }
+        }
+      } catch (upsertErr) {
+        console.error('[getCurrentUser] Profile sync error:', upsertErr);
+        try {
+          appUser = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { supabaseUserId: user.id },
+                { email: user.email },
+              ],
+            },
+          });
+        } catch (findErr) {
+          console.error('[getCurrentUser] Fallback user resolution error:', findErr);
         }
       }
-
-      // Fallback: If Neon PostgreSQL is temporarily connecting or cold,
-      // synthesize a valid applicationUser context so an authenticated founder is not blocked
-      if (!appUser) {
-        appUser = {
-          id: user.id,
-          supabaseUserId: user.id,
-          email: user.email || 'founder@wiqn.app',
-          name: user.user_metadata?.name || null,
-          organization: user.user_metadata?.organization || null,
-          role: 'FOUNDER',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-
-      return {
-        supabaseUser: {
-          id: user.id,
-          email: user.email,
-        },
-        applicationUser: appUser,
-      };
     }
 
-    // 4. Resilient Fallback: If no Supabase user session was found (e.g., guest founder,
-    // mobile Safari third-party cookie restrictions, or unauthenticated experiment launch),
-    // resolve to the workspace founder account in Neon so launching and validating experiments
-    // never fails with cryptic 401 Unauthorized errors.
-    let defaultFounder = null;
-    try {
-      defaultFounder = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: 'rejieshashwanth30@gmail.com' },
-            { role: 'FOUNDER' },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!defaultFounder) {
-        defaultFounder = await prisma.user.upsert({
-          where: { email: 'rejieshashwanth30@gmail.com' },
-          update: {},
-          create: {
-            supabaseUserId: 'default_founder_wiqn',
-            email: 'rejieshashwanth30@gmail.com',
-            name: 'Rejiesh Ashwanth',
-            organization: 'ADYK',
-            role: 'FOUNDER',
-          },
-        });
-      }
-    } catch (neonErr) {
-      console.error('[getCurrentUser] Neon default founder resolution error:', neonErr);
-      defaultFounder = {
-        id: 'cmvc3n9bn000013e6eanfpj0t',
-        supabaseUserId: 'eee5645f-b859-4f72-9972-bc4a5a24ba5c',
-        email: 'rejieshashwanth30@gmail.com',
-        name: 'Rejiesh Ashwanth',
-        organization: 'ADYK',
-        role: 'FOUNDER',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+    if (!appUser) {
+      return null;
     }
 
     return {
       supabaseUser: {
-        id: defaultFounder.supabaseUserId,
-        email: defaultFounder.email,
+        id: user.id,
+        email: user.email,
       },
-      applicationUser: defaultFounder,
+      applicationUser: appUser,
     };
   } catch (err) {
-    console.error('Error resolving authenticated context:', err);
-    return {
-      supabaseUser: {
-        id: 'eee5645f-b859-4f72-9972-bc4a5a24ba5c',
-        email: 'rejieshashwanth30@gmail.com',
-      },
-      applicationUser: {
-        id: 'cmvc3n9bn000013e6eanfpj0t',
-        supabaseUserId: 'eee5645f-b859-4f72-9972-bc4a5a24ba5c',
-        email: 'rejieshashwanth30@gmail.com',
-        name: 'Rejiesh Ashwanth',
-        organization: 'ADYK',
-        role: 'FOUNDER',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    };
+    console.error('[getCurrentUser] Error resolving authenticated context:', err);
+    return null;
   }
 }
 
@@ -230,15 +157,14 @@ export async function requireAuth(redirectPath?: string): Promise<AuthenticatedC
 }
 
 /**
- * Verifies that an experiment exists and is accessible by the authenticated application user.
- * Supports both direct experiment ownership and workspace founder access.
+ * Verifies that an experiment exists and is owned by the authenticated application user.
+ * Protects against Insecure Direct Object References (IDOR) and guarantees account isolation.
  */
 export async function verifyExperimentOwnership(experimentId: string, applicationUserId: string) {
   try {
     const experiment = await prisma.experiment.findUnique({
       where: { id: experimentId },
       include: {
-        user: true,
         prototypes: true,
         insights: true,
         decisions: true,
@@ -265,20 +191,14 @@ export async function verifyExperimentOwnership(experimentId: string, applicatio
       return { status: 404, error: 'Experiment not found', experiment: null };
     }
 
-    // Access check: allow if owned by application user or if accessing founder workspace
-    const isOwnerOrFounder =
-      experiment.userId === applicationUserId ||
-      applicationUserId === 'cmvc3n9bn000013e6eanfpj0t' ||
-      experiment.user?.email === 'rejieshashwanth30@gmail.com' ||
-      experiment.user?.role === 'FOUNDER';
-
-    if (!isOwnerOrFounder) {
+    // Strict account isolation check (IDOR protection)
+    if (experiment.userId !== applicationUserId) {
       return { status: 403, error: 'Access denied: unauthorized resource ownership', experiment: null };
     }
 
     return { status: 200, error: null, experiment };
   } catch (err: any) {
-    console.error('Error verifying experiment ownership:', err);
+    console.error('[verifyExperimentOwnership] Error verifying experiment ownership:', err);
     return { status: 500, error: 'Database verification failed', experiment: null };
   }
 }
