@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BrandLogo } from './BrandLogo';
-import { Plus, ExternalLink, LogOut } from 'lucide-react';
+import { Plus, ExternalLink, LogOut, LogIn } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
 interface DashboardNavProps {
@@ -180,17 +180,29 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             </span>
           </div>
 
-          {/* Logout Action */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="dash-icon-btn"
-            title="Log out of Wiqn"
-            aria-label="Sign Out"
-          >
-            <LogOut size={13} />
-            <span className="dash-desktop-text">Sign Out</span>
-          </button>
+          {/* Logout / Login Action */}
+          {userEmail ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="dash-icon-btn"
+              title="Log out of Wiqn"
+              aria-label="Sign Out"
+            >
+              <LogOut size={13} />
+              <span className="dash-desktop-text">Sign Out</span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="dash-icon-btn"
+              title="Sign in to Wiqn"
+              aria-label="Sign In"
+            >
+              <LogIn size={13} />
+              <span className="dash-desktop-text">Sign In</span>
+            </Link>
+          )}
         </div>
       </div>
 

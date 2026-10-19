@@ -29,7 +29,6 @@ export default function NewExperimentPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   // 1. Check session & restore draft on mount
@@ -78,7 +77,6 @@ export default function NewExperimentPage() {
 
   const handleNext = () => {
     setError(null);
-    setAuthRequired(false);
     saveDraft();
 
     if (currentStep === 1) {
@@ -112,35 +110,38 @@ export default function NewExperimentPage() {
 
   const handleBack = () => {
     setError(null);
-    setAuthRequired(false);
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleLaunch = async () => {
     setSubmitting(true);
     setError(null);
-    setAuthRequired(false);
     saveDraft();
 
     try {
       const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let accessToken: string | null = null;
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          accessToken = session.access_token;
+        }
+      } catch (sessErr) {
+        console.warn('Session retrieval warning:', sessErr);
+      }
 
-      if (!session) {
-        setAuthRequired(true);
-        setError('Founder session required. Please sign in to launch your experiment.');
-        setSubmitting(false);
-        return;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const res = await fetch('/api/experiments', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           name: name.trim(),
@@ -157,14 +158,8 @@ export default function NewExperimentPage() {
       });
 
       if (!res.ok) {
-        if (res.status === 401) {
-          setAuthRequired(true);
-          setError('Your session has expired. Please sign in to launch your experiment.');
-          setSubmitting(false);
-          return;
-        }
-        const data = await res.json();
-        setError(data.error || 'Failed to persist experiment to Neon PostgreSQL');
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to initialize experiment in registry');
         setSubmitting(false);
         return;
       }
@@ -235,106 +230,27 @@ export default function NewExperimentPage() {
           </div>
         </div>
 
-        {/* Unauthenticated subtle warning banner */}
-        {isAuthenticated === false && !authRequired && (
-          <div
-            style={{
-              padding: '12px 18px',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '2px',
-              marginBottom: '20px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '10px',
-              fontSize: '0.8125rem',
-              color: 'var(--color-silver-300)',
-            }}
-          >
-            <span>You are currently drafting as guest. Sign in is required to launch.</span>
-            <Link
-              href="/login?redirect=/experiments/new"
-              onClick={saveDraft}
-              style={{ color: '#ffffff', textDecoration: 'underline', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
-            >
-              Sign In to Founder Account &rarr;
-            </Link>
-          </div>
-        )}
-
-        {/* Clear Founder Auth Required Action Card */}
-        {authRequired ? (
-          <div
-            style={{
-              padding: '24px 28px',
-              backgroundColor: '#0c0c0e',
-              border: '1px solid rgba(255, 255, 255, 0.35)',
-              borderRadius: '2px',
-              marginBottom: '28px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.6)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShieldCheck size={20} style={{ color: '#ffffff' }} />
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.8125rem',
-                  letterSpacing: '0.1em',
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Founder Access Required
-              </div>
-            </div>
-
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', margin: 0, lineHeight: 1.6 }}>
-              You must be signed in to your Wiqn workspace to launch and collect telemetry on this experiment. Your experiment specification (
-              <strong>{name || productName || 'Draft'}</strong>) has been saved automatically.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '6px' }}>
-              <Link
-                href="/login?redirect=/experiments/new"
-                onClick={saveDraft}
-                className="btn-primary"
-                style={{ padding: '10px 22px', fontSize: '0.8125rem', textDecoration: 'none' }}
-              >
-                <LogIn size={14} />
-                <span>Sign In to Launch</span>
-              </Link>
-              <Link
-                href="/signup?redirect=/experiments/new"
-                onClick={saveDraft}
-                className="btn-secondary"
-                style={{ padding: '10px 22px', fontSize: '0.8125rem', textDecoration: 'none' }}
-              >
-                <span>Create Workspace</span>
-              </Link>
-            </div>
-          </div>
-        ) : error ? (
+        {/* Error Notice */}
+        {error && (
           <div
             style={{
               padding: '14px 20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
               borderRadius: '2px',
               marginBottom: '28px',
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              color: '#ffffff',
+              fontSize: '0.8125rem',
+              color: '#fca5a5',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
             }}
           >
-            ERROR: {error}
+            <AlertCircle size={16} style={{ flexShrink: 0, color: '#ef4444' }} />
+            <span>{error}</span>
           </div>
-        ) : null}
+        )}
 
         {/* Form Container */}
         <div

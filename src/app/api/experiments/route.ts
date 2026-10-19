@@ -137,20 +137,34 @@ export async function POST(req: NextRequest) {
       where: { id: targetUserId },
     });
     if (!existingDbUser) {
-      const ensuredUser = await prisma.user.upsert({
-        where: { supabaseUserId: auth.supabaseUser.id },
-        update: {
-          email: auth.supabaseUser.email || 'founder@wiqn.app',
-        },
-        create: {
-          supabaseUserId: auth.supabaseUser.id,
-          email: auth.supabaseUser.email || 'founder@wiqn.app',
-          name: auth.applicationUser.name,
-          organization: auth.applicationUser.organization,
-          role: 'FOUNDER',
-        },
-      });
-      targetUserId = ensuredUser.id;
+      try {
+        const ensuredUser = await prisma.user.upsert({
+          where: { email: auth.applicationUser.email },
+          update: {
+            supabaseUserId: auth.supabaseUser.id,
+          },
+          create: {
+            supabaseUserId: auth.supabaseUser.id,
+            email: auth.applicationUser.email,
+            name: auth.applicationUser.name,
+            organization: auth.applicationUser.organization,
+            role: 'FOUNDER',
+          },
+        });
+        targetUserId = ensuredUser.id;
+      } catch (upsertErr) {
+        const found = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { supabaseUserId: auth.supabaseUser.id },
+              { email: auth.applicationUser.email },
+            ],
+          },
+        });
+        if (found) {
+          targetUserId = found.id;
+        }
+      }
     }
 
     // Securely associate with the authenticated application user ID
