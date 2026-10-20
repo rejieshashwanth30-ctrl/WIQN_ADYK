@@ -1,6 +1,6 @@
 import { createClient as createServerSupabaseClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export interface AuthenticatedContext {
@@ -93,80 +93,94 @@ export async function ensureApplicationUser({
 
   // 1. Try finding by supabaseUserId (primary identity mapping)
   try {
-    const existing = await prisma.user.findUnique({
-      where: { supabaseUserId },
-    });
+    const existing = await withDbRetry(() =>
+      prisma.user.findUnique({
+        where: { supabaseUserId },
+      })
+    );
     if (existing) {
       // Idempotently update name/organization if changed
       const shouldUpdateName = cleanName && existing.name !== cleanName;
       const shouldUpdateEmail = existing.email !== cleanEmail;
       if (shouldUpdateName || shouldUpdateEmail) {
-        return await prisma.user.update({
-          where: { id: existing.id },
-          data: {
-            email: cleanEmail,
-            name: cleanName || existing.name,
-            organization: organization !== undefined ? organization : existing.organization,
-          },
-        });
+        return await withDbRetry(() =>
+          prisma.user.update({
+            where: { id: existing.id },
+            data: {
+              email: cleanEmail,
+              name: cleanName || existing.name,
+              organization: organization !== undefined ? organization : existing.organization,
+            },
+          })
+        );
       }
       return existing;
     }
-  } catch (findErr) {
-    console.warn('[WIQN AUTH] findUnique by supabaseUserId warning:', findErr);
+  } catch (findErr: any) {
+    console.warn('[WIQN AUTH] findUnique by supabaseUserId warning:', findErr?.message || findErr);
   }
 
   // 2. Check if user with same email exists from previous registration or migration
   try {
-    const existingByEmail = await prisma.user.findUnique({
-      where: { email: cleanEmail },
-    });
+    const existingByEmail = await withDbRetry(() =>
+      prisma.user.findUnique({
+        where: { email: cleanEmail },
+      })
+    );
 
     if (existingByEmail) {
-      return await prisma.user.update({
-        where: { id: existingByEmail.id },
-        data: {
-          supabaseUserId, // Link to verified Supabase identity
-          name: cleanName || existingByEmail.name,
-          organization: organization !== undefined ? organization : existingByEmail.organization,
-        },
-      });
+      return await withDbRetry(() =>
+        prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            supabaseUserId, // Link to verified Supabase identity
+            name: cleanName || existingByEmail.name,
+            organization: organization !== undefined ? organization : existingByEmail.organization,
+          },
+        })
+      );
     }
-  } catch (emailErr) {
-    console.warn('[WIQN AUTH] findUnique by email warning:', emailErr);
+  } catch (emailErr: any) {
+    console.warn('[WIQN AUTH] findUnique by email warning:', emailErr?.message || emailErr);
   }
 
   // 3. Atomically upsert by supabaseUserId
   try {
-    return await prisma.user.upsert({
-      where: { supabaseUserId },
-      update: {
-        email: cleanEmail,
-        name: cleanName,
-        organization: organization ?? undefined,
-      },
-      create: {
-        supabaseUserId,
-        email: cleanEmail,
-        name: cleanName,
-        organization: organization ?? null,
-        role: 'FOUNDER',
-      },
-    });
+    return await withDbRetry(() =>
+      prisma.user.upsert({
+        where: { supabaseUserId },
+        update: {
+          email: cleanEmail,
+          name: cleanName,
+          organization: organization ?? undefined,
+        },
+        create: {
+          supabaseUserId,
+          email: cleanEmail,
+          name: cleanName,
+          organization: organization ?? null,
+          role: 'FOUNDER',
+        },
+      })
+    );
   } catch (upsertErr: any) {
-    console.warn('[WIQN AUTH] Atomic upsert race condition caught, recovering:', upsertErr?.message);
-    const fallbackUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ supabaseUserId }, { email: cleanEmail }],
-      },
-    });
+    console.warn('[WIQN AUTH] Atomic upsert race condition caught, recovering:', upsertErr?.message || upsertErr);
+    const fallbackUser = await withDbRetry(() =>
+      prisma.user.findFirst({
+        where: {
+          OR: [{ supabaseUserId }, { email: cleanEmail }],
+        },
+      })
+    );
 
     if (fallbackUser) {
       if (fallbackUser.supabaseUserId !== supabaseUserId) {
-        return await prisma.user.update({
-          where: { id: fallbackUser.id },
-          data: { supabaseUserId },
-        });
+        return await withDbRetry(() =>
+          prisma.user.update({
+            where: { id: fallbackUser.id },
+            data: { supabaseUserId },
+          })
+        );
       }
       return fallbackUser;
     }
@@ -349,30 +363,32 @@ export async function requireAuth(redirectPath?: string): Promise<AuthenticatedC
  */
 export async function verifyExperimentOwnership(experimentId: string, applicationUserId: string) {
   try {
-    const experiment = await prisma.experiment.findUnique({
-      where: { id: experimentId },
-      include: {
-        prototypes: true,
-        insights: true,
-        decisions: true,
-        feedback: {
-          include: {
-            responses: true,
+    const experiment = await withDbRetry(() =>
+      prisma.experiment.findUnique({
+        where: { id: experimentId },
+        include: {
+          prototypes: true,
+          insights: true,
+          decisions: true,
+          feedback: {
+            include: {
+              responses: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
           },
-          orderBy: {
-            createdAt: 'desc',
+          _count: {
+            select: {
+              visitors: true,
+              sessions: true,
+              events: true,
+              feedback: true,
+            },
           },
         },
-        _count: {
-          select: {
-            visitors: true,
-            sessions: true,
-            events: true,
-            feedback: true,
-          },
-        },
-      },
-    });
+      })
+    );
 
     if (!experiment) {
       return { status: 404, error: 'Experiment not found', experiment: null };
