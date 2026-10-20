@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -31,16 +31,18 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
 
     // Persist real feedback into Neon
-    const feedback = await prisma.feedback.create({
-      data: {
-        experimentId: experiment.id,
-        prompt: prompt.trim(),
-        comment: comment.trim(),
-        rating: typeof rating === 'number' ? rating : null,
-        category: category ? category.trim() : 'general',
-        visitorId: visitorId || null,
-      },
-    });
+    const feedback = await withDbRetry(() =>
+      prisma.feedback.create({
+        data: {
+          experimentId: experiment.id,
+          prompt: prompt.trim(),
+          comment: comment.trim(),
+          rating: typeof rating === 'number' ? rating : null,
+          category: category ? category.trim() : 'general',
+          visitorId: visitorId || null,
+        },
+      })
+    );
 
     return NextResponse.json({
       status: 'success',
@@ -66,13 +68,15 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error }, { status });
     }
 
-    const feedback = await prisma.feedback.findMany({
-      where: { experimentId: experiment.id },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        responses: true,
-      },
-    });
+    const feedback = await withDbRetry(() =>
+      prisma.feedback.findMany({
+        where: { experimentId: experiment.id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          responses: true,
+        },
+      })
+    );
 
     return NextResponse.json({
       status: 'success',

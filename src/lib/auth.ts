@@ -92,56 +92,51 @@ export async function ensureApplicationUser({
   const cleanName = (name || '').trim() || cleanEmail.split('@')[0];
 
   // 1. Try finding by supabaseUserId (primary identity mapping)
-  try {
-    const existing = await withDbRetry(() =>
-      prisma.user.findUnique({
-        where: { supabaseUserId },
-      })
-    );
-    if (existing) {
-      // Idempotently update name/organization if changed
-      const shouldUpdateName = cleanName && existing.name !== cleanName;
-      const shouldUpdateEmail = existing.email !== cleanEmail;
-      if (shouldUpdateName || shouldUpdateEmail) {
+  const existing = await withDbRetry(() =>
+    prisma.user.findUnique({
+      where: { supabaseUserId },
+    })
+  );
+
+  if (existing) {
+    // Non-blocking best-effort update of name or organization if changed
+    if ((cleanName && existing.name !== cleanName) || (organization && organization !== existing.organization)) {
+      try {
         return await withDbRetry(() =>
           prisma.user.update({
             where: { id: existing.id },
             data: {
-              email: cleanEmail,
               name: cleanName || existing.name,
               organization: organization !== undefined ? organization : existing.organization,
             },
           })
         );
+      } catch (updErr) {
+        console.warn('[WIQN AUTH] Best-effort user profile sync update notice:', updErr);
+        return existing;
       }
-      return existing;
     }
-  } catch (findErr: any) {
-    console.warn('[WIQN AUTH] findUnique by supabaseUserId warning:', findErr?.message || findErr);
+    return existing;
   }
 
   // 2. Check if user with same email exists from previous registration or migration
-  try {
-    const existingByEmail = await withDbRetry(() =>
-      prisma.user.findUnique({
-        where: { email: cleanEmail },
+  const existingByEmail = await withDbRetry(() =>
+    prisma.user.findUnique({
+      where: { email: cleanEmail },
+    })
+  );
+
+  if (existingByEmail) {
+    return await withDbRetry(() =>
+      prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: {
+          supabaseUserId, // Link to verified Supabase identity
+          name: cleanName || existingByEmail.name,
+          organization: organization !== undefined ? organization : existingByEmail.organization,
+        },
       })
     );
-
-    if (existingByEmail) {
-      return await withDbRetry(() =>
-        prisma.user.update({
-          where: { id: existingByEmail.id },
-          data: {
-            supabaseUserId, // Link to verified Supabase identity
-            name: cleanName || existingByEmail.name,
-            organization: organization !== undefined ? organization : existingByEmail.organization,
-          },
-        })
-      );
-    }
-  } catch (emailErr: any) {
-    console.warn('[WIQN AUTH] findUnique by email warning:', emailErr?.message || emailErr);
   }
 
   // 3. Atomically upsert by supabaseUserId
@@ -271,7 +266,7 @@ export type AuthResult =
  * Resolves both the authenticated Supabase user and the WIQN application profile in Neon PostgreSQL.
  * Performs atomic self-healing profile sync if the user exists in Supabase but not in Neon.
  * Returns { success: true, supabaseUser, applicationUser } or { success: false, error, status }.
- * Never displays a 401 error if the underlying failure was actually a database hiccup.
+ * Never displays an unhelpful generic error if the underlying failure was a connection glitch.
  */
 export async function getAuthenticatedUserContext(
   req?: Request | any
@@ -314,10 +309,28 @@ export async function getAuthenticatedUserContext(
       applicationUser: appUser,
     };
   } catch (dbErr: any) {
-    console.error('[WIQN AUTH] Database user sync failed during auth resolution:', dbErr?.message || dbErr);
+    const errMsg = dbErr?.message || String(dbErr);
+    const errCode = dbErr?.code || 'DB_ERROR';
+    console.error('[WIQN AUTH] Database user sync failed during auth resolution:', {
+      name: dbErr?.name,
+      code: errCode,
+      message: errMsg,
+    });
+
+    let userMessage = 'Service temporarily unavailable: database error during profile resolution';
+    if (errMsg.includes('reach database') || errCode === 'P1001') {
+      userMessage = 'Database connection error: unable to reach PostgreSQL database server';
+    } else if (errCode === 'P1017' || errMsg.includes('Closed')) {
+      userMessage = 'Database connection error: connection was closed by database server';
+    } else if (errCode === 'P2002') {
+      userMessage = 'Database constraint error: duplicate profile collision';
+    } else if (errMsg.includes('does not exist')) {
+      userMessage = `Database schema error: ${errMsg.slice(0, 100)}`;
+    }
+
     return {
       success: false,
-      error: 'Service temporarily unavailable: database error during profile resolution',
+      error: userMessage,
       status: 503,
     };
   }

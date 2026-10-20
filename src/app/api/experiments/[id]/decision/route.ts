@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 import { DecisionOutcome, ConfidenceLevel } from '@prisma/client';
 
 interface RouteContext {
@@ -59,17 +59,19 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
 
     // Persist to Neon PostgreSQL
-    const decision = await prisma.decision.create({
-      data: {
-        experimentId: experiment.id,
-        outcome: outcome as DecisionOutcome,
-        evidenceSummary: evidenceSummary.trim(),
-        reasoning: reasoning.trim(),
-        confidence: finalConfidence,
-        recommendedNextStep: (recommendedNextStep || 'Continue gathering interaction telemetry.').trim(),
-        limitations: appendedLimitations ? appendedLimitations.trim() : null,
-      },
-    });
+    const decision = await withDbRetry(() =>
+      prisma.decision.create({
+        data: {
+          experimentId: experiment.id,
+          outcome: outcome as DecisionOutcome,
+          evidenceSummary: evidenceSummary.trim(),
+          reasoning: reasoning.trim(),
+          confidence: finalConfidence,
+          recommendedNextStep: (recommendedNextStep || 'Continue gathering interaction telemetry.').trim(),
+          limitations: appendedLimitations ? appendedLimitations.trim() : null,
+        },
+      })
+    );
 
     return NextResponse.json({
       status: 'success',
@@ -95,10 +97,12 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error }, { status });
     }
 
-    const decisions = await prisma.decision.findMany({
-      where: { experimentId: experiment.id },
-      orderBy: { decidedAt: 'desc' },
-    });
+    const decisions = await withDbRetry(() =>
+      prisma.decision.findMany({
+        where: { experimentId: experiment.id },
+        orderBy: { decidedAt: 'desc' },
+      })
+    );
 
     return NextResponse.json({
       status: 'success',

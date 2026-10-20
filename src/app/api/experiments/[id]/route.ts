@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 import { ExperimentStatus, TestingMode } from '@prisma/client';
 
 interface RouteContext {
@@ -22,11 +22,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     }
 
     // Fetch recent events and compute empirical telemetry statistics
-    const recentEvents = await prisma.experimentEvent.findMany({
-      where: { experimentId: experiment.id },
-      orderBy: { timestamp: 'desc' },
-      take: 100,
-    });
+    const recentEvents = await withDbRetry(() =>
+      prisma.experimentEvent.findMany({
+        where: { experimentId: experiment.id },
+        orderBy: { timestamp: 'desc' },
+        take: 100,
+      })
+    );
 
     const eventBreakdown: Record<string, number> = {};
     const clickedElements: Record<string, number> = {};
@@ -46,10 +48,12 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     });
 
     // Query sessions to incorporate real session durations
-    const sessions = await prisma.session.findMany({
-      where: { experimentId: experiment.id },
-      select: { durationSec: true, startedAt: true, endedAt: true },
-    });
+    const sessions = await withDbRetry(() =>
+      prisma.session.findMany({
+        where: { experimentId: experiment.id },
+        select: { durationSec: true, startedAt: true, endedAt: true },
+      })
+    );
 
     let sessionTotalDur = 0;
     let sessionDurCount = 0;
@@ -267,10 +271,12 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       updateData.status = body.status;
     }
 
-    const updated = await prisma.experiment.update({
-      where: { id: experiment.id },
-      data: updateData,
-    });
+    const updated = await withDbRetry(() =>
+      prisma.experiment.update({
+        where: { id: experiment.id },
+        data: updateData,
+      })
+    );
 
     return NextResponse.json({
       status: 'success',
@@ -296,9 +302,11 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error }, { status: authStatus });
     }
 
-    await prisma.experiment.delete({
-      where: { id: experiment.id },
-    });
+    await withDbRetry(() =>
+      prisma.experiment.delete({
+        where: { id: experiment.id },
+      })
+    );
 
     return NextResponse.json({
       status: 'success',

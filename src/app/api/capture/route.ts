@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 import { EventType } from '@prisma/client';
 
 export async function OPTIONS() {
@@ -76,9 +76,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Validate that the experiment exists in Neon and is active
-    const experiment = await prisma.experiment.findUnique({
-      where: { id: experimentId },
-    });
+    const experiment = await withDbRetry(() =>
+      prisma.experiment.findUnique({
+        where: { id: experimentId },
+      })
+    );
 
     if (!experiment) {
       return NextResponse.json(
@@ -95,24 +97,26 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Ensure anonymous visitor record exists in Neon
-    const visitor = await prisma.visitor.upsert({
-      where: {
-        experimentId_visitorId: {
+    const visitor = await withDbRetry(() =>
+      prisma.visitor.upsert({
+        where: {
+          experimentId_visitorId: {
+            experimentId: experiment.id,
+            visitorId: visitorId,
+          },
+        },
+        update: {
+          lastSeenAt: new Date(),
+          browser: device?.userAgent?.substring(0, 100),
+        },
+        create: {
           experimentId: experiment.id,
           visitorId: visitorId,
+          deviceType: device?.width && device.width < 768 ? 'mobile' : 'desktop',
+          browser: device?.userAgent?.substring(0, 100),
         },
-      },
-      update: {
-        lastSeenAt: new Date(),
-        browser: device?.userAgent?.substring(0, 100),
-      },
-      create: {
-        experimentId: experiment.id,
-        visitorId: visitorId,
-        deviceType: device?.width && device.width < 768 ? 'mobile' : 'desktop',
-        browser: device?.userAgent?.substring(0, 100),
-      },
-    });
+      })
+    );
 
     // Extract duration if present in payload or metadata
     const durationSeconds = typeof payload.durationSeconds === 'number'
@@ -129,22 +133,24 @@ export async function POST(req: NextRequest) {
       currentSessionSec = Math.max(0, Math.round((Date.now() - existingSession.startedAt.getTime()) / 1000));
     }
 
-    await prisma.session.upsert({
-      where: { sessionId: sessionId },
-      update: {
-        endedAt: new Date(),
-        durationSec: currentSessionSec ? Math.max(existingSession?.durationSec || 0, currentSessionSec) : undefined,
-      },
-      create: {
-        sessionId: sessionId,
-        experimentId: experiment.id,
-        visitorId: visitor.id,
-        startedAt: new Date(),
-        endedAt: new Date(),
-        durationSec: currentSessionSec || 0,
-        referrer: referrer || null,
-      },
-    });
+    await withDbRetry(() =>
+      prisma.session.upsert({
+        where: { sessionId: sessionId },
+        update: {
+          endedAt: new Date(),
+          durationSec: currentSessionSec ? Math.max(existingSession?.durationSec || 0, currentSessionSec) : undefined,
+        },
+        create: {
+          sessionId: sessionId,
+          experimentId: experiment.id,
+          visitorId: visitor.id,
+          startedAt: new Date(),
+          endedAt: new Date(),
+          durationSec: currentSessionSec || 0,
+          referrer: referrer || null,
+        },
+      })
+    );
 
     // 4. Ingest telemetry event with metadata preserved
     const normalizedType = normalizeEventType(eventType);
@@ -154,20 +160,22 @@ export async function POST(req: NextRequest) {
       ...(durationSeconds ? { durationSeconds } : {}),
     };
 
-    const recordedEvent = await prisma.experimentEvent.create({
-      data: {
-        experimentId: experiment.id,
-        sessionId: sessionId,
-        visitorId: visitor.id,
-        eventType: normalizedType,
-        element: element || null,
-        elementText: elementText || null,
-        page: page || '/',
-        referrer: referrer || null,
-        timestamp: timestamp ? new Date(timestamp) : new Date(),
-        metadata: Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined,
-      },
-    });
+    const recordedEvent = await withDbRetry(() =>
+      prisma.experimentEvent.create({
+        data: {
+          experimentId: experiment.id,
+          sessionId: sessionId,
+          visitorId: visitor.id,
+          eventType: normalizedType,
+          element: element || null,
+          elementText: elementText || null,
+          page: page || '/',
+          referrer: referrer || null,
+          timestamp: timestamp ? new Date(timestamp) : new Date(),
+          metadata: Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined,
+        },
+      })
+    );
 
     return NextResponse.json(
       {

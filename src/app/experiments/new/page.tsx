@@ -115,6 +115,7 @@ export default function NewExperimentPage() {
   };
 
   const handleLaunch = async () => {
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     saveDraft();
@@ -636,10 +637,16 @@ export default function NewExperimentPage() {
               onClick={handleLaunch}
               disabled={submitting}
               className="btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                opacity: submitting ? 0.7 : 1,
+                cursor: submitting ? 'not-allowed' : 'pointer',
+              }}
             >
               <Check size={16} />
-              <span>{submitting ? 'Setting Up Experiment...' : 'Start Experiment'}</span>
+              <span>{submitting ? 'Creating Experiment...' : 'Start Experiment'}</span>
             </button>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 import { synthesizeExperimentEvidence } from '@/lib/evidenceEngine';
 import { runServerAIAnalysis } from '@/lib/aiEngine';
 import { InsightType, ConfidenceLevel } from '@prisma/client';
@@ -81,12 +81,21 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     // 4. Persist structured insights to Neon PostgreSQL
     // Delete previous automated insights for this experiment to keep it clean and current
-    await prisma.insight.deleteMany({
-      where: { experimentId: experiment.id },
-    });
+    await withDbRetry(() =>
+      prisma.insight.deleteMany({
+        where: { experimentId: experiment.id },
+      })
+    );
 
     // Insert new insights
-    const insightEntries = [];
+    const insightEntries: Array<{
+      experimentId: string;
+      type: InsightType;
+      statement: string;
+      evidence: string;
+      confidence: ConfidenceLevel;
+      limitations: string | null;
+    }> = [];
 
     // Fact insights
     for (const fact of analysis.facts.slice(0, 3)) {
@@ -113,9 +122,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
 
     if (insightEntries.length > 0) {
-      await prisma.insight.createMany({
-        data: insightEntries,
-      });
+      await withDbRetry(() =>
+        prisma.insight.createMany({
+          data: insightEntries,
+        })
+      );
     }
 
     return NextResponse.json({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,32 +10,34 @@ export async function GET(req: NextRequest) {
     }
 
     // Only fetch experiments owned by the authenticated application user
-    const experiments = await prisma.experiment.findMany({
-      where: {
-        userId: authResult.applicationUser.id,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        prototypes: true,
-        sessions: {
-          select: {
-            durationSec: true,
-            startedAt: true,
-            endedAt: true,
+    const experiments = await withDbRetry(() =>
+      prisma.experiment.findMany({
+        where: {
+          userId: authResult.applicationUser.id,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          prototypes: true,
+          sessions: {
+            select: {
+              durationSec: true,
+              startedAt: true,
+              endedAt: true,
+            },
+          },
+          _count: {
+            select: {
+              visitors: true,
+              sessions: true,
+              events: true,
+              feedback: true,
+            },
           },
         },
-        _count: {
-          select: {
-            visitors: true,
-            sessions: true,
-            events: true,
-            feedback: true,
-          },
-        },
-      },
-    });
+      })
+    );
 
     const mapped = experiments.map((exp) => {
       let totalDuration = 0;
@@ -80,7 +82,7 @@ export async function GET(req: NextRequest) {
       status: 'success',
       data: mapped,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching user experiments from Neon:', error);
     return NextResponse.json({ error: 'Internal server error fetching experiments' }, { status: 500 });
   }
@@ -134,30 +136,32 @@ export async function POST(req: NextRequest) {
     // Securely associate exclusively with authenticated application user ID (IDOR prevention)
     const targetUserId = authResult.applicationUser.id;
 
-    const newExperiment = await prisma.experiment.create({
-      data: {
-        userId: targetUserId,
-        name: name.trim(),
-        productName: productName.trim(),
-        problem: (problem || '').trim(),
-        targetAudience: (targetAudience || '').trim(),
-        productIdea: (productIdea || '').trim(),
-        keyHypothesis: keyHypothesis.trim(),
-        learningGoal: (learningGoal || '').trim(),
-        prototypeUrl: prototypeUrl.trim(),
-        testingMode: testingMode === 'CARDEX_ALPHA' ? 'CARDEX_ALPHA' : 'PRIVATE',
-        status: status || 'ACTIVE',
-        prototypes: {
-          create: {
-            url: prototypeUrl.trim(),
-            version: '1.0.0',
+    const newExperiment = await withDbRetry(() =>
+      prisma.experiment.create({
+        data: {
+          userId: targetUserId,
+          name: name.trim(),
+          productName: productName.trim(),
+          problem: (problem || '').trim(),
+          targetAudience: (targetAudience || '').trim(),
+          productIdea: (productIdea || '').trim(),
+          keyHypothesis: keyHypothesis.trim(),
+          learningGoal: (learningGoal || '').trim(),
+          prototypeUrl: prototypeUrl.trim(),
+          testingMode: testingMode === 'CARDEX_ALPHA' ? 'CARDEX_ALPHA' : 'PRIVATE',
+          status: status || 'ACTIVE',
+          prototypes: {
+            create: {
+              url: prototypeUrl.trim(),
+              version: '1.0.0',
+            },
           },
         },
-      },
-      include: {
-        prototypes: true,
-      },
-    });
+        include: {
+          prototypes: true,
+        },
+      })
+    );
 
     const experimentPayload = {
       id: newExperiment.id,
@@ -177,9 +181,9 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to persist experiment to Neon:', error);
-    return NextResponse.json({ error: 'Failed to create experiment in database' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Failed to create experiment in database' }, { status: 500 });
   }
 }
 
