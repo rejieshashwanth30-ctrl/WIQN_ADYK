@@ -1616,3 +1616,28 @@ img, canvas, video, svg {
   }
 }
 
+/* Responsive visibility utilities */
+@media (max-width: 640px) {
+  .hidden-mobile {
+    display: none !important;
+  }
+  .visible-mobile-inline {
+    display: inline !important;
+  }
+  .visible-mobile-flex {
+    display: flex !important;
+  }
+  .visible-mobile-block {
+    display: block !important;
+  }
+}
+
+@media (min-width: 641px) {
+  .visible-mobile-inline,
+  .visible-mobile-flex,
+  .visible-mobile-block {
+    display: none !important;
+  }
+}
+
+

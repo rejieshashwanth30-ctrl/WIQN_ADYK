@@ -32,17 +32,17 @@ export function isLocalEnvironment(): boolean {
  * 6. Default fallback to Vercel app domain
  */
 export function getProductionAppUrl(): string {
-  // 1. Explicitly configured production environment variable
-  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
-  if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io')) {
-    return envUrl;
-  }
-
-  // 2. Active browser origin if deployed on HTTPS (e.g. on *.vercel.app)
+  // 1. Active browser origin if deployed on HTTPS (e.g. on kwiqn.vercel.app or custom domain)
   if (typeof window !== 'undefined') {
     if (window.location.protocol === 'https:') {
       return window.location.origin;
     }
+  }
+
+  // 2. Explicitly configured production environment variable
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
+  if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io')) {
+    return envUrl;
   }
 
   // 3. Vercel system environment variables
@@ -62,6 +62,13 @@ export function getProductionAppUrl(): string {
   }
 
   return 'https://adyk-wiqn.vercel.app';
+}
+
+/**
+ * Centralized public test URL generator (alias for getTestUrl).
+ */
+export function getExperimentTestUrl(experimentId: string, options?: { forceProduction?: boolean; forceLocal?: boolean }): string {
+  return getTestUrl(experimentId, options);
 }
 
 /**

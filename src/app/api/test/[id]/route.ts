@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -9,19 +9,21 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
 
-    const experiment = await prisma.experiment.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        productName: true,
-        problem: true,
-        learningGoal: true,
-        prototypeUrl: true,
-        status: true,
-        testingMode: true,
-      },
-    });
+    const experiment = await withDbRetry(() =>
+      prisma.experiment.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          productName: true,
+          problem: true,
+          learningGoal: true,
+          prototypeUrl: true,
+          status: true,
+          testingMode: true,
+        },
+      })
+    );
 
     if (!experiment) {
       return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });

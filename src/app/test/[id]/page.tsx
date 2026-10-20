@@ -275,14 +275,15 @@ export default function PublicTestingPage({ params }: PageProps) {
         </div>
 
         {/* Right: Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setShowEmbedFallback(!showEmbedFallback)}
             className="btn-ghost"
-            style={{ fontSize: '0.6875rem', padding: '6px 10px', color: 'var(--color-silver-300)' }}
+            style={{ fontSize: '0.6875rem', padding: '6px 8px', color: 'var(--color-silver-300)' }}
             title="Display instructions if the prototype cannot be loaded inside an embedded frame"
           >
-            {showEmbedFallback ? 'Hide Help' : 'Embedding Help'}
+            <span className="hidden-mobile">{showEmbedFallback ? 'Hide Help' : 'Embedding Help'}</span>
+            <span className="visible-mobile-inline">Help</span>
           </button>
 
           <a
@@ -290,19 +291,20 @@ export default function PublicTestingPage({ params }: PageProps) {
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary"
-            style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            style={{ fontSize: '0.6875rem', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            <span>Open in New Tab</span>
-            <ExternalLink size={12} />
+            <span className="hidden-mobile">Open in New Tab</span>
+            <span className="visible-mobile-inline">Direct</span>
+            <ExternalLink size={11} />
           </a>
 
           <button
             onClick={() => setShowFeedbackModal(true)}
             className="btn-primary"
-            style={{ fontSize: '0.6875rem', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
           >
             <MessageSquare size={13} />
-            <span>Give Feedback</span>
+            <span>Feedback</span>
           </button>
         </div>
       </header>
@@ -385,9 +387,11 @@ export default function PublicTestingPage({ params }: PageProps) {
               backgroundColor: '#0a0a0d',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               borderRadius: '3px',
-              padding: '32px',
+              padding: 'clamp(20px, 4vw, 32px)',
               maxWidth: '520px',
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
               position: 'relative',
             }}
@@ -561,6 +565,33 @@ export default function PublicTestingPage({ params }: PageProps) {
           </div>
         </div>
       )}
+      {/* Floating Action Button on Mobile */}
+      <button
+        onClick={() => setShowFeedbackModal(true)}
+        className="visible-mobile-flex"
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 50,
+          backgroundColor: '#ffffff',
+          color: '#000000',
+          border: 'none',
+          borderRadius: '9999px',
+          padding: '12px 18px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        <MessageSquare size={15} />
+        <span>GIVE FEEDBACK</span>
+      </button>
     </div>
   );
 }

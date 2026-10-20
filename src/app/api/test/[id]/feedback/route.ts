@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma, withDbRetry } from '@/lib/db';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -22,9 +22,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     } = body;
 
     // 1. Verify experiment exists and is active in Neon
-    const experiment = await prisma.experiment.findUnique({
-      where: { id },
-    });
+    const experiment = await withDbRetry(() =>
+      prisma.experiment.findUnique({
+        where: { id },
+      })
+    );
 
     if (!experiment) {
       return NextResponse.json(
@@ -42,22 +44,24 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
     // 2. Resolve or create anonymous Visitor record
     const effectiveVisitorId = visitorId || `v_anon_${Date.now().toString(36)}`;
-    const visitor = await prisma.visitor.upsert({
-      where: {
-        experimentId_visitorId: {
+    const visitor = await withDbRetry(() =>
+      prisma.visitor.upsert({
+        where: {
+          experimentId_visitorId: {
+            experimentId: experiment.id,
+            visitorId: effectiveVisitorId,
+          },
+        },
+        update: {
+          lastSeenAt: new Date(),
+        },
+        create: {
           experimentId: experiment.id,
           visitorId: effectiveVisitorId,
+          deviceType: device?.width && device.width < 768 ? 'mobile' : 'desktop',
         },
-      },
-      update: {
-        lastSeenAt: new Date(),
-      },
-      create: {
-        experimentId: experiment.id,
-        visitorId: effectiveVisitorId,
-        deviceType: device?.width && device.width < 768 ? 'mobile' : 'desktop',
-      },
-    });
+      })
+    );
 
     // 3. Assemble full feedback comment from questions
     const parts: string[] = [];
@@ -74,7 +78,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     const fullComment = parts.join(' | ') || 'Anonymous tester feedback response.';
 
     // 4. Build response entries
-    const responsesData = [];
+    const responsesData: Array<{ questionKey: string; answerValue: string }> = [];
     if (confusing?.trim()) {
       responsesData.push({
         questionKey: 'confusing',
@@ -89,33 +93,37 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
 
     // 5. Persist to Neon with visitorId (guarantees "Tester feedback" classification)
-    const feedback = await prisma.feedback.create({
-      data: {
-        experimentId: experiment.id,
-        visitorId: visitor.id,
-        prompt: 'Public Tester Session',
-        category: category ? category.trim().toLowerCase() : 'usability',
-        rating: typeof rating === 'number' && rating >= 1 && rating <= 5 ? rating : null,
-        comment: fullComment,
-        responses: responsesData.length > 0 ? { create: responsesData } : undefined,
-      },
-    });
+    const feedback = await withDbRetry(() =>
+      prisma.feedback.create({
+        data: {
+          experimentId: experiment.id,
+          visitorId: visitor.id,
+          prompt: 'Public Tester Session',
+          category: category ? category.trim().toLowerCase() : 'usability',
+          rating: typeof rating === 'number' && rating >= 1 && rating <= 5 ? rating : null,
+          comment: fullComment,
+          responses: responsesData.length > 0 ? { create: responsesData } : undefined,
+        },
+      })
+    );
 
     // Also record feedback submission event for telemetry
     if (sessionId) {
       try {
-        await prisma.experimentEvent.create({
-          data: {
-            experimentId: experiment.id,
-            sessionId: sessionId,
-            visitorId: visitor.id,
-            eventType: 'FORM_SUBMIT',
-            element: 'tester_feedback_form',
-            elementText: 'Submit Feedback',
-            page: `/test/${experiment.id}`,
-            metadata: { feedbackId: feedback.id, rating: rating || null },
-          },
-        });
+        await withDbRetry(() =>
+          prisma.experimentEvent.create({
+            data: {
+              experimentId: experiment.id,
+              sessionId: sessionId,
+              visitorId: visitor.id,
+              eventType: 'FORM_SUBMIT',
+              element: 'tester_feedback_form',
+              elementText: 'Submit Feedback',
+              page: `/test/${experiment.id}`,
+              metadata: { feedbackId: feedback.id, rating: rating || null },
+            },
+          })
+        );
       } catch (e) {
         // Non-blocking telemetry error
       }

@@ -24,20 +24,22 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
 
     // 1. Fetch real database records
-    const [events, sessions, feedback] = await Promise.all([
-      prisma.experimentEvent.findMany({
-        where: { experimentId: experiment.id },
-        orderBy: { timestamp: 'desc' },
-        take: 300,
-      }),
-      prisma.session.findMany({
-        where: { experimentId: experiment.id },
-      }),
-      prisma.feedback.findMany({
-        where: { experimentId: experiment.id },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    const [events, sessions, feedback] = await withDbRetry(() =>
+      Promise.all([
+        prisma.experimentEvent.findMany({
+          where: { experimentId: experiment.id },
+          orderBy: { timestamp: 'desc' },
+          take: 300,
+        }),
+        prisma.session.findMany({
+          where: { experimentId: experiment.id },
+        }),
+        prisma.feedback.findMany({
+          where: { experimentId: experiment.id },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ])
+    );
 
     // Compute duration
     let totalDur = 0;
@@ -140,5 +142,36 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       { error: 'AI analysis service temporarily unavailable. Please try again.' },
       { status: 500 }
     );
+  }
+}
+
+export async function GET(req: NextRequest, { params }: RouteContext) {
+  try {
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
+
+    const { id } = await params;
+    const { status, error, experiment } = await verifyExperimentOwnership(id, authResult.applicationUser.id);
+
+    if (error || !experiment) {
+      return NextResponse.json({ error }, { status });
+    }
+
+    const insights = await withDbRetry(() =>
+      prisma.insight.findMany({
+        where: { experimentId: experiment.id },
+        orderBy: { createdAt: 'desc' },
+      })
+    );
+
+    return NextResponse.json({
+      status: 'success',
+      insights,
+    });
+  } catch (err: any) {
+    console.error('Error fetching experiment insights:', err);
+    return NextResponse.json({ error: 'Internal server error fetching insights' }, { status: 500 });
   }
 }
