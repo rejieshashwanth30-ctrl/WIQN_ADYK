@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, verifyExperimentOwnership } from '@/lib/auth';
+import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { synthesizeExperimentEvidence } from '@/lib/evidenceEngine';
 import { runServerAIAnalysis } from '@/lib/aiEngine';
@@ -11,13 +11,13 @@ interface RouteContext {
 
 export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
-    const auth = await getCurrentUser(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const { id } = await params;
-    const { status, error, experiment } = await verifyExperimentOwnership(id, auth.applicationUser.id);
+    const { status, error, experiment } = await verifyExperimentOwnership(id, authResult.applicationUser.id);
 
     if (error || !experiment) {
       return NextResponse.json({ error }, { status });

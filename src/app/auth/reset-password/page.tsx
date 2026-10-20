@@ -23,14 +23,14 @@ function ResetPasswordForm() {
     const supabase = createClient();
 
     // Check if the user is visiting with an established recovery session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    supabase.auth.getSession().then(({ data }: any) => {
+      if (data?.session) {
         setIsRecoverySession(true);
       }
       setCheckingSession(false);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         setIsRecoverySession(true);
       }

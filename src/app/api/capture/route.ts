@@ -171,6 +171,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
+        success: true,
         received: true,
         eventId: recordedEvent.id,
         experimentId: experiment.id,

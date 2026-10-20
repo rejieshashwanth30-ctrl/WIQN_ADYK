@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/DashboardNav';
 import { getExperimentById, REFERENCE_INSIGHTS, REFERENCE_FEEDBACK, REFERENCE_DECISION } from '@/lib/storage';
 import { Experiment, StructuredInsight, FeedbackItem, DecisionRecord, DecisionOutcome } from '@/lib/types';
 import { getPublicAppUrl, getTestUrl, getShareUrls, isLocalEnvironment, getProductionAppUrl } from '@/lib/urls';
+import { authenticatedFetch } from '@/lib/api-client';
 import {
   Layers,
   Activity,
@@ -96,7 +97,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     try {
       setLoading(true);
       setAuthError(null);
-      const res = await fetch(`/api/experiments/${experimentId}`);
+      const res = await authenticatedFetch(`/api/experiments/${experimentId}`);
       if (res.status === 403) {
         setAuthError('You do not have permission to view this experiment. Each founder can only view their own experiments.');
         setExperiment(null);
@@ -145,7 +146,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     setRunningAI(true);
     setAiError(null);
     try {
-      const res = await fetch(`/api/experiments/${experimentId}/ai-analysis`, {
+      const res = await authenticatedFetch(`/api/experiments/${experimentId}/ai-analysis`, {
         method: 'POST',
       });
       const data = await res.json();
@@ -180,9 +181,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     const isLowData = events < 20 || visitors < 5;
 
     try {
-      const res = await fetch(`/api/experiments/${experiment.id}/decision`, {
+      const res = await authenticatedFetch(`/api/experiments/${experiment.id}/decision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           outcome: selectedDecision,
           evidenceSummary: summary,
@@ -225,9 +225,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     setFeedbackNotice(null);
 
     try {
-      const res = await fetch(`/api/experiments/${experimentId}/feedback`, {
+      const res = await authenticatedFetch(`/api/experiments/${experimentId}/feedback`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: feedbackPrompt.trim() || 'General Observation',
           comment: feedbackComment.trim(),

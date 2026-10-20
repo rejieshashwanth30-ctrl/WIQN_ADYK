@@ -26,9 +26,9 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        setUserEmail(user.email);
+    supabase.auth.getUser().then(({ data }: any) => {
+      if (data?.user?.email) {
+        setUserEmail(data.user.email);
       }
     });
   }, []);

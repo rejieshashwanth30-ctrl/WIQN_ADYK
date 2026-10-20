@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/DashboardNav';
 import { REFERENCE_EXPERIMENT, REFERENCE_INSIGHTS } from '@/lib/storage';
 import { Experiment } from '@/lib/types';
 import { Plus, ArrowUpRight, Compass, BookOpen, Clock, Sparkles } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/api-client';
 
 export default function DashboardPage() {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
@@ -15,7 +16,7 @@ export default function DashboardPage() {
   const fetchExperiments = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/experiments');
+      const res = await authenticatedFetch('/api/experiments');
       if (res.ok) {
         const json = await res.json();
         setExperiments(json.data || []);
@@ -34,9 +35,8 @@ export default function DashboardPage() {
   const handleLoadReference = async () => {
     try {
       setCreatingReference(true);
-      const res = await fetch('/api/experiments', {
+      const res = await authenticatedFetch('/api/experiments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: REFERENCE_EXPERIMENT.name,
           productName: REFERENCE_EXPERIMENT.productName,

@@ -8,6 +8,7 @@ import { saveStoredExperiment } from '@/lib/storage';
 import { Experiment, TestingMode, ExperimentStatus } from '@/lib/types';
 import { ArrowRight, ArrowLeft, Check, Layers, Target, Link as LinkIcon, ShieldCheck, Globe, AlertCircle, LogIn } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { authenticatedFetch } from '@/lib/api-client';
 
 export default function NewExperimentPage() {
   const router = useRouter();
@@ -50,8 +51,8 @@ export default function NewExperimentPage() {
     } catch {}
 
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
+    supabase.auth.getSession().then(({ data }: any) => {
+      setIsAuthenticated(!!data?.session);
     });
   }, []);
 
@@ -119,30 +120,8 @@ export default function NewExperimentPage() {
     saveDraft();
 
     try {
-      const supabase = createClient();
-      let accessToken: string | null = null;
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          accessToken = session.access_token;
-        }
-      } catch (sessErr) {
-        console.warn('Session retrieval warning:', sessErr);
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const res = await fetch('/api/experiments', {
+      const res = await authenticatedFetch('/api/experiments', {
         method: 'POST',
-        headers,
-        credentials: 'include',
         body: JSON.stringify({
           name: name.trim(),
           productName: productName.trim(),
@@ -165,12 +144,21 @@ export default function NewExperimentPage() {
       }
 
       const json = await res.json();
+      const experimentId = json.experiment?.id || json.data?.id;
+
+      if (!experimentId) {
+        setError('Experiment registered, but identifier missing from response.');
+        setSubmitting(false);
+        return;
+      }
+
       try {
         localStorage.removeItem('wiqn_experiment_draft');
       } catch {}
-      router.push(`/experiments/${json.data.id}`);
+
+      router.push(`/experiments/${experimentId}`);
     } catch (err: any) {
-      setError(err?.message || 'Network error communicating with Neon database');
+      setError(err?.message || 'Network error communicating with server');
       setSubmitting(false);
     }
   };
@@ -257,9 +245,10 @@ export default function NewExperimentPage() {
           style={{
             backgroundColor: '#0a0a0d',
             border: '1px solid rgba(255, 255, 255, 0.12)',
-            padding: '40px',
+            padding: 'clamp(20px, 4vw, 40px)',
             borderRadius: '2px',
             marginBottom: '36px',
+            boxSizing: 'border-box',
           }}
         >
           {/* STEP 1: Foundation */}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, verifyExperimentOwnership } from '@/lib/auth';
+import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ExperimentStatus, TestingMode } from '@prisma/client';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -8,13 +9,13 @@ interface RouteContext {
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
-    const auth = await getCurrentUser(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const { id } = await params;
-    const { status, error, experiment } = await verifyExperimentOwnership(id, auth.applicationUser.id);
+    const { status, error, experiment } = await verifyExperimentOwnership(id, authResult.applicationUser.id);
 
     if (error || !experiment) {
       return NextResponse.json({ error }, { status });
@@ -211,3 +212,102 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
+  try {
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
+
+    const { id } = await params;
+    const { status: authStatus, error, experiment } = await verifyExperimentOwnership(id, authResult.applicationUser.id);
+
+    if (error || !experiment) {
+      return NextResponse.json({ error }, { status: authStatus });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const updateData: Record<string, any> = {};
+
+    if (body.name !== undefined) updateData.name = body.name.trim();
+    if (body.productName !== undefined) updateData.productName = body.productName.trim();
+    if (body.problem !== undefined) updateData.problem = body.problem.trim();
+    if (body.targetAudience !== undefined) updateData.targetAudience = body.targetAudience.trim();
+    if (body.productIdea !== undefined) updateData.productIdea = body.productIdea.trim();
+    if (body.keyHypothesis !== undefined) updateData.keyHypothesis = body.keyHypothesis.trim();
+    if (body.learningGoal !== undefined) updateData.learningGoal = body.learningGoal.trim();
+
+    if (body.prototypeUrl !== undefined) {
+      const url = body.prototypeUrl.trim();
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          return NextResponse.json({ error: 'Prototype URL must use HTTP or HTTPS' }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ error: 'Invalid prototype URL format' }, { status: 400 });
+      }
+      updateData.prototypeUrl = url;
+    }
+
+    if (body.testingMode !== undefined) {
+      const validModes: TestingMode[] = ['PRIVATE', 'CARDEX_ALPHA'];
+      if (!validModes.includes(body.testingMode)) {
+        return NextResponse.json({ error: `Invalid testingMode: ${body.testingMode}` }, { status: 400 });
+      }
+      updateData.testingMode = body.testingMode;
+    }
+
+    if (body.status !== undefined) {
+      const validStatuses: ExperimentStatus[] = ['DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED'];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json({ error: `Invalid experiment status: ${body.status}` }, { status: 400 });
+      }
+      updateData.status = body.status;
+    }
+
+    const updated = await prisma.experiment.update({
+      where: { id: experiment.id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      status: 'success',
+      data: updated,
+    });
+  } catch (error) {
+    console.error('Error updating experiment in Neon:', error);
+    return NextResponse.json({ error: 'Failed to update experiment' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
+  try {
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+    }
+
+    const { id } = await params;
+    const { status: authStatus, error, experiment } = await verifyExperimentOwnership(id, authResult.applicationUser.id);
+
+    if (error || !experiment) {
+      return NextResponse.json({ error }, { status: authStatus });
+    }
+
+    await prisma.experiment.delete({
+      where: { id: experiment.id },
+    });
+
+    return NextResponse.json({
+      status: 'success',
+      message: 'Experiment deleted successfully',
+      deletedId: experiment.id,
+    });
+  } catch (error) {
+    console.error('Error deleting experiment from Neon:', error);
+    return NextResponse.json({ error: 'Failed to delete experiment' }, { status: 500 });
+  }
+}
+

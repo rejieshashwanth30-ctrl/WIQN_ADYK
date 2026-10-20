@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getAuthenticatedUserContext } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await getCurrentUser(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     // Only fetch experiments owned by the authenticated application user
     const experiments = await prisma.experiment.findMany({
       where: {
-        userId: auth.applicationUser.id,
+        userId: authResult.applicationUser.id,
       },
       orderBy: {
         createdAt: 'desc',
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching user experiments from Neon:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error fetching experiments' }, { status: 500 });
   }
 }
 
@@ -98,9 +98,9 @@ function isValidPrototypeUrl(url: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await getCurrentUser(req);
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 });
+    const authResult = await getAuthenticatedUserContext(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const body = await req.json();
@@ -131,43 +131,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ensure the application user record exists in Neon PostgreSQL before creating experiment
-    let targetUserId = auth.applicationUser.id;
-    const existingDbUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-    });
-    if (!existingDbUser) {
-      try {
-        const ensuredUser = await prisma.user.upsert({
-          where: { email: auth.applicationUser.email },
-          update: {
-            supabaseUserId: auth.supabaseUser.id,
-          },
-          create: {
-            supabaseUserId: auth.supabaseUser.id,
-            email: auth.applicationUser.email,
-            name: auth.applicationUser.name,
-            organization: auth.applicationUser.organization,
-            role: 'FOUNDER',
-          },
-        });
-        targetUserId = ensuredUser.id;
-      } catch (upsertErr) {
-        const found = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { supabaseUserId: auth.supabaseUser.id },
-              { email: auth.applicationUser.email },
-            ],
-          },
-        });
-        if (found) {
-          targetUserId = found.id;
-        }
-      }
-    }
+    // Securely associate exclusively with authenticated application user ID (IDOR prevention)
+    const targetUserId = authResult.applicationUser.id;
 
-    // Securely associate with the authenticated application user ID
     const newExperiment = await prisma.experiment.create({
       data: {
         userId: targetUserId,
@@ -193,22 +159,27 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const experimentPayload = {
+      id: newExperiment.id,
+      name: newExperiment.name,
+      productName: newExperiment.productName,
+      keyHypothesis: newExperiment.keyHypothesis,
+      status: newExperiment.status,
+      createdAt: newExperiment.createdAt.toISOString(),
+    };
+
     return NextResponse.json(
       {
+        success: true,
         status: 'created',
-        data: {
-          id: newExperiment.id,
-          name: newExperiment.name,
-          productName: newExperiment.productName,
-          keyHypothesis: newExperiment.keyHypothesis,
-          status: newExperiment.status,
-          createdAt: newExperiment.createdAt.toISOString(),
-        },
+        experiment: experimentPayload,
+        data: experimentPayload,
       },
       { status: 201 }
     );
   } catch (error) {
     console.error('Failed to persist experiment to Neon:', error);
-    return NextResponse.json({ error: 'Failed to create experiment' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create experiment in database' }, { status: 500 });
   }
 }
+

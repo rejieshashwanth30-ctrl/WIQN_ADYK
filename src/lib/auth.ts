@@ -175,6 +175,141 @@ export async function ensureApplicationUser({
 }
 
 /**
+ * Canonical server authentication function.
+ * Verifies Supabase user from:
+ * 1. Authorization: Bearer <access_token> header (via stateless client)
+ * 2. Supabase HTTP-only session cookies (via server client)
+ * Returns the verified Supabase user or null.
+ */
+export interface VerifiedSupabaseUser {
+  id: string;
+  email: string;
+  user_metadata?: Record<string, any>;
+}
+
+export async function getAuthenticatedSupabaseUser(
+  req?: Request | any
+): Promise<VerifiedSupabaseUser | null> {
+  try {
+    // 1. Check Authorization header for Bearer access token
+    if (req) {
+      let authHeader: string | null = null;
+      if (typeof req.headers?.get === 'function') {
+        authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+      } else if (req.headers && typeof req.headers === 'object') {
+        authHeader = req.headers['authorization'] || req.headers['Authorization'] || null;
+      }
+
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        const token = authHeader.substring(7).trim();
+        if (token) {
+          const verified = await verifySupabaseToken(token);
+          if (verified && verified.id && verified.email) {
+            return {
+              id: verified.id,
+              email: verified.email,
+              user_metadata: verified.user_metadata || {},
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Check HTTP-only cookies via createServerSupabaseClient
+    try {
+      const supabase = await createServerSupabaseClient();
+      const {
+        data: { user: cookieUser },
+        error: cookieError,
+      } = await supabase.auth.getUser();
+
+      if (!cookieError && cookieUser && cookieUser.id && cookieUser.email) {
+        return {
+          id: cookieUser.id,
+          email: cookieUser.email,
+          user_metadata: cookieUser.user_metadata || {},
+        };
+      }
+    } catch (cErr) {
+      // Cookies not accessible or invalid
+    }
+
+    return null;
+  } catch (err: any) {
+    console.error('[WIQN AUTH] getAuthenticatedSupabaseUser unexpected error:', err?.message || err);
+    return null;
+  }
+}
+
+export type AuthResult =
+  | {
+      success: true;
+      supabaseUser: { id: string; email: string };
+      applicationUser: AuthenticatedContext['applicationUser'];
+    }
+  | {
+      success: false;
+      error: string;
+      status: number;
+    };
+
+/**
+ * Resolves both the authenticated Supabase user and the WIQN application profile in Neon PostgreSQL.
+ * Performs atomic self-healing profile sync if the user exists in Supabase but not in Neon.
+ * Returns { success: true, supabaseUser, applicationUser } or { success: false, error, status }.
+ * Never displays a 401 error if the underlying failure was actually a database hiccup.
+ */
+export async function getAuthenticatedUserContext(
+  req?: Request | any
+): Promise<AuthResult> {
+  const supaUser = await getAuthenticatedSupabaseUser(req);
+  if (!supaUser) {
+    return {
+      success: false,
+      error: 'Unauthorized: Session required',
+      status: 401,
+    };
+  }
+
+  const metadata = supaUser.user_metadata || {};
+  const name = metadata.name || metadata.full_name || supaUser.email.split('@')[0];
+  const organization = metadata.organization || null;
+
+  try {
+    const appUser = await ensureApplicationUser({
+      supabaseUserId: supaUser.id,
+      email: supaUser.email,
+      name,
+      organization,
+    });
+
+    if (!appUser) {
+      return {
+        success: false,
+        error: 'Application user profile could not be synchronized',
+        status: 500,
+      };
+    }
+
+    return {
+      success: true,
+      supabaseUser: {
+        id: supaUser.id,
+        email: supaUser.email,
+      },
+      applicationUser: appUser,
+    };
+  } catch (dbErr: any) {
+    console.error('[WIQN AUTH] Database user sync failed during auth resolution:', dbErr?.message || dbErr);
+    return {
+      success: false,
+      error: 'Service temporarily unavailable: database error during profile resolution',
+      status: 503,
+    };
+  }
+}
+
+/**
  * Resolves the authenticated Supabase user and self-heals / synchronizes
  * with the corresponding Wiqn application user record in Neon PostgreSQL.
  * Supports both Authorization: Bearer <access_token> headers and HTTP-only cookies.
@@ -182,68 +317,14 @@ export async function ensureApplicationUser({
  */
 export async function getCurrentUser(req?: Request | any): Promise<AuthenticatedContext | null> {
   try {
-    let user = null;
-
-    // 1. Check Authorization header for Bearer access token
-    if (req && typeof req.headers?.get === 'function') {
-      const authHeader = req.headers.get('authorization');
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7).trim();
-        if (token) {
-          user = await verifySupabaseToken(token);
-        }
-      }
+    const result = await getAuthenticatedUserContext(req);
+    if (result.success) {
+      return {
+        supabaseUser: result.supabaseUser,
+        applicationUser: result.applicationUser,
+      };
     }
-
-    // 2. If no valid Bearer token provided, check HTTP-only cookies
-    if (!user) {
-      try {
-        const supabase = await createServerSupabaseClient();
-        const {
-          data: { user: cookieUser },
-          error: cookieError,
-        } = await supabase.auth.getUser();
-
-        if (!cookieError && cookieUser) {
-          user = cookieUser;
-        }
-      } catch (cErr) {
-        // Safe bypass if cookies are inaccessible in current context
-      }
-    }
-
-    if (!user || !user.id || !user.email) {
-      return null;
-    }
-
-    // Self-healing: Ensure application profile exists in Neon PostgreSQL
-    const metadata = user.user_metadata || {};
-    const name = metadata.name || metadata.full_name || user.email.split('@')[0];
-    const organization = metadata.organization || null;
-
-    let appUser = null;
-    try {
-      appUser = await ensureApplicationUser({
-        supabaseUserId: user.id,
-        email: user.email,
-        name,
-        organization,
-      });
-    } catch (syncErr: any) {
-      console.error('[getCurrentUser] Self-healing profile sync error:', syncErr?.message || syncErr);
-    }
-
-    if (!appUser) {
-      return null;
-    }
-
-    return {
-      supabaseUser: {
-        id: user.id,
-        email: user.email,
-      },
-      applicationUser: appUser,
-    };
+    return null;
   } catch (err: any) {
     console.error('[getCurrentUser] Error resolving authenticated context:', err?.message || err);
     return null;
