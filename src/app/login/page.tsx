@@ -54,7 +54,7 @@ function LoginForm() {
           msg.includes('invalid credentials') ||
           error.code === 'invalid_credentials'
         ) {
-          setErrorMessage('Email or password is incorrect. Please check your credentials.');
+          setErrorMessage('Unable to sign in. Please check your email and password.');
         } else if (msg.includes('email not confirmed')) {
           setErrorMessage(
             "Email confirmation is active in your Supabase project. Disable 'Confirm Email' in Supabase Authentication settings to enable instant login."
@@ -69,8 +69,9 @@ function LoginForm() {
       }
 
       if (data?.session) {
-        // Synchronize authenticated profile with Neon application data
+        // Synchronize authenticated profile with Neon application data (self-healing)
         try {
+          const userName = data.session.user?.user_metadata?.name || data.session.user?.user_metadata?.full_name;
           await fetch('/api/auth/sync-profile', {
             method: 'POST',
             headers: {
@@ -78,7 +79,9 @@ function LoginForm() {
               Authorization: `Bearer ${data.session.access_token}`,
             },
             credentials: 'include',
-            body: JSON.stringify({}),
+            body: JSON.stringify({
+              name: userName || undefined,
+            }),
           });
         } catch (syncErr) {
           console.warn('[WIQN AUTH] Post-login profile sync warning:', syncErr);
