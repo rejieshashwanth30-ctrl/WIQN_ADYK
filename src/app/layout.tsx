@@ -14,10 +14,8 @@ export const metadata: Metadata = {
     'falsifiable hypothesis',
     'founder research',
   ],
-  authors: [{ name: 'ADYK' }],
-  creator: 'ADYK — A Multi-Venture Technology Company',
   publisher: 'ADYK',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://adyk-wiqn.vercel.app')),
   alternates: {
     canonical: '/',
   },

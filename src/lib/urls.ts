@@ -61,7 +61,7 @@ export function getProductionAppUrl(): string {
     return envUrl;
   }
 
-  return 'https://adykwiqn.vercel.app';
+  return 'https://adyk-wiqn.vercel.app';
 }
 
 /**
