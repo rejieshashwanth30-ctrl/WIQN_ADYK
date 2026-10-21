@@ -290,6 +290,7 @@ export default function NewExperimentPage() {
 
           {/* Stepper Bar */}
           <div
+            className="new-exp-stepper"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
@@ -313,6 +314,7 @@ export default function NewExperimentPage() {
                   }}
                 />
                 <span
+                  className="new-exp-step-label"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.6875rem',

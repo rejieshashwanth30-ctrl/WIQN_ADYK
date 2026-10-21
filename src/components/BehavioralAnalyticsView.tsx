@@ -139,6 +139,7 @@ export function BehavioralAnalyticsView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Sub-navigation Bar */}
       <div
+        className="ba-subnav-container"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -149,9 +150,10 @@ export function BehavioralAnalyticsView({
           paddingBottom: '12px',
         }}
       >
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="ba-subnav-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setSubTab('overview')}
+            className={`ba-subnav-btn ${subTab === 'overview' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -167,6 +169,7 @@ export function BehavioralAnalyticsView({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              flexShrink: 0,
             }}
           >
             <Activity size={14} />
@@ -175,6 +178,7 @@ export function BehavioralAnalyticsView({
 
           <button
             onClick={() => setSubTab('explorer')}
+            className={`ba-subnav-btn ${subTab === 'explorer' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -190,6 +194,7 @@ export function BehavioralAnalyticsView({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              flexShrink: 0,
             }}
           >
             <MousePointer size={14} />
@@ -198,6 +203,7 @@ export function BehavioralAnalyticsView({
 
           <button
             onClick={() => setSubTab('journeys')}
+            className={`ba-subnav-btn ${subTab === 'journeys' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -213,6 +219,7 @@ export function BehavioralAnalyticsView({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              flexShrink: 0,
             }}
           >
             <Compass size={14} />
@@ -221,6 +228,7 @@ export function BehavioralAnalyticsView({
 
           <button
             onClick={() => setSubTab('visitors')}
+            className={`ba-subnav-btn ${subTab === 'visitors' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -236,6 +244,7 @@ export function BehavioralAnalyticsView({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
+              flexShrink: 0,
             }}
           >
             <User size={14} />
@@ -246,7 +255,7 @@ export function BehavioralAnalyticsView({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="btn-ghost"
+            className="btn-ghost ba-refresh-btn"
             style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             <RefreshCw size={12} />
@@ -259,65 +268,65 @@ export function BehavioralAnalyticsView({
       {/* SUB-TAB 1: BEHAVIOR OVERVIEW & SIGNALS */}
       {/* ======================================================== */}
       {subTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Key Metrics Strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-            <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+          <div className="ba-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 Unique Visitors
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
                 {bMetrics.totalVisitors}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
                 Individual device sessions
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 Total Actions Tracked
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
                 {bMetrics.totalEvents}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
                 Observable behavioral events
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 Total Clicks
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
                 {clickDistribution.totalClicks}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
                 From {clickDistribution.uniqueClickers} distinct visitor(s)
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 Avg Engagement Time
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
                 {bMetrics.avgDurationSec}s
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
                 Median duration: {bMetrics.medianDurationSec}s
               </div>
             </div>
 
-            <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
+            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 Tester Feedback
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
                 {bMetrics.totalFeedback}
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
                 Qualitative survey responses
               </div>
             </div>
@@ -732,6 +741,7 @@ export function BehavioralAnalyticsView({
                   <div
                     key={ev.id}
                     onClick={() => setSelectedEvent(ev)}
+                    className="ba-event-row"
                     style={{
                       backgroundColor: '#0a0a0d',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -867,7 +877,7 @@ export function BehavioralAnalyticsView({
       {subTab === 'journeys' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           {/* 5-Step Lightweight Funnel */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
+          <div className="ba-card ba-funnel-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 LIGHTWEIGHT PROGRESSION FUNNEL
@@ -915,7 +925,7 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* Observed User Paths */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
+          <div className="ba-card ba-paths-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
             <div style={{ marginBottom: '16px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 OBSERVED SEQUENTIAL PATHS
@@ -1028,6 +1038,7 @@ export function BehavioralAnalyticsView({
               {visitors.map((v) => (
                 <div
                   key={v.visitorId}
+                  className="ba-card ba-visitor-card"
                   style={{
                     backgroundColor: '#0a0a0d',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -1109,6 +1120,7 @@ export function BehavioralAnalyticsView({
           onClick={() => setSelectedEvent(null)}
         >
           <div
+            className="ba-modal-box"
             style={{
               backgroundColor: '#0c0c0f',
               border: '1px solid rgba(255, 255, 255, 0.25)',
@@ -1205,6 +1217,7 @@ export function BehavioralAnalyticsView({
           onClick={() => setInspectedVisitor(null)}
         >
           <div
+            className="ba-modal-box"
             style={{
               backgroundColor: '#0c0c0f',
               border: '1px solid rgba(255, 255, 255, 0.25)',

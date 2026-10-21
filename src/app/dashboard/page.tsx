@@ -101,6 +101,36 @@ export default function DashboardPage() {
         ) : (
           /* Active Experiments Workspace */
           <div className="dash-workspace-stack">
+            {/* Quick Aggregate Metric Summary */}
+            <div className="dash-summary-grid">
+              <div className="dash-summary-card">
+                <div className="dash-summary-label">Experiments</div>
+                <div className="dash-summary-num">{experiments.length}</div>
+                <div className="dash-summary-hint">Active workspace</div>
+              </div>
+              <div className="dash-summary-card">
+                <div className="dash-summary-label">Total Visitors</div>
+                <div className="dash-summary-num">
+                  {experiments.reduce((acc, exp) => acc + (exp.metrics?.visitorsCount || 0), 0)}
+                </div>
+                <div className="dash-summary-hint">Distinct devices</div>
+              </div>
+              <div className="dash-summary-card">
+                <div className="dash-summary-label">Tracked Actions</div>
+                <div className="dash-summary-num">
+                  {experiments.reduce((acc, exp) => acc + (exp.metrics?.interactionsCount || 0), 0)}
+                </div>
+                <div className="dash-summary-hint">Clicks, scroll, views</div>
+              </div>
+              <div className="dash-summary-card">
+                <div className="dash-summary-label">Feedback Notes</div>
+                <div className="dash-summary-num">
+                  {experiments.reduce((acc, exp) => acc + (exp.metrics?.feedbackCount || 0), 0)}
+                </div>
+                <div className="dash-summary-hint">Tester responses</div>
+              </div>
+            </div>
+
             {/* Experiments Grid */}
             <section>
               <div className="dash-section-header">

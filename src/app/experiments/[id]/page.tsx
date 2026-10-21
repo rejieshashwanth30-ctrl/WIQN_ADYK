@@ -372,21 +372,23 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* Tab Navigation in Plain English */}
         <div
+          className="exp-tabs-container"
           style={{
             display: 'flex',
             gap: '4px',
             borderBottom: '1px solid var(--border-subtle)',
-            marginBottom: '36px',
+            marginBottom: '28px',
             overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           {[
             { key: 'overview', label: 'OVERVIEW', icon: Layers },
-            { key: 'prototype', label: 'TEST YOUR PROTOTYPE', icon: Play },
+            { key: 'prototype', label: 'TEST PROTOTYPE', icon: Play },
             { key: 'analytics', label: 'VISITOR ACTIVITY', icon: Activity },
             { key: 'feedback', label: 'TESTER FEEDBACK', icon: MessageSquareQuote },
-            { key: 'insights', label: 'INSIGHTS & SUGGESTIONS', icon: Sparkles },
-            { key: 'decision', label: 'DECIDE WHAT TO DO NEXT', icon: Target },
+            { key: 'insights', label: 'INSIGHTS & AI', icon: Sparkles },
+            { key: 'decision', label: 'DECIDE NEXT', icon: Target },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -394,6 +396,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
+                className={`exp-tab-btn ${isActive ? 'exp-tab-active' : ''}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -409,6 +412,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'color 180ms ease',
+                  flexShrink: 0,
                 }}
               >
                 <Icon size={14} />
