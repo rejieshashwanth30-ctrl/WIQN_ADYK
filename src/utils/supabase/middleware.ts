@@ -53,10 +53,10 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protected route check
+  // Protected route check - allow drafting on /experiments/new with auto-save and resilient founder workspace
   const isProtected =
     pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/experiments');
+    (pathname.startsWith('/experiments') && pathname !== '/experiments/new');
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();

@@ -31,6 +31,7 @@ export default function NewExperimentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // 1. Check session & restore draft on mount
   useEffect(() => {
@@ -47,16 +48,51 @@ export default function NewExperimentPage() {
         if (d.learningGoal) setLearningGoal(d.learningGoal);
         if (d.prototypeUrl) setPrototypeUrl(d.prototypeUrl);
         if (d.testingMode) setTestingMode(d.testingMode);
+        if (d.status) setStatus(d.status);
       }
     } catch {}
 
     const supabase = createClient();
     supabase.auth.getSession().then(({ data }: any) => {
       setIsAuthenticated(!!data?.session);
+      setUserEmail(data?.session?.user?.email || null);
     });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      setIsAuthenticated(!!session);
+      setUserEmail(session?.user?.email || null);
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
-  // Save draft whenever fields change
+  // Continuous auto-save draft so founder never loses any progress
+  useEffect(() => {
+    if (name || productName || problem || targetAudience || productIdea || keyHypothesis || learningGoal || prototypeUrl) {
+      try {
+        localStorage.setItem(
+          'wiqn_experiment_draft',
+          JSON.stringify({
+            name,
+            productName,
+            problem,
+            targetAudience,
+            productIdea,
+            keyHypothesis,
+            learningGoal,
+            prototypeUrl,
+            testingMode,
+            status,
+            currentStep,
+          })
+        );
+      } catch {}
+    }
+  }, [name, productName, problem, targetAudience, productIdea, keyHypothesis, learningGoal, prototypeUrl, testingMode, status, currentStep]);
+
+  // Explicit save draft helper
   const saveDraft = () => {
     try {
       localStorage.setItem(
@@ -71,6 +107,8 @@ export default function NewExperimentPage() {
           learningGoal,
           prototypeUrl,
           testingMode,
+          status,
+          currentStep,
         })
       );
     } catch {}
@@ -119,6 +157,26 @@ export default function NewExperimentPage() {
     setSubmitting(true);
     setError(null);
     saveDraft();
+
+    // Client-side pre-validation
+    if (!name.trim() || !productName.trim()) {
+      setCurrentStep(1);
+      setError('Please specify both experiment name and product name before launching.');
+      setSubmitting(false);
+      return;
+    }
+    if (!keyHypothesis.trim() || !learningGoal.trim()) {
+      setCurrentStep(2);
+      setError('Please define your key hypothesis and learning goal before launching.');
+      setSubmitting(false);
+      return;
+    }
+    if (!prototypeUrl.trim()) {
+      setCurrentStep(3);
+      setError('Please provide your prototype URL before launching.');
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const res = await authenticatedFetch('/api/experiments', {
@@ -176,9 +234,40 @@ export default function NewExperimentPage() {
             <span>NEW EXPERIMENT SETUP</span>
           </div>
 
-          <h1 className="dash-title" style={{ marginBottom: '20px' }}>
+          <h1 className="dash-title" style={{ marginBottom: '12px' }}>
             Create Product Experiment
           </h1>
+
+          {/* Workspace Status Chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '2px',
+                fontSize: '0.6875rem',
+                fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.08em',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: isAuthenticated ? '#4ade80' : 'var(--color-silver-300)',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: isAuthenticated ? '#22c55e' : '#eab308',
+                }}
+              />
+              {isAuthenticated
+                ? `WORKSPACE ACTIVE • ${userEmail || 'AUTHENTICATED'}`
+                : 'FOUNDER WORKSPACE • DRAFT AUTO-SAVED'}
+            </span>
+          </div>
 
           {/* Stepper Bar */}
           <div
@@ -223,7 +312,7 @@ export default function NewExperimentPage() {
         {error && (
           <div
             style={{
-              padding: '14px 20px',
+              padding: '16px 20px',
               backgroundColor: 'rgba(239, 68, 68, 0.08)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
               borderRadius: '2px',
@@ -232,12 +321,50 @@ export default function NewExperimentPage() {
               fontSize: '0.8125rem',
               color: '#fca5a5',
               display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              flexDirection: 'column',
+              gap: '12px',
             }}
           >
-            <AlertCircle size={16} style={{ flexShrink: 0, color: '#ef4444' }} />
-            <span>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
+              <span style={{ fontWeight: 500 }}>
+                {error.toLowerCase().includes('session') || error.toLowerCase().includes('unauthorized')
+                  ? 'Session Notice: Your experiment parameters are safely saved. You can authenticate or launch directly.'
+                  : error}
+              </span>
+            </div>
+
+            {(error.toLowerCase().includes('session') || error.toLowerCase().includes('unauthorized')) && (
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+                <Link
+                  href={`/login?redirect=${encodeURIComponent('/experiments/new')}`}
+                  className="btn-primary"
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '8px 16px',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <LogIn size={14} />
+                  <span>Sign In &amp; Resume</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLaunch}
+                  disabled={submitting}
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '8px 16px',
+                  }}
+                >
+                  <span>Retry Launch</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 

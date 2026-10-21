@@ -21,14 +21,20 @@ export async function getFreshAccessToken(): Promise<string | null> {
       ? session.expires_at * 1000 < Date.now() + 60000
       : false;
 
-    if (!session || isExpiring || sessionError) {
+    if (session && (isExpiring || sessionError)) {
       try {
-        const refreshResult = await supabase.auth.refreshSession();
+        const refreshResult = session.refresh_token
+          ? await supabase.auth.refreshSession({ refresh_token: session.refresh_token })
+          : await supabase.auth.refreshSession();
         if (refreshResult.data?.session) {
           session = refreshResult.data.session;
+        } else if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+          session = null;
         }
       } catch (refErr) {
-        // Silently continue to getUser fallback
+        if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+          session = null;
+        }
       }
     }
 
@@ -89,7 +95,10 @@ export async function authenticatedFetch(
   if (res.status === 401 && typeof window !== 'undefined') {
     try {
       const supabase = createClient();
-      const refreshResult = await supabase.auth.refreshSession();
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      const refreshResult = existingSession?.refresh_token
+        ? await supabase.auth.refreshSession({ refresh_token: existingSession.refresh_token })
+        : await supabase.auth.refreshSession();
       const refreshedToken = refreshResult.data?.session?.access_token;
       if (refreshedToken) {
         headers.set('Authorization', `Bearer ${refreshedToken}`);
