@@ -92,37 +92,62 @@
   function describeElement(el) {
     if (!el || el === document.body) return null;
     const tag = el.tagName.toLowerCase();
-    const id = el.id ? '#' + el.id : '';
-    const className = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
     
     // Privacy safeguard: If element is sensitive, redact completely
     if (isSensitive(el)) {
       return {
-        selector: tag + id + className,
+        selector: tag + (el.id ? '#' + el.id : ''),
         text: '[REDACTED]',
         tag: tag,
       };
     }
 
+    // 1. Preferred stable identifier: data-wiqn-id, data-testid, or data-id
+    const wiqnId = el.getAttribute('data-wiqn-id') || el.getAttribute('data-testid') || el.getAttribute('data-id');
+    const id = el.id ? '#' + el.id : '';
+    
+    // Clean identifier (do NOT rely primarily on random hash CSS classes)
+    let selector = tag;
+    if (wiqnId) {
+      selector = `${tag}[data-wiqn-id="${wiqnId}"]`;
+    } else if (id) {
+      selector = `${tag}${id}`;
+    } else {
+      const role = el.getAttribute('role');
+      selector = role ? `${tag}[role="${role}"]` : tag;
+    }
+
+    // Accessible label priority
+    const ariaLabel = (el.getAttribute('aria-label') || el.getAttribute('title') || '').trim();
+
     // Never capture user input values from inputs or textareas
     let text = '';
     if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-      text = (el.getAttribute('placeholder') || el.getAttribute('aria-label') || el.name || '').trim();
+      text = ariaLabel || (el.getAttribute('placeholder') || el.name || '').trim();
     } else {
       text = (el.innerText || el.textContent || '').trim();
+      if (!text && ariaLabel) {
+        text = ariaLabel;
+      }
     }
 
-    // Double check text does not contain password/key patterns
+    // If still no text, use wiqnId or title or placeholder
+    if (!text && wiqnId) {
+      text = wiqnId.replace(/[-_]/g, ' ');
+    }
+
+    // Privacy check on extracted text
     if (SENSITIVE_REGEX.test(text) && text.length > 20) {
       text = '[REDACTED]';
     } else {
-      text = text.substring(0, 60);
+      text = text.substring(0, 80);
     }
 
     return {
-      selector: tag + id + className,
+      selector: selector,
       text: text || undefined,
       tag: tag,
+      wiqnId: wiqnId || undefined,
     };
   }
 
@@ -175,11 +200,30 @@
         element: desc ? desc.selector : null,
         elementText: desc ? desc.text : null,
         targetHref: sanitizeUrl(target.getAttribute('href')) || undefined,
+        metadata: {
+          tag: desc ? desc.tag : undefined,
+          wiqnId: desc ? desc.wiqnId : undefined,
+          href: sanitizeUrl(target.getAttribute('href')) || undefined,
+        },
       });
     }
   }, { capture: true, passive: true });
 
-  // 3. Automatic Form Submit Capture (without sensitive field values)
+  // 3. Form Engagement & Start Capture
+  const formsStarted = new Set();
+  document.addEventListener('focusin', function (e) {
+    const form = e.target && e.target.closest ? e.target.closest('form') : null;
+    if (form && !formsStarted.has(form)) {
+      formsStarted.add(form);
+      const desc = describeElement(form);
+      sendEvent('FORM_START', {
+        element: desc ? desc.selector : 'form',
+        elementText: form.getAttribute('aria-label') || form.name || 'Form interaction started',
+      });
+    }
+  }, { capture: true, passive: true });
+
+  // 4. Automatic Form Submit Capture (without sensitive field values)
   document.addEventListener('submit', function (e) {
     const form = e.target;
     sendEvent('FORM_SUBMIT', {
@@ -188,6 +232,40 @@
       formMethod: form.method || 'POST',
     });
   }, { capture: true, passive: true });
+
+  // 5. Scroll Depth Milestones Capture (25%, 50%, 75%, 100%)
+  const reachedMilestones = new Set();
+  function checkScrollDepth() {
+    const h = document.documentElement;
+    const b = document.body;
+    const st = 'scrollTop';
+    const sh = 'scrollHeight';
+    const totalScroll = (h[sh] || b[sh]) - h.clientHeight;
+    if (totalScroll <= 0) return;
+    const percent = Math.round(((h[st] || b[st]) / totalScroll) * 100);
+    if (isNaN(percent) || percent <= 0) return;
+
+    [25, 50, 75, 100].forEach(function (milestone) {
+      if (percent >= milestone && !reachedMilestones.has(milestone)) {
+        reachedMilestones.add(milestone);
+        sendEvent('SCROLL_DEPTH', {
+          element: 'document',
+          elementText: 'Scrolled ' + milestone + '%',
+          metadata: { scrollDepth: milestone },
+        });
+      }
+    });
+  }
+
+  let scrollThrottleTimer = null;
+  window.addEventListener('scroll', function () {
+    if (!scrollThrottleTimer) {
+      scrollThrottleTimer = setTimeout(function () {
+        scrollThrottleTimer = null;
+        checkScrollDepth();
+      }, 300);
+    }
+  }, { passive: true });
 
   // 4. Session Exit & Engagement Duration (Reliable multi-event measurement)
   const startTime = Date.now();

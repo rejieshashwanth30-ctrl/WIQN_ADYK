@@ -18,10 +18,15 @@ function normalizeEventType(rawType: string): EventType {
   const upper = (rawType || '').toUpperCase();
   switch (upper) {
     case 'PAGE_VIEW':
+    case 'PAGE':
       return EventType.PAGE_VIEW;
     case 'CLICK':
+    case 'CTA_CLICK':
+    case 'BUTTON_CLICK':
+    case 'LINK_CLICK':
       return EventType.CLICK;
     case 'SCROLL_DEPTH':
+    case 'SCROLL':
       return EventType.SCROLL_DEPTH;
     case 'FORM_START':
       return EventType.FORM_START;

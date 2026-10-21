@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { DashboardNav } from '@/components/DashboardNav';
+import { BehavioralAnalyticsView } from '@/components/BehavioralAnalyticsView';
 import { getExperimentById, REFERENCE_INSIGHTS, REFERENCE_FEEDBACK, REFERENCE_DECISION } from '@/lib/storage';
 import { Experiment, StructuredInsight, FeedbackItem, DecisionRecord, DecisionOutcome } from '@/lib/types';
 import { getPublicAppUrl, getTestUrl, getShareUrls, isLocalEnvironment, getProductionAppUrl } from '@/lib/urls';
@@ -697,98 +698,15 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </div>
               </div>
             ) : (
-              /* Real Visitor Activity Visualizations */
+              /* Real Visitor Activity Visualizations & Behavioral Analytics */
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                {/* Metric Summary Strips */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                  <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                      Different people who visited
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                      {experiment.metrics.visitorsCount}
-                    </div>
-                  </div>
-
-                  <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                      Total visits
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                      {experiment.metrics.sessionsCount}
-                    </div>
-                  </div>
-
-                  <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                      Total tracked actions
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                      {experiment.metrics.interactionsCount}
-                    </div>
-                  </div>
-
-                  <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                      Average time on page
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                      {experiment.metrics.avgTimeOnPrototype}s
-                    </div>
-                  </div>
-                </div>
-
-                {/* Real Telemetry Breakdown */}
-                {experiment.telemetrySummary && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-                    {/* Event Type Breakdown */}
-                    <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '16px' }}>
-                        ACTIONS TRACKED BY TYPE
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {Object.entries(experiment.telemetrySummary.eventBreakdown || {}).map(([type, count]: [string, any]) => {
-                          const humanLabels: Record<string, string> = {
-                            PAGE_VIEW: 'Page Visits',
-                            CLICK: 'Button & Link Clicks',
-                            FORM_START: 'Form Inputs Started',
-                            FORM_SUBMIT: 'Forms Submitted',
-                            SCROLL_DEPTH: 'Scroll Milestones',
-                            TIME_ON_PAGE: 'Time-on-Page Pulses',
-                          };
-                          const label = humanLabels[type] || type.replace('_', ' ');
-                          return (
-                            <div key={type} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                              <span style={{ color: '#ffffff' }}>• {label}</span>
-                              <span style={{ color: 'var(--color-silver-300)' }}>{count} action(s)</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Top Clicked Elements */}
-                    <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '16px' }}>
-                        MOST-CLICKED ELEMENTS
-                      </div>
-                      {experiment.telemetrySummary.topInteractions && experiment.telemetrySummary.topInteractions.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {experiment.telemetrySummary.topInteractions.map((item: any, idx: number) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
-                              <span style={{ color: '#ffffff', wordBreak: 'break-all' }}>{item.element}</span>
-                              <span style={{ color: 'var(--color-silver-300)', flexShrink: 0, marginLeft: '12px' }}>{item.count} click(s) ({item.percentage}%)</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
-                          No interactive elements clicked yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <BehavioralAnalyticsView
+                  experimentId={experimentId}
+                  behavioral={experiment.telemetrySummary?.behavioral}
+                  initialEvents={experiment.telemetrySummary?.recentEvents}
+                  metrics={experiment.metrics}
+                  onRefresh={loadExperiment}
+                />
 
                 {/* Optional Benchmark Data Toggle */}
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px' }}>
@@ -797,7 +715,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     className="btn-ghost"
                     style={{ fontSize: '0.6875rem', padding: '6px 12px' }}
                   >
-                    <span>{showBenchmarkFunnel ? 'Hide Example Data' : 'View Example Data (Not Your Results)'}</span>
+                    <span>{showBenchmarkFunnel ? 'Hide Example High-Traffic Funnel' : 'View High-Traffic Reference Funnel (Not Your Results)'}</span>
                   </button>
 
                   {showBenchmarkFunnel && (

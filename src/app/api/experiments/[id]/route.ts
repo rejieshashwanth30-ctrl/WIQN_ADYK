@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
 import { prisma, withDbRetry } from '@/lib/db';
 import { ExperimentStatus, TestingMode } from '@prisma/client';
+import {
+  computeBehavioralAnalytics,
+  formatElementLabel,
+  formatVisitorLabel,
+  formatSessionLabel,
+  formatEventType,
+} from '@/lib/behavioralAnalytics';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -21,71 +28,44 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error }, { status });
     }
 
-    // Fetch recent events and compute empirical telemetry statistics
-    const recentEvents = await withDbRetry(() =>
-      prisma.experimentEvent.findMany({
-        where: { experimentId: experiment.id },
-        orderBy: { timestamp: 'desc' },
-        take: 100,
-      })
+    // 1. Fetch real events, sessions, and visitors from Neon PostgreSQL
+    const [allEvents, sessions, visitors] = await withDbRetry(() =>
+      Promise.all([
+        prisma.experimentEvent.findMany({
+          where: { experimentId: experiment.id },
+          orderBy: { timestamp: 'desc' },
+          take: 1000,
+        }),
+        prisma.session.findMany({
+          where: { experimentId: experiment.id },
+          select: { sessionId: true, visitorId: true, durationSec: true, startedAt: true, endedAt: true },
+        }),
+        prisma.visitor.findMany({
+          where: { experimentId: experiment.id },
+        }),
+      ])
     );
 
-    const eventBreakdown: Record<string, number> = {};
-    const clickedElements: Record<string, number> = {};
-    let totalDurationSeconds = 0;
-    let durationCount = 0;
-
-    recentEvents.forEach((ev) => {
-      eventBreakdown[ev.eventType] = (eventBreakdown[ev.eventType] || 0) + 1;
-      if (ev.element) {
-        const key = ev.elementText ? `${ev.element} ("${ev.elementText}")` : ev.element;
-        clickedElements[key] = (clickedElements[key] || 0) + 1;
-      }
-      if (ev.eventType === 'TIME_ON_PAGE' && ev.metadata && typeof (ev.metadata as any).durationSeconds === 'number') {
-        totalDurationSeconds += (ev.metadata as any).durationSeconds;
-        durationCount++;
-      }
+    // 2. Compute comprehensive behavioral analytics
+    const behavioral = computeBehavioralAnalytics({
+      events: allEvents,
+      sessions,
+      visitors,
+      feedback: experiment.feedback || [],
+      experiment: {
+        name: experiment.name,
+        productName: experiment.productName,
+        keyHypothesis: experiment.keyHypothesis,
+        learningGoal: experiment.learningGoal,
+      },
     });
 
-    // Query sessions to incorporate real session durations
-    const sessions = await withDbRetry(() =>
-      prisma.session.findMany({
-        where: { experimentId: experiment.id },
-        select: { durationSec: true, startedAt: true, endedAt: true },
-      })
-    );
+    const totalVisitors = behavioral.metrics.totalVisitors;
+    const totalEvents = behavioral.metrics.totalEvents;
+    const isSufficientEvidence = behavioral.metrics.isSufficientEvidence;
+    const avgDuration = behavioral.metrics.avgDurationSec;
 
-    let sessionTotalDur = 0;
-    let sessionDurCount = 0;
-    sessions.forEach((s) => {
-      let dur = s.durationSec;
-      if ((!dur || dur <= 0) && s.endedAt && s.startedAt) {
-        dur = Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 1000);
-      }
-      if (dur && dur > 0) {
-        sessionTotalDur += dur;
-        sessionDurCount++;
-      }
-    });
-
-    const finalTotalDuration = durationCount > 0 ? totalDurationSeconds : sessionTotalDur;
-    const finalDurationCount = durationCount > 0 ? durationCount : sessionDurCount;
-
-    const topInteractions = Object.entries(clickedElements)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([element, count]) => ({
-        element,
-        count,
-        percentage: experiment._count.events > 0 ? Math.round((count / experiment._count.events) * 1000) / 10 : 0,
-      }));
-
-    const totalVisitors = experiment._count.visitors;
-    const totalEvents = experiment._count.events;
-    const avgDuration = finalDurationCount > 0 ? Math.round(finalTotalDuration / finalDurationCount) : 0;
-    const isSufficientEvidence = totalVisitors >= 5 && totalEvents >= 20;
-
-    // Build what we know so far directly from measured records (No fabricated claims)
+    // 3. Build empirical facts (Preserved for backwards compatibility with existing UI)
     const empiricalFacts: Array<{
       id: string;
       title: string;
@@ -95,7 +75,6 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       limitations: string;
     }> = [];
 
-    // 1. Visitor Activity Fact
     if (totalVisitors === 0) {
       empiricalFacts.push({
         id: 'fact_volume',
@@ -112,7 +91,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         id: 'fact_volume',
         title: 'Visitor Activity So Far',
         statement: `${visitorWord} visited your prototype and took ${actionWord}.`,
-        evidence: `Automatically tracked from real prototype visits (${Object.entries(eventBreakdown)
+        evidence: `Automatically tracked from real prototype visits (${Object.entries(behavioral.eventBreakdown)
           .map(([t, c]) => `${c} ${t.toLowerCase().replace('_', ' ')}`)
           .join(', ')}).`,
         confidence: totalVisitors >= 10 ? 'HIGH' : 'LOW',
@@ -120,20 +99,18 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       });
     }
 
-    // 2. Most-Clicked Element Fact (if clicks exist)
-    if (topInteractions.length > 0) {
-      const top = topInteractions[0];
+    if (behavioral.clickDistribution.elements.length > 0) {
+      const top = behavioral.clickDistribution.elements[0];
       empiricalFacts.push({
         id: 'fact_top_element',
         title: 'Most-Clicked Element',
-        statement: `Visitors clicked on "${top.element}" ${top.count} time(s) (${top.percentage}% of all clicks).`,
+        statement: `Visitors clicked on "${top.label}" ${top.totalClicks} time(s) (${top.percentage}% of all clicks) across ${top.uniqueVisitors} visitor(s).`,
         evidence: `Real click events recorded on this button or link.`,
         confidence: totalEvents >= 20 ? 'HIGH' : 'MODERATE',
         limitations: 'A click shows curiosity or engagement, but does not guarantee satisfaction or purchase intent.',
       });
     }
 
-    // 3. Tester Feedback Fact
     if (experiment._count.feedback === 0) {
       empiricalFacts.push({
         id: 'fact_feedback',
@@ -172,7 +149,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         updatedAt: experiment.updatedAt.toISOString(),
         metrics: {
           visitorsCount: totalVisitors,
-          sessionsCount: experiment._count.sessions,
+          sessionsCount: behavioral.metrics.totalSessions,
           interactionsCount: totalEvents,
           feedbackCount: experiment._count.feedback,
           avgTimeOnPrototype: avgDuration,
@@ -184,12 +161,22 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         telemetrySummary: {
           totalEvents,
           totalVisitors,
-          totalSessions: experiment._count.sessions,
-          eventBreakdown,
-          topInteractions,
+          totalSessions: behavioral.metrics.totalSessions,
+          totalClicks: behavioral.metrics.totalClicks,
+          eventBreakdown: behavioral.eventBreakdown,
+          topInteractions: behavioral.clickDistribution.elements.map((item) => ({
+            element: item.element,
+            label: item.label,
+            count: item.totalClicks,
+            uniqueVisitors: item.uniqueVisitors,
+            sessionsCount: item.sessionsCount,
+            avgClicksPerVisitor: item.avgClicksPerVisitor,
+            percentage: item.percentage,
+          })),
           avgDuration,
-          firstEventAt: recentEvents[recentEvents.length - 1]?.timestamp.toISOString() || null,
-          lastEventAt: recentEvents[0]?.timestamp.toISOString() || null,
+          medianDuration: behavioral.metrics.medianDurationSec,
+          firstEventAt: allEvents[allEvents.length - 1]?.timestamp.toISOString() || null,
+          lastEventAt: allEvents[0]?.timestamp.toISOString() || null,
           isSufficientEvidence,
           evidenceRequirements: {
             minVisitors: 5,
@@ -200,13 +187,22 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
             eventProgressPercent: Math.min(100, Math.round((totalEvents / 20) * 100)),
           },
           empiricalFacts,
-          recentEvents: recentEvents.slice(0, 15).map((e) => ({
+          behavioral, // Complete structured behavioral analytics
+          recentEvents: allEvents.slice(0, 50).map((e) => ({
             id: e.id,
             eventType: e.eventType,
+            displayType: formatEventType(e.eventType),
             element: e.element,
             elementText: e.elementText,
+            label: e.eventType === 'CLICK' ? formatElementLabel(e.element, e.elementText) : (e.elementText || e.page),
             page: e.page,
+            referrer: e.referrer || null,
             timestamp: e.timestamp.toISOString(),
+            visitorId: e.visitorId,
+            visitorLabel: formatVisitorLabel(e.visitorId),
+            sessionId: e.sessionId,
+            sessionLabel: formatSessionLabel(e.sessionId),
+            metadata: e.metadata || null,
           })),
         },
       },

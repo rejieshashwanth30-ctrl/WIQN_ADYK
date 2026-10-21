@@ -40,6 +40,26 @@ export interface EvidencePack {
     significance: string;
   }>;
 
+  // Rich Behavioral Evidence
+  topClickedElements?: Array<{
+    label: string;
+    totalClicks: number;
+    uniqueVisitors: number;
+    avgClicksPerVisitor: number;
+    percentage: number;
+  }>;
+  observedPaths?: Array<{
+    pathSummary: string;
+    sessionsCount: number;
+    percentage: number;
+  }>;
+  funnelSteps?: Array<{
+    name: string;
+    count: number;
+    overallPercentage: number;
+    dropOffCount: number;
+  }>;
+
   userFeedbackSummary: {
     averageRating: number | null;
     ratingCount: number;
@@ -155,28 +175,99 @@ export function synthesizeExperimentEvidence(data: {
     });
   }
 
-  // Click concentration fact
-  const clickCounts: Record<string, number> = {};
-  events.forEach((ev) => {
-    if (ev.eventType === 'CLICK' && ev.element) {
-      const key = ev.elementText ? `${ev.element} ("${ev.elementText}")` : ev.element;
-      clickCounts[key] = (clickCounts[key] || 0) + 1;
+  // Click concentration & behavioral element breakdown
+  const elementMap = new Map<string, { label: string; totalClicks: number; visitors: Set<string> }>();
+  let totalClicks = 0;
+
+  events.forEach((ev: any) => {
+    if (ev.eventType === 'CLICK') {
+      totalClicks++;
+      const label = (ev.elementText && ev.elementText.trim() && ev.elementText !== '[REDACTED]')
+        ? ev.elementText.trim()
+        : (ev.element || 'button');
+      const vId = ev.visitorId || 'v_anon';
+
+      if (!elementMap.has(label)) {
+        elementMap.set(label, { label, totalClicks: 0, visitors: new Set<string>() });
+      }
+      const el = elementMap.get(label)!;
+      el.totalClicks++;
+      el.visitors.add(vId);
     }
   });
 
-  const sortedClicks = Object.entries(clickCounts).sort((a, b) => b[1] - a[1]);
-  if (sortedClicks.length > 0) {
-    const top = sortedClicks[0];
-    const pct = actions > 0 ? Math.round((top[1] / actions) * 100) : 0;
+  const topClickedElements = Array.from(elementMap.values())
+    .map((item) => ({
+      label: item.label,
+      totalClicks: item.totalClicks,
+      uniqueVisitors: item.visitors.size,
+      avgClicksPerVisitor: item.visitors.size > 0 ? Math.round((item.totalClicks / item.visitors.size) * 10) / 10 : item.totalClicks,
+      percentage: totalClicks > 0 ? Math.round((item.totalClicks / totalClicks) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.totalClicks - a.totalClicks);
+
+  if (topClickedElements.length > 0) {
+    const top = topClickedElements[0];
     measuredFacts.push({
       id: 'fact_top_cta',
       title: 'Most-Clicked Element',
-      statement: `Visitors clicked on "${top[0]}" ${top[1]} time(s) (${pct}% of all tracked actions).`,
-      evidence: `Real button and link click events recorded on prototype.`,
+      statement: `Visitors clicked on "${top.label}" ${top.totalClicks} time(s) (${top.percentage}% of all clicks) across ${top.uniqueVisitors} visitor(s).`,
+      evidence: `Direct click telemetry recorded on prototype.`,
       confidence: actions >= 20 ? 'HIGH' : 'MODERATE',
-      limitations: 'A click shows curiosity or engagement, but does not confirm that the user found what they were looking for.',
+      limitations: 'Observation only: an element click indicates interaction focus, but does not prove purchase intent or demand.',
     });
   }
+
+  // Funnel steps calculation
+  const clickerVisitors = new Set<string>();
+  const formStartVisitors = new Set<string>();
+  const formSubmitVisitors = new Set<string>();
+  const feedbackVisitors = new Set<string>();
+
+  events.forEach((ev: any) => {
+    const vId = ev.visitorId;
+    if (vId) {
+      if (ev.eventType === 'CLICK') clickerVisitors.add(vId);
+      if (ev.eventType === 'FORM_START') formStartVisitors.add(vId);
+      if (ev.eventType === 'FORM_SUBMIT') formSubmitVisitors.add(vId);
+    }
+  });
+  feedback.forEach((fb: any) => {
+    if (fb.visitorId) feedbackVisitors.add(fb.visitorId);
+  });
+
+  const funnelSteps = [
+    {
+      name: 'Visitors',
+      count: visitors,
+      overallPercentage: 100,
+      dropOffCount: Math.max(0, visitors - clickerVisitors.size),
+    },
+    {
+      name: 'CTA Clicks',
+      count: clickerVisitors.size,
+      overallPercentage: visitors > 0 ? Math.round((clickerVisitors.size / visitors) * 100) : 0,
+      dropOffCount: Math.max(0, clickerVisitors.size - formStartVisitors.size),
+    },
+    {
+      name: 'Form Started',
+      count: formStartVisitors.size,
+      overallPercentage: visitors > 0 ? Math.round((formStartVisitors.size / visitors) * 100) : 0,
+      dropOffCount: Math.max(0, formStartVisitors.size - formSubmitVisitors.size),
+    },
+    {
+      name: 'Form Submitted',
+      count: formSubmitVisitors.size,
+      overallPercentage: visitors > 0 ? Math.round((formSubmitVisitors.size / visitors) * 100) : 0,
+      dropOffCount: Math.max(0, formSubmitVisitors.size - feedbackVisitors.size),
+    },
+    {
+      name: 'Feedback / Goal Completed',
+      count: Math.max(feedbackVisitors.size, feedback.length > 0 ? 1 : 0),
+      overallPercentage: visitors > 0 ? Math.round((Math.max(feedbackVisitors.size, feedback.length > 0 ? 1 : 0) / visitors) * 100) : 0,
+      dropOffCount: 0,
+    },
+  ];
 
   // 2. User Feedback Summary
   let ratingTotal = 0;
@@ -230,10 +321,10 @@ export function synthesizeExperimentEvidence(data: {
 
   // 3. Observed Behaviors
   const observedBehaviors: EvidencePack['observedBehaviors'] = [];
-  if (sortedClicks.length > 1) {
+  if (topClickedElements.length > 1) {
     observedBehaviors.push({
       title: 'Navigation Exploration',
-      observation: `Visitors interacted with ${sortedClicks.length} distinct elements across the prototype.`,
+      observation: `Visitors interacted with ${topClickedElements.length} distinct elements across the prototype.`,
       significance: 'Indicates multi-step user exploration rather than immediate bounce.',
     });
   }
@@ -339,6 +430,8 @@ export function synthesizeExperimentEvidence(data: {
     },
     measuredFacts,
     observedBehaviors,
+    topClickedElements,
+    funnelSteps,
     userFeedbackSummary: {
       averageRating,
       ratingCount,

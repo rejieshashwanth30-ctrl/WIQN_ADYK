@@ -163,10 +163,13 @@ CRITICAL RULES:
    - Confidence MUST be "LOW" or "VERY_LOW"
    - You MUST NOT declare the product validated or declare that the founder should commit to building it.
 3. Distinguish clearly:
-   - FACTS (what was physically measured)
-   - HYPOTHESES (possible explanations)
+   - OBSERVATIONS / FACTS (what was physically measured)
+   - INTERPRETATIONS / HYPOTHESES (possible explanations)
    - RECOMMENDATIONS (actionable next steps)
-4. Highlight any Say-vs-Do contradictions (e.g. user rated 5/5 but only stayed for a few seconds or dropped off).
+4. Strictly distinguish OBSERVATION from INTERPRETATION from CONCLUSION:
+   - Never claim that button clicks alone prove product demand or product-market fit.
+   - If telemetry shows where users stopped but does not establish why, state clearly: "The available telemetry shows where users stopped, but does not establish why."
+5. Highlight any Say-vs-Do contradictions (e.g. user rated 5/5 but only stayed for a few seconds or dropped off).
 
 EXPERIMENT DATA:
 - Experiment Name: "${evidence.experimentName}"
@@ -179,6 +182,8 @@ EXPERIMENT DATA:
 - Feedback Count: ${evidence.sampleSummary.feedbackCount}
 - Feedback Quotes: ${JSON.stringify(evidence.userFeedbackSummary.quotes)}
 - Average Rating: ${evidence.userFeedbackSummary.averageRating || 'None'} / 5
+- Top Clicked Elements: ${JSON.stringify(evidence.topClickedElements || [])}
+- Funnel Steps & Drop-offs: ${JSON.stringify(evidence.funnelSteps || [])}
 - Measured Facts: ${JSON.stringify(evidence.measuredFacts)}
 - Say-vs-Do Signals: ${JSON.stringify(evidence.sayVsDoSignals)}
 - Evidence Level: "${evidence.evidenceLevel}"
