@@ -128,6 +128,27 @@ export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 2
         await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
         continue;
       }
+
+      // Self-healing: if a missing schema or table error is encountered, run safe idempotent schema initialization once
+      const isMissingTableError =
+        err?.code === 'P2021' ||
+        err?.code === '42P01' ||
+        msg.includes('does not exist') ||
+        msg.includes('wiqn.users') ||
+        msg.includes('relation "wiqn.');
+
+      if (isMissingTableError && attempt === 0) {
+        console.warn(`[WIQN DB] Missing table detected (${msg.slice(0, 120)}). Triggering automatic schema repair...`);
+        try {
+          const { ensureWiqnSchema } = await import('@/lib/wiqn-schema');
+          await ensureWiqnSchema(prisma);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        } catch (repairErr: any) {
+          console.error('[WIQN DB] Automatic schema repair failed:', repairErr?.message || repairErr);
+        }
+      }
+
       throw err;
     }
   }

@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node prisma/ensure-wiqn-schema.js && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "node tests/regression-db-flow.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

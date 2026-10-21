@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: any) {
     console.error('Failed to persist experiment to Neon:', error);
-    return NextResponse.json({ error: error?.message || 'Failed to create experiment in database' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create experiment. Please try again.' }, { status: 500 });
   }
 }
 

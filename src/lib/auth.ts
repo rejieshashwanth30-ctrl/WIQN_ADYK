@@ -310,9 +310,9 @@ export async function getAuthenticatedUserContext(
       } else if (errCode === 'P1017' || errMsg.includes('Closed')) {
         userMessage = 'Database connection error: connection was closed by database server';
       } else if (errCode === 'P2002') {
-        userMessage = 'Database constraint error: duplicate profile collision';
+        userMessage = 'Account profile synchronization conflict. Please retry.';
       } else if (errMsg.includes('does not exist')) {
-        userMessage = `Database schema error: ${errMsg.slice(0, 100)}`;
+        userMessage = 'Unable to initialize your workspace profile. Please try again.';
       }
 
       return {
