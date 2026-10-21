@@ -233,7 +233,12 @@ function SignupForm() {
       }, 400);
     } catch (err: any) {
       console.error('[WIQN AUTH] Unexpected signup exception:', err?.message || err);
-      setErrorMessage(err?.message || 'Something went wrong while creating your account. Please try again.');
+      const raw = (err?.message || String(err || '')).toLowerCase();
+      if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('fetch failed')) {
+        setErrorMessage('Unable to connect to the authentication service. Please check your internet connection or try again.');
+      } else {
+        setErrorMessage(err?.message || 'Something went wrong while creating your account. Please try again.');
+      }
       setSubmitting(false);
     }
   };

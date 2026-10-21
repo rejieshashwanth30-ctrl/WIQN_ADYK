@@ -100,7 +100,12 @@ function LoginForm() {
       }
     } catch (err: any) {
       console.error('[WIQN AUTH] Unexpected login error:', err?.message || err);
-      setErrorMessage(err?.message || 'Unable to sign in right now. Please check your internet connection.');
+      const raw = (err?.message || String(err || '')).toLowerCase();
+      if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('fetch failed')) {
+        setErrorMessage('Unable to connect to the authentication service. Please check your internet connection or try again.');
+      } else {
+        setErrorMessage(err?.message || 'Unable to sign in right now. Please check your credentials and try again.');
+      }
       setSubmitting(false);
     }
   };
