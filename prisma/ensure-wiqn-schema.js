@@ -264,6 +264,9 @@ function getSanitizedUrl() {
     if (parsed.hostname.includes('-pooler')) {
       parsed.searchParams.set('pgbouncer', 'true');
     }
+    if (!parsed.searchParams.has('schema')) {
+      parsed.searchParams.set('schema', 'wiqn');
+    }
     return parsed.toString();
   } catch {
     return raw;

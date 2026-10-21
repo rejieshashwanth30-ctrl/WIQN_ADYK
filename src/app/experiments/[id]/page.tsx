@@ -4,7 +4,6 @@ import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { DashboardNav } from '@/components/DashboardNav';
 import { BehavioralAnalyticsView } from '@/components/BehavioralAnalyticsView';
-import { getExperimentById, REFERENCE_INSIGHTS, REFERENCE_FEEDBACK, REFERENCE_DECISION } from '@/lib/storage';
 import { Experiment, StructuredInsight, FeedbackItem, DecisionRecord, DecisionOutcome } from '@/lib/types';
 import { getPublicAppUrl, getTestUrl, getShareUrls, isLocalEnvironment, getProductionAppUrl } from '@/lib/urls';
 import { authenticatedFetch } from '@/lib/api-client';
@@ -49,9 +48,6 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [decisionNextStep, setDecisionNextStep] = useState('');
   const [savingDecision, setSavingDecision] = useState(false);
   const [decisionNotice, setDecisionNotice] = useState<string | null>(null);
-  const [showBenchmarkInsights, setShowBenchmarkInsights] = useState(false);
-  const [showBenchmarkFeedback, setShowBenchmarkFeedback] = useState(false);
-  const [showBenchmarkFunnel, setShowBenchmarkFunnel] = useState(false);
 
   // Sharing link state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -706,57 +702,6 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   metrics={experiment.metrics}
                   onRefresh={loadExperiment}
                 />
-
-                {/* Optional Benchmark Data Toggle */}
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '20px' }}>
-                  <button
-                    onClick={() => setShowBenchmarkFunnel(!showBenchmarkFunnel)}
-                    className="btn-ghost"
-                    style={{ fontSize: '0.6875rem', padding: '6px 12px' }}
-                  >
-                    <span>{showBenchmarkFunnel ? 'Hide Example High-Traffic Funnel' : 'View High-Traffic Reference Funnel (Not Your Results)'}</span>
-                  </button>
-
-                  {showBenchmarkFunnel && (
-                    <div style={{ marginTop: '16px', backgroundColor: '#0c0c0e', border: '1px solid rgba(255,255,255,0.1)', padding: '24px', borderRadius: '2px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                        <span className="badge">EXAMPLE DATA (NOT YOUR RESULTS)</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-                          Sample data showing visitor activity with high traffic
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', marginBottom: '4px' }}>
-                            <span>1. Opened Prototype</span>
-                            <span>142 visitors (100%)</span>
-                          </div>
-                          <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-                            <div style={{ width: '100%', height: '100%', backgroundColor: '#ffffff' }} />
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', marginBottom: '4px' }}>
-                            <span>2. Clicked Main Call-to-Action</span>
-                            <span>91 visitors (64.2%)</span>
-                          </div>
-                          <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-                            <div style={{ width: '64.2%', height: '100%', backgroundColor: '#d4d4d8' }} />
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', marginBottom: '4px' }}>
-                            <span>3. Reached Confirmation Step</span>
-                            <span>54 visitors (38.0%)</span>
-                          </div>
-                          <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)' }}>
-                            <div style={{ width: '38%', height: '100%', backgroundColor: '#a1a1aa' }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -995,46 +940,6 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 </div>
               </div>
             )}
-
-            {/* Optional Benchmark Feedback Toggle */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px', marginTop: '12px' }}>
-              <button
-                onClick={() => setShowBenchmarkFeedback(!showBenchmarkFeedback)}
-                className="btn-ghost"
-                style={{ fontSize: '0.6875rem', padding: '6px 12px' }}
-              >
-                <span>{showBenchmarkFeedback ? 'Hide Example Feedback' : 'View Example Data (Not Your Results)'}</span>
-              </button>
-
-              {showBenchmarkFeedback && (
-                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-                  <div className="badge" style={{ gridColumn: '1 / -1', alignSelf: 'flex-start' }}>
-                    EXAMPLE DATA (NOT YOUR RESULTS) — Sample tester feedback for reference
-                  </div>
-                  {REFERENCE_FEEDBACK.map((fb) => (
-                    <div
-                      key={fb.id}
-                      style={{
-                        backgroundColor: '#0c0c0e',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        padding: '20px',
-                        borderRadius: '2px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span className="badge">EXAMPLE: {fb.category.toUpperCase()}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-                          SAMPLE FEEDBACK
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                        &ldquo;{fb.comment}&rdquo;
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -1392,49 +1297,6 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       Share your prototype with 3 to 5 colleagues, prospective users, or classmates and ask them to complete the primary action.
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Optional Benchmark Insights Toggle */}
-            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
-              <button
-                onClick={() => setShowBenchmarkInsights(!showBenchmarkInsights)}
-                className="btn-ghost"
-                style={{ fontSize: '0.6875rem', padding: '6px 12px' }}
-              >
-                <span>{showBenchmarkInsights ? 'Hide Example Insights' : 'View Example Data (Not Your Results)'}</span>
-              </button>
-
-              {showBenchmarkInsights && (
-                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div className="badge" style={{ alignSelf: 'flex-start' }}>
-                    EXAMPLE DATA (NOT YOUR RESULTS) — Sample insights for reference
-                  </div>
-                  {REFERENCE_INSIGHTS.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        backgroundColor: '#0c0c0e',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        padding: '20px 24px',
-                        borderRadius: '2px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span className="badge">EXAMPLE: {item.type}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                          Confidence: {item.confidence}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem', marginBottom: '6px' }}>
-                        {item.title}
-                      </div>
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                        {item.statement}
-                      </p>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>

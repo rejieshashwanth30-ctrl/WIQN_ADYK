@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DashboardNav } from '@/components/DashboardNav';
-import { saveStoredExperiment } from '@/lib/storage';
 import { Experiment, TestingMode, ExperimentStatus } from '@/lib/types';
 import { ArrowRight, ArrowLeft, Check, Layers, Target, Link as LinkIcon, ShieldCheck, Globe, AlertCircle, LogIn } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
@@ -179,7 +178,7 @@ export default function NewExperimentPage() {
     }
 
     try {
-      const res = await authenticatedFetch('/api/experiments', {
+      let res = await authenticatedFetch('/api/experiments', {
         method: 'POST',
         body: JSON.stringify({
           name: name.trim(),
@@ -194,6 +193,26 @@ export default function NewExperimentPage() {
           status,
         }),
       });
+
+      // If database was in cold start / suspended state, retry once automatically
+      if (res.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        res = await authenticatedFetch('/api/experiments', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: name.trim(),
+            productName: productName.trim(),
+            problem: problem.trim(),
+            targetAudience: targetAudience.trim(),
+            productIdea: productIdea.trim(),
+            keyHypothesis: keyHypothesis.trim(),
+            learningGoal: learningGoal.trim(),
+            prototypeUrl: prototypeUrl.trim(),
+            testingMode,
+            status,
+          }),
+        });
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

@@ -127,16 +127,26 @@ export async function ensureApplicationUser({
   );
 
   if (existingByEmail) {
-    return await withDbRetry(() =>
-      prisma.user.update({
-        where: { id: existingByEmail.id },
-        data: {
-          supabaseUserId, // Link to verified Supabase identity
-          name: cleanName || existingByEmail.name,
-          organization: organization !== undefined ? organization : existingByEmail.organization,
-        },
-      })
-    );
+    // If the record is already linked to this supabaseUserId, no update is required
+    if (existingByEmail.supabaseUserId === supabaseUserId) {
+      return existingByEmail;
+    }
+
+    try {
+      return await withDbRetry(() =>
+        prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            supabaseUserId, // Link to verified Supabase identity
+            name: cleanName || existingByEmail.name,
+            organization: organization !== undefined ? organization : existingByEmail.organization,
+          },
+        })
+      );
+    } catch (linkErr: any) {
+      console.warn('[WIQN AUTH] Identity re-link non-fatal warning, falling back to existing profile:', linkErr?.message || linkErr);
+      return existingByEmail;
+    }
   }
 
   // 3. Atomically upsert by supabaseUserId
@@ -304,11 +314,39 @@ export async function getAuthenticatedUserContext(
         message: errMsg,
       });
 
+      // Resilient fallback: directly query the existing application user profile in Neon
+      try {
+        const directUser = await withDbRetry(() =>
+          prisma.user.findFirst({
+            where: {
+              OR: [
+                { supabaseUserId: supaUser.id },
+                { email: supaUser.email.toLowerCase().trim() },
+              ],
+            },
+          })
+        );
+
+        if (directUser) {
+          console.log('[WIQN AUTH] Direct profile recovery succeeded for:', supaUser.email);
+          return {
+            success: true,
+            supabaseUser: {
+              id: supaUser.id,
+              email: supaUser.email,
+            },
+            applicationUser: directUser,
+          };
+        }
+      } catch (recErr: any) {
+        console.error('[WIQN AUTH] Direct profile recovery lookup also failed:', recErr?.message || recErr);
+      }
+
       let userMessage = 'Service temporarily unavailable: database error during profile resolution';
       if (errMsg.includes('reach database') || errCode === 'P1001') {
-        userMessage = 'Database connection error: unable to reach PostgreSQL database server';
+        userMessage = 'Database connection error: unable to reach PostgreSQL database server. Please retry in a moment.';
       } else if (errCode === 'P1017' || errMsg.includes('Closed')) {
-        userMessage = 'Database connection error: connection was closed by database server';
+        userMessage = 'Database connection error: connection was closed by database server. Please retry.';
       } else if (errCode === 'P2002') {
         userMessage = 'Account profile synchronization conflict. Please retry.';
       } else if (errMsg.includes('does not exist')) {

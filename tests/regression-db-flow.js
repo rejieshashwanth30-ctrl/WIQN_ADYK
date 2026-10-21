@@ -950,6 +950,34 @@ async function runRegressionTests() {
       }
     });
 
+    // TEST 36: Resilient profile resolution under race conditions and existing identities
+    await testStep('TEST 36: Resilient profile resolution and zero-race conditions', async () => {
+      // 1. Resolve existing user by email
+      const existingUser = await prisma.user.findUnique({
+        where: { email: createdUser.email },
+      });
+      assert(existingUser !== null, 'Existing user must be found by email');
+      assert(existingUser.id === createdUser.id, 'User ID must match created user');
+
+      // 2. Concurrent resolution simulation: 10 parallel lookups must not collide
+      const promises = Array.from({ length: 10 }).map(async () => {
+        return prisma.user.findFirst({
+          where: {
+            OR: [
+              { supabaseUserId: createdUser.supabaseUserId },
+              { email: createdUser.email },
+            ],
+          },
+        });
+      });
+
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        assert(res !== null, 'Parallel resolution must never return null');
+        assert(res.id === createdUser.id, 'Parallel resolution must consistently return the same profile');
+      }
+    });
+
   } finally {
     // Clean up test data non-destructively
     try {

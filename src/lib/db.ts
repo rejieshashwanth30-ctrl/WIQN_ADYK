@@ -44,6 +44,11 @@ export function getSanitizedDatabaseUrl(): string | undefined {
       }
     }
 
+    // 6. Ensure default schema is set to wiqn for consistent search path
+    if (!parsed.searchParams.has('schema')) {
+      parsed.searchParams.set('schema', 'wiqn');
+    }
+
     return parsed.toString();
   } catch {
     // Safe fallback if raw string is somehow malformed
@@ -66,6 +71,9 @@ export function getSanitizedDatabaseUrl(): string | undefined {
     }
     if (fallback.includes('-pooler') && !fallback.includes('pgbouncer=')) {
       fallback += '&pgbouncer=true';
+    }
+    if (!fallback.includes('schema=')) {
+      fallback += '&schema=wiqn';
     }
     return fallback;
   }
@@ -101,9 +109,9 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 globalForPrisma.prisma = prisma;
 
 /**
- * Safe database retry wrapper for transient connection pool resets (e.g. Neon idle timeouts)
+ * Safe database retry wrapper for transient connection pool resets and Neon cold wakeups
  */
-export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 2): Promise<T> {
+export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 4): Promise<T> {
   let lastError: any;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -119,13 +127,22 @@ export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 2
         msg.includes('reach database') ||
         msg.includes('terminating connection') ||
         msg.includes('Connection reset') ||
+        msg.includes('ECONNRESET') ||
+        msg.includes('ETIMEDOUT') ||
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('EPIPE') ||
+        msg.includes('prepared statement') ||
         err?.code === 'P1001' || // Can't reach database server
+        err?.code === 'P1002' || // Database server reached but timed out
+        err?.code === 'P1008' || // Operations timed out
         err?.code === 'P1017' || // Server has closed the connection
-        err?.code === 'P2024';   // Timed out fetching a new connection from the pool
+        err?.code === 'P2024' || // Timed out fetching a new connection from the pool
+        err?.code === 'P2028';   // Transaction API error
 
       if (isConnectionError && attempt < maxRetries) {
-        console.warn(`[WIQN DB] Transient connection error (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+        const backoffMs = Math.min(2500, Math.round(350 * Math.pow(2, attempt)));
+        console.warn(`[WIQN DB] Transient Neon connection error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${backoffMs}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       }
 
