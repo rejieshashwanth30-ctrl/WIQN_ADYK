@@ -4,13 +4,14 @@ import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle, KeyRound, UserPlus } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams?.get('redirect') || '/dashboard';
+  const initialEmail = searchParams?.get('email') || '';
   const isResetSuccess = searchParams?.get('reset') === 'success';
   const isVerified = searchParams?.get('verified') === 'true';
   const rawError = searchParams?.get('error');
@@ -21,14 +22,16 @@ function LoginForm() {
       : 'Email or password is incorrect.'
     : null;
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(initialError);
+  const [showResetAction, setShowResetAction] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setShowResetAction(false);
 
     // Client-side empty field validation
     if (!email.trim() || !password) {
@@ -48,21 +51,23 @@ function LoginForm() {
       if (error) {
         console.error('[WIQN AUTH] Login failed:', error.message, 'Code:', error.code, 'Status:', error.status);
         const msg = error.message.toLowerCase();
+        const code = (error.code || '').toLowerCase();
 
         if (
+          code === 'invalid_credentials' ||
           msg.includes('invalid login credentials') ||
-          msg.includes('invalid credentials') ||
-          error.code === 'invalid_credentials'
+          msg.includes('invalid credentials')
         ) {
-          setErrorMessage('Unable to sign in. Please check your email and password.');
+          setErrorMessage('Incorrect email or password. Please verify your credentials or reset your password.');
+          setShowResetAction(true);
         } else if (msg.includes('email not confirmed')) {
           setErrorMessage(
-            "Email confirmation is active in your Supabase project. Disable 'Confirm Email' in Supabase Authentication settings to enable instant login."
+            'Your email address has not been confirmed yet. Please check your inbox for the confirmation email.'
           );
         } else if (msg.includes('rate limit') || error.status === 429) {
           setErrorMessage('Too many sign-in attempts. Please wait a moment and try again.');
         } else {
-          setErrorMessage('Unable to sign in. Please check your credentials and try again.');
+          setErrorMessage(error.message || 'Unable to sign in. Please check your credentials and try again.');
         }
         setSubmitting(false);
         return;
@@ -95,7 +100,7 @@ function LoginForm() {
       }
     } catch (err: any) {
       console.error('[WIQN AUTH] Unexpected login error:', err?.message || err);
-      setErrorMessage('Unable to sign in right now. Please check your internet connection.');
+      setErrorMessage(err?.message || 'Unable to sign in right now. Please check your internet connection.');
       setSubmitting(false);
     }
   };
@@ -162,7 +167,7 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Verification Notice (if user arrived from legacy callback) */}
+      {/* Verification Notice */}
       {isVerified && !isResetSuccess && (
         <div
           style={{
@@ -206,14 +211,44 @@ function LoginForm() {
             borderRadius: '2px',
             marginBottom: '20px',
             display: 'flex',
-            alignItems: 'flex-start',
-            gap: '12px',
+            flexDirection: 'column',
+            gap: '10px',
           }}
         >
-          <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
-            AUTHENTICATION NOTICE: {errorMessage}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+            <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
+              AUTHENTICATION NOTICE: {errorMessage}
+            </div>
           </div>
+
+          {showResetAction && (
+            <div
+              style={{
+                display: 'flex',
+                gap: '10px',
+                paddingTop: '10px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <Link
+                href={`/auth/reset-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
+                className="btn-secondary"
+                style={{
+                  fontSize: '0.6875rem',
+                  padding: '6px 12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <KeyRound size={13} />
+                <span>Reset Password for this Email</span>
+                <ArrowRight size={12} />
+              </Link>
+            </div>
+          )}
         </div>
       )}
 
@@ -278,7 +313,7 @@ function LoginForm() {
               Password
             </label>
             <Link
-              href="/auth/reset-password"
+              href={`/auth/reset-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.6875rem',
@@ -336,7 +371,10 @@ function LoginForm() {
       {/* Footer Link */}
       <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
         Don&apos;t have an account?{' '}
-        <Link href="/signup" style={{ color: '#ffffff', textDecoration: 'underline' }}>
+        <Link
+          href={`/signup${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
+          style={{ color: '#ffffff', textDecoration: 'underline' }}
+        >
           Create Workspace
         </Link>
       </div>

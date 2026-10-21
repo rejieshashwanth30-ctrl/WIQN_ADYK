@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
 import { ArrowRight, AlertCircle, CheckCircle, KeyRound, Mail } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
@@ -10,7 +10,9 @@ import { getPublicAppUrl } from '@/lib/urls';
 
 function ResetPasswordForm() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  const initialEmail = searchParams?.get('email') || '';
+  const [email, setEmail] = useState(initialEmail);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);

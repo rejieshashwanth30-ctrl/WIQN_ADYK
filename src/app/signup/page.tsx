@@ -1,26 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
-import { ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle, KeyRound, LogIn } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialEmail = searchParams?.get('email') || '';
+
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isExistingAccount, setIsExistingAccount] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+    setIsExistingAccount(false);
 
     // 1. Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,7 +36,7 @@ export default function SignupPage() {
 
     // 2. Password minimum security validation
     if (!password || password.length < 6) {
-      setErrorMessage('Password must meet the minimum security requirements.');
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
@@ -60,30 +65,103 @@ export default function SignupPage() {
       if (error) {
         console.error('[WIQN AUTH] Signup failed:', error.message, 'Code:', error.code, 'Status:', error.status);
         const msg = error.message.toLowerCase();
-        const code = error.code || '';
+        const code = (error.code || '').toLowerCase();
+        const status = Number(error.status) || 0;
+
+        const isExisting =
+          code === 'user_already_exists' ||
+          code === 'email_exists' ||
+          msg.includes('already registered') ||
+          msg.includes('already exists') ||
+          msg.includes('user already exists') ||
+          status === 422;
+
+        if (isExisting) {
+          // If the account already exists, try signing in with the provided password immediately
+          const { data: autoSignInData, error: autoSignInError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+
+          if (!autoSignInError && autoSignInData?.session) {
+            setSuccessMessage('Account recognized. Signing you into your workspace...');
+            try {
+              await fetch('/api/auth/sync-profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${autoSignInData.session.access_token}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                  name: name.trim() || email.trim().split('@')[0],
+                }),
+              });
+            } catch {}
+            router.refresh();
+            setTimeout(() => {
+              router.push('/dashboard');
+            }, 300);
+            return;
+          }
+
+          setIsExistingAccount(true);
+          setErrorMessage('An account with this email already exists.');
+          setSubmitting(false);
+          return;
+        }
 
         if (
           msg.includes('rate limit') ||
           code === 'over_email_send_rate_limit' ||
-          error.status === 429
+          status === 429
         ) {
-          setErrorMessage(
-            "Email rate limit exceeded. Email confirmation is currently active in your Supabase project. To enable instant registration without rate limits, please go to your Supabase Dashboard -> Authentication -> Providers -> Email and turn 'Confirm email' to OFF."
-          );
-        } else if (
-          msg.includes('already registered') ||
-          msg.includes('already exists') ||
-          msg.includes('user already exists') ||
-          error.status === 422
-        ) {
-          setErrorMessage('An account with this email already exists. Please sign in instead.');
-        } else if (msg.includes('password')) {
-          setErrorMessage('Password must meet the minimum security requirements (at least 6 characters).');
+          setErrorMessage('Email rate limit reached. Please wait a moment or sign in to your existing account.');
+        } else if (msg.includes('password') || code === 'weak_password') {
+          setErrorMessage(error.message || 'Password must meet the minimum security requirements (at least 6 characters).');
         } else if (msg.includes('valid email') || msg.includes('invalid email')) {
           setErrorMessage('Please enter a valid email address.');
         } else {
-          setErrorMessage('Unable to create your account right now. Please check your details and try again.');
+          setErrorMessage(error.message || 'Unable to create your account. Please check your details and try again.');
         }
+
+        setSubmitting(false);
+        return;
+      }
+
+      // Check for Supabase anti-enumeration empty identities (which indicates user already exists when confirmation is enabled)
+      const identities = data?.user?.identities;
+      if (data?.user && Array.isArray(identities) && identities.length === 0) {
+        // User already exists in Supabase
+        const { data: autoSignInData, error: autoSignInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (!autoSignInError && autoSignInData?.session) {
+          setSuccessMessage('Account recognized. Signing you into your workspace...');
+          try {
+            await fetch('/api/auth/sync-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${autoSignInData.session.access_token}`,
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                name: name.trim() || email.trim().split('@')[0],
+              }),
+            });
+          } catch {}
+          router.refresh();
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 300);
+          return;
+        }
+
+        setIsExistingAccount(true);
+        setErrorMessage('An account with this email already exists.');
         setSubmitting(false);
         return;
       }
@@ -103,7 +181,7 @@ export default function SignupPage() {
           const sMsg = signInError.message.toLowerCase();
           if (sMsg.includes('email not confirmed')) {
             setErrorMessage(
-              "Account created! However, email confirmation is currently active in your Supabase project. Please turn 'Confirm Email' to OFF in your Supabase Dashboard (Authentication -> Providers -> Email) to allow instant access without confirmation emails."
+              'Account created! Please check your inbox to confirm your email, or sign in once verified.'
             );
             setSubmitting(false);
             return;
@@ -128,7 +206,6 @@ export default function SignupPage() {
 
           if (!syncRes.ok) {
             console.warn('[WIQN AUTH] Profile sync status non-ok, retrying once:', syncRes.status);
-            // Non-blocking retry: brief backoff in case of network latency
             await new Promise((resolve) => setTimeout(resolve, 300));
             await fetch('/api/auth/sync-profile', {
               method: 'POST',
@@ -147,7 +224,7 @@ export default function SignupPage() {
         }
       }
 
-      // Show success state and redirect directly to dashboard (no login redirect, no second login)
+      // Show success state and redirect directly to dashboard
       setSuccessMessage('Account created successfully. Preparing your workspace...');
       router.refresh();
 
@@ -156,7 +233,7 @@ export default function SignupPage() {
       }, 400);
     } catch (err: any) {
       console.error('[WIQN AUTH] Unexpected signup exception:', err?.message || err);
-      setErrorMessage('Something went wrong while creating your account. Please try again.');
+      setErrorMessage(err?.message || 'Something went wrong while creating your account. Please try again.');
       setSubmitting(false);
     }
   };
@@ -251,18 +328,65 @@ export default function SignupPage() {
             style={{
               backgroundColor: '#121215',
               border: '1px solid rgba(255, 255, 255, 0.25)',
-              padding: '14px 16px',
+              padding: '16px 18px',
               borderRadius: '2px',
               marginBottom: '20px',
               display: 'flex',
-              alignItems: 'flex-start',
+              flexDirection: 'column',
               gap: '12px',
             }}
           >
-            <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
-              REGISTRATION NOTICE: {errorMessage}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.5 }}>
+                REGISTRATION NOTICE: {errorMessage}
+              </div>
             </div>
+
+            {/* Smart 1-click action buttons when account already exists */}
+            {isExistingAccount && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '10px',
+                  marginTop: '4px',
+                  paddingTop: '12px',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Link
+                  href={`/login?email=${encodeURIComponent(email.trim())}`}
+                  className="btn-primary"
+                  style={{
+                    fontSize: '0.6875rem',
+                    padding: '8px 14px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <LogIn size={13} />
+                  <span>Sign In to Existing Account</span>
+                  <ArrowRight size={12} />
+                </Link>
+
+                <Link
+                  href={`/auth/reset-password?email=${encodeURIComponent(email.trim())}`}
+                  className="btn-secondary"
+                  style={{
+                    fontSize: '0.6875rem',
+                    padding: '8px 14px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <KeyRound size={13} />
+                  <span>Reset Password</span>
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
@@ -439,11 +563,30 @@ export default function SignupPage() {
 
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
           Already have an account?{' '}
-          <Link href="/login" style={{ color: '#ffffff', textDecoration: 'underline' }}>
+          <Link
+            href={`/login${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
+            style={{ color: '#ffffff', textDecoration: 'underline' }}
+          >
             Sign In
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', backgroundColor: '#050505', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--color-gray-500)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+            LOADING...
+          </div>
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }
