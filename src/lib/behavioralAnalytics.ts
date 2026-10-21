@@ -302,6 +302,60 @@ export function formatEventType(type: string): string {
 }
 
 /**
+ * Derives a human-friendly page name from a URL path.
+ */
+export function formatPagePath(rawPath?: string | null): string {
+  if (!rawPath || rawPath === '/') return 'Home (/)';
+  const clean = rawPath.split('?')[0];
+  if (clean.startsWith('/test/')) return 'Public Test Experience';
+  const segments = clean.split('/').filter(Boolean);
+  if (segments.length === 0) return 'Home (/)';
+  return segments.map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/[-_]/g, ' ')).join(' > ');
+}
+
+/**
+ * Derives a comprehensive, context-rich display label for any event.
+ */
+export function formatEventDisplayLabel(ev: {
+  eventType: string;
+  element?: string | null;
+  elementText?: string | null;
+  page?: string | null;
+  metadata?: any;
+}): string {
+  const upper = (ev.eventType || '').toUpperCase();
+  if (upper === 'CLICK' || upper === 'BUTTON_CLICK' || upper === 'CTA_CLICK' || upper === 'LINK_CLICK' || upper === 'TAP') {
+    return formatElementLabel(ev.element, ev.elementText);
+  }
+  if (upper === 'TIME_ON_PAGE') {
+    const dur = ev.metadata?.durationSeconds ?? ev.metadata?.pulse;
+    const pageName = ev.metadata?.pageTitle || ev.metadata?.title || ev.elementText || formatPagePath(ev.page);
+    if (dur !== undefined && dur !== null) {
+      return `Duration: ${dur} sec — ${pageName}`;
+    }
+    return `Time on Page: ${pageName}`;
+  }
+  if (upper === 'PAGE_VIEW') {
+    const title = ev.metadata?.pageTitle || ev.metadata?.title || ev.elementText;
+    if (title && title.trim()) {
+      return `Viewed "${title.trim()}"`;
+    }
+    return `Page View: ${formatPagePath(ev.page)}`;
+  }
+  if (upper === 'SCROLL_DEPTH') {
+    const depth = ev.metadata?.scrollDepth || ev.elementText;
+    return depth ? `Scrolled ${depth}% of page` : 'Scroll Depth Milestone';
+  }
+  if (upper === 'FORM_START') {
+    return ev.elementText ? `Started: ${ev.elementText}` : 'Form Interaction Started';
+  }
+  if (upper === 'FORM_SUBMIT') {
+    return ev.elementText ? `Submitted: ${ev.elementText}` : 'Form Submitted';
+  }
+  return ev.elementText || formatPagePath(ev.page) || 'Action';
+}
+
+/**
  * Computes the complete behavioral analytics model from raw database records.
  */
 export function computeBehavioralAnalytics(params: {
@@ -340,15 +394,21 @@ export function computeBehavioralAnalytics(params: {
   const totalSessions = Math.max(sessionIdSet.size, sessions.length);
   const totalEvents = events.length;
 
-  // 2. Event breakdown by type
+  const isClickType = (t: string) => {
+    const upper = (t || '').toUpperCase();
+    return upper === 'CLICK' || upper === 'BUTTON_CLICK' || upper === 'CTA_CLICK' || upper === 'LINK_CLICK' || upper === 'TAP';
+  };
+
+  // 2. Event breakdown by type (canonical normalization)
   const eventBreakdown: Record<string, number> = {};
   events.forEach((e) => {
-    const t = e.eventType;
+    const rawT = e.eventType;
+    const t = isClickType(rawT) ? 'CLICK' : rawT;
     eventBreakdown[t] = (eventBreakdown[t] || 0) + 1;
   });
 
   // 3. Click distribution & Most Interacted Elements
-  const clickEvents = events.filter((e) => e.eventType === 'CLICK');
+  const clickEvents = events.filter((e) => isClickType(e.eventType));
   const totalClicks = clickEvents.length;
   const clickersSet = new Set<string>();
   const elementMap = new Map<string, {
@@ -603,7 +663,7 @@ export function computeBehavioralAnalytics(params: {
       timestamp: new Date(ev.timestamp).toISOString(),
       eventType: ev.eventType,
       displayType: formatEventType(ev.eventType),
-      label: ev.eventType === 'CLICK' ? formatElementLabel(ev.element, ev.elementText) : (ev.elementText || ev.page || 'Action'),
+      label: formatEventDisplayLabel(ev),
       page: ev.page || '/',
       metadata: ev.metadata || undefined,
     });
@@ -680,7 +740,7 @@ export function computeBehavioralAnalytics(params: {
         stepNumber: idx + 1,
         eventType: ev.eventType,
         displayType: formatEventType(ev.eventType),
-        label: ev.eventType === 'CLICK' ? formatElementLabel(ev.element, ev.elementText) : (ev.elementText || ev.page),
+        label: formatEventDisplayLabel(ev),
         page: ev.page || '/',
         timestamp: new Date(ev.timestamp).toISOString(),
         durationFromStartSec: Math.max(0, Math.round((stepTime - firstTime) / 1000)),

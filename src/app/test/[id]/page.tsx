@@ -138,20 +138,71 @@ export default function PublicTestingPage({ params }: PageProps) {
       }
     };
 
-    sendBeaconEvent('PAGE_VIEW', { title: `Test: ${experiment.name}` });
+    sendBeaconEvent('PAGE_VIEW', { title: `Test: ${experiment.name}`, pageTitle: `Test: ${experiment.name}` });
 
-    // 2. Pulse heartbeats for session duration
+    // 2. Click & Interaction Capture for all test shell elements
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest?.(
+        'button, a, [role="button"], [role="link"], input[type="submit"], input[type="button"], select, textarea, [data-wiqn-id], [data-testid]'
+      ) as HTMLElement | null;
+
+      if (target) {
+        const tag = target.tagName.toLowerCase();
+        let text = (target.innerText || target.textContent || target.getAttribute('aria-label') || target.getAttribute('title') || '').trim();
+        if (!text && target.id) text = target.id.replace(/[-_]/g, ' ');
+        if (!text) text = tag === 'a' ? 'Direct Link' : 'Interactive Button';
+
+        let element = tag + (target.id ? '#' + target.id : '');
+        if (target.getAttribute('data-wiqn-id')) {
+          element = `${tag}[data-wiqn-id="${target.getAttribute('data-wiqn-id')}"]`;
+        }
+
+        sendBeaconEvent('CLICK', {
+          element,
+          elementText: text.substring(0, 80),
+          targetHref: target.getAttribute('href') || undefined,
+          metadata: {
+            tag,
+            id: target.id || undefined,
+            href: target.getAttribute('href') || undefined,
+            pageTitle: `Test: ${experiment.name}`,
+          },
+        });
+      }
+    };
+    document.addEventListener('click', handleClick, { capture: true, passive: true });
+
+    // 3. Detect engagement when tester interacts with embedded prototype viewport
+    const handleWindowBlur = () => {
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (active && active.tagName && active.tagName.toLowerCase() === 'iframe') {
+          sendBeaconEvent('CLICK', {
+            element: 'iframe#prototype-viewport',
+            elementText: `Prototype Interaction: ${experiment.productName}`,
+            metadata: {
+              context: 'prototype_iframe_engagement',
+              prototypeUrl: experiment.prototypeUrl,
+              pageTitle: `Test: ${experiment.name}`,
+            },
+          });
+        }
+      }, 60);
+    };
+    window.addEventListener('blur', handleWindowBlur);
+
+    // 4. Pulse heartbeats for session duration
     const pulseTimeouts = [15, 30, 60, 120].map((sec) =>
       setTimeout(() => {
         const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-        sendBeaconEvent('TIME_ON_PAGE', { durationSeconds: elapsed });
+        sendBeaconEvent('TIME_ON_PAGE', { durationSeconds: elapsed, pageTitle: `Test: ${experiment.name}` });
       }, sec * 1000)
     );
 
-    // 3. Page unload handler
+    // 5. Page unload handler
     const handleUnload = () => {
       const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-      sendBeaconEvent('TIME_ON_PAGE', { durationSeconds: elapsed });
+      sendBeaconEvent('TIME_ON_PAGE', { durationSeconds: elapsed, pageTitle: `Test: ${experiment.name}`, isFinal: true });
     };
 
     window.addEventListener('beforeunload', handleUnload);
@@ -159,10 +210,27 @@ export default function PublicTestingPage({ params }: PageProps) {
 
     return () => {
       pulseTimeouts.forEach(clearTimeout);
+      document.removeEventListener('click', handleClick);
+      window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('beforeunload', handleUnload);
       window.removeEventListener('pagehide', handleUnload);
     };
   }, [experiment, visitorId, sessionId]);
+
+  // Decorate prototype URL with tracking parameters so external prototype auto-syncs with experiment
+  const getDecoratedPrototypeUrl = (rawUrl?: string) => {
+    if (!rawUrl) return '';
+    try {
+      const url = new URL(rawUrl);
+      url.searchParams.set('wiqn_exp', experimentId);
+      if (visitorId) url.searchParams.set('wiqn_vid', visitorId);
+      if (sessionId) url.searchParams.set('wiqn_sid', sessionId);
+      return url.toString();
+    } catch {
+      const sep = rawUrl.includes('?') ? '&' : '?';
+      return `${rawUrl}${sep}wiqn_exp=${encodeURIComponent(experimentId)}&wiqn_vid=${encodeURIComponent(visitorId)}&wiqn_sid=${encodeURIComponent(sessionId)}`;
+    }
+  };
 
   // Handle Feedback Submission
   const handleSubmitFeedback = async (e: React.FormEvent) => {
@@ -277,6 +345,7 @@ export default function PublicTestingPage({ params }: PageProps) {
         {/* Right: Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
+            id="btn-toggle-embed-help"
             onClick={() => setShowEmbedFallback(!showEmbedFallback)}
             className="btn-ghost"
             style={{ fontSize: '0.6875rem', padding: '6px 8px', color: 'var(--color-silver-300)' }}
@@ -287,7 +356,8 @@ export default function PublicTestingPage({ params }: PageProps) {
           </button>
 
           <a
-            href={experiment.prototypeUrl}
+            id="btn-open-prototype-newtab"
+            href={getDecoratedPrototypeUrl(experiment.prototypeUrl)}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary"
@@ -299,6 +369,7 @@ export default function PublicTestingPage({ params }: PageProps) {
           </a>
 
           <button
+            id="btn-open-feedback-header"
             onClick={() => setShowFeedbackModal(true)}
             className="btn-primary"
             style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
@@ -333,7 +404,8 @@ export default function PublicTestingPage({ params }: PageProps) {
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <a
-              href={experiment.prototypeUrl}
+              id="btn-open-prototype-direct-window"
+              href={getDecoratedPrototypeUrl(experiment.prototypeUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary"
@@ -342,6 +414,7 @@ export default function PublicTestingPage({ params }: PageProps) {
               Open Direct Window
             </a>
             <button
+              id="btn-close-embed-help"
               onClick={() => setShowEmbedFallback(false)}
               className="btn-ghost"
               style={{ padding: '5px 8px' }}
@@ -355,7 +428,8 @@ export default function PublicTestingPage({ params }: PageProps) {
       {/* Main Prototype Viewport */}
       <main style={{ flex: 1, position: 'relative', width: '100%', height: 'calc(100vh - 56px)', backgroundColor: '#ffffff' }}>
         <iframe
-          src={experiment.prototypeUrl}
+          id="prototype-viewport"
+          src={getDecoratedPrototypeUrl(experiment.prototypeUrl)}
           title={`Wiqn Validation: ${experiment.name}`}
           sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
           style={{

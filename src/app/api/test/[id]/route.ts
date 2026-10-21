@@ -29,11 +29,23 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Experiment not found' }, { status: 404 });
     }
 
-    if (experiment.status === 'ARCHIVED' || experiment.status === 'PAUSED') {
+    if (experiment.status === 'PAUSED') {
       return NextResponse.json(
         {
-          error: 'This testing session has concluded or is paused.',
-          status: experiment.status,
+          error: 'This experiment is currently paused by the creator.',
+          status: 'PAUSED',
+          name: experiment.name,
+          productName: experiment.productName,
+        },
+        { status: 403 }
+      );
+    }
+
+    if (experiment.status === 'ARCHIVED') {
+      return NextResponse.json(
+        {
+          error: 'This experiment has been archived by the creator.',
+          status: 'ARCHIVED',
           name: experiment.name,
           productName: experiment.productName,
         },

@@ -111,13 +111,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
         return;
       }
 
-      // Fallback for architectural reference experiment in development
-      const fallback = getExperimentById(experimentId);
-      setExperiment(fallback);
+      setAuthError('Experiment could not be found or loaded from your workspace database.');
+      setExperiment(null);
     } catch (err: any) {
       console.error('Error fetching experiment from database:', err);
-      const fallback = getExperimentById(experimentId);
-      setExperiment(fallback);
+      setAuthError('Connection error loading experiment from workspace database.');
+      setExperiment(null);
     } finally {
       setLoading(false);
     }

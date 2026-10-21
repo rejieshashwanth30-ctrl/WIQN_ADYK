@@ -1138,8 +1138,22 @@ export function BehavioralAnalyticsView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
                 <span style={{ color: 'var(--color-gray-500)' }}>Event Type</span>
-                <span style={{ color: '#ffffff' }}>{selectedEvent.displayType || selectedEvent.eventType}</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>{selectedEvent.displayType || selectedEvent.eventType}</span>
               </div>
+              {selectedEvent.eventType === 'TIME_ON_PAGE' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
+                  <span style={{ color: 'var(--color-gray-500)' }}>Duration (Time Spent)</span>
+                  <span style={{ color: '#ffffff', fontWeight: 700 }}>
+                    {selectedEvent.metadata?.durationSeconds ?? selectedEvent.metadata?.pulse ?? 'N/A'} seconds
+                  </span>
+                </div>
+              )}
+              {selectedEvent.metadata?.pageTitle && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
+                  <span style={{ color: 'var(--color-gray-500)' }}>Page Title</span>
+                  <span style={{ color: '#ffffff' }}>{selectedEvent.metadata.pageTitle}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
                 <span style={{ color: 'var(--color-gray-500)' }}>Element Target</span>
                 <span style={{ color: '#ffffff', wordBreak: 'break-all' }}>{selectedEvent.element || 'N/A'}</span>

@@ -15,15 +15,21 @@ export async function OPTIONS() {
 
 // Map client event strings to valid Prisma EventType enum values
 function normalizeEventType(rawType: string): EventType {
-  const upper = (rawType || '').toUpperCase();
-  switch (upper) {
+  const clean = (rawType || '').toUpperCase().trim().replace(/[-\s]/g, '_');
+  switch (clean) {
     case 'PAGE_VIEW':
     case 'PAGE':
+    case 'PAGEVIEW':
+    case 'VIEW':
       return EventType.PAGE_VIEW;
     case 'CLICK':
     case 'CTA_CLICK':
     case 'BUTTON_CLICK':
     case 'LINK_CLICK':
+    case 'TAP':
+    case 'ACTION_CLICK':
+    case 'NAV_CLICK':
+    case 'UI_CLICK':
       return EventType.CLICK;
     case 'SCROLL_DEPTH':
     case 'SCROLL':
@@ -60,18 +66,36 @@ export async function POST(req: NextRequest) {
     }
 
     const {
-      experimentId,
+      experimentId: rawExpId,
       prototypeId,
-      visitorId,
-      sessionId,
-      eventType,
-      page,
+      visitorId: rawVid,
+      sessionId: rawSid,
+      eventType: rawEventType,
+      type: altType,
+      event: altEvent,
+      action: altAction,
+      page: rawPage,
+      path: altPath,
       timestamp,
-      element,
-      elementText,
+      element: rawElement,
+      elementId: altElementId,
+      target: altTarget,
+      selector: altSelector,
+      elementText: rawElementText,
+      elementLabel: altElementLabel,
+      label: altLabel,
+      text: altText,
       referrer,
       device,
     } = payload;
+
+    const experimentId = rawExpId || payload.exp || payload.id;
+    const visitorId = rawVid || payload.vid;
+    const sessionId = rawSid || payload.sid;
+    const eventTypeStr = rawEventType || altType || altEvent || altAction || '';
+    const element = rawElement || altElementId || altTarget || altSelector || null;
+    const elementText = rawElementText || altElementLabel || altLabel || altText || null;
+    const page = rawPage || altPath || payload.url || '/';
 
     if (!experimentId || !visitorId || !sessionId) {
       return NextResponse.json(
@@ -94,9 +118,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (experiment.status === 'ARCHIVED' || experiment.status === 'PAUSED') {
+    if (experiment.status === 'PAUSED') {
       return NextResponse.json(
-        { error: 'Experiment is paused or archived. Telemetry capture suspended.' },
+        { error: 'Experiment is paused by creator. Telemetry capture suspended.', status: 'PAUSED' },
+        { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    if (experiment.status === 'ARCHIVED') {
+      return NextResponse.json(
+        { error: 'Experiment has been archived. Telemetry capture suspended.', status: 'ARCHIVED' },
         { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
@@ -158,7 +189,7 @@ export async function POST(req: NextRequest) {
     );
 
     // 4. Ingest telemetry event with metadata preserved
-    const normalizedType = normalizeEventType(eventType);
+    const normalizedType = normalizeEventType(eventTypeStr);
     const mergedMetadata = {
       ...(payload.metadata || {}),
       ...(device ? { device } : {}),

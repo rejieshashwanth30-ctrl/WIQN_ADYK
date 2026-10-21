@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, verifyExperimentOwnership } from '@/lib/auth';
 import { prisma, withDbRetry } from '@/lib/db';
-import { formatElementLabel, formatVisitorLabel, formatSessionLabel, formatEventType } from '@/lib/behavioralAnalytics';
+import { formatElementLabel, formatVisitorLabel, formatSessionLabel, formatEventType, formatEventDisplayLabel } from '@/lib/behavioralAnalytics';
 import { Prisma } from '@prisma/client';
 
 interface RouteContext {
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       displayType: formatEventType(ev.eventType),
       element: ev.element,
       elementText: ev.elementText,
-      label: ev.eventType === 'CLICK' ? formatElementLabel(ev.element, ev.elementText) : (ev.elementText || ev.page),
+      label: formatEventDisplayLabel(ev),
       page: ev.page || '/',
       referrer: ev.referrer || null,
       timestamp: ev.timestamp.toISOString(),

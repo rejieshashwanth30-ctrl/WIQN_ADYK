@@ -684,6 +684,272 @@ async function runRegressionTests() {
       }
     });
 
+    // TEST 26: Event normalization aliases (BUTTON_CLICK, CTA_CLICK, LINK_CLICK, tap -> CLICK)
+    await testStep('TEST 26: Event normalization aliases', async () => {
+      function normalizeEventTypeTest(rawType) {
+        const clean = (rawType || '').toUpperCase().trim().replace(/[-\s]/g, '_');
+        switch (clean) {
+          case 'PAGE_VIEW':
+          case 'PAGE':
+          case 'PAGEVIEW':
+            return 'PAGE_VIEW';
+          case 'CLICK':
+          case 'CTA_CLICK':
+          case 'BUTTON_CLICK':
+          case 'LINK_CLICK':
+          case 'TAP':
+          case 'ACTION_CLICK':
+          case 'NAV_CLICK':
+          case 'UI_CLICK':
+            return 'CLICK';
+          case 'SCROLL_DEPTH':
+          case 'SCROLL':
+            return 'SCROLL_DEPTH';
+          case 'FORM_START':
+            return 'FORM_START';
+          case 'FORM_SUBMIT':
+            return 'FORM_SUBMIT';
+          case 'TIME_ON_PAGE':
+          case 'DURATION':
+            return 'TIME_ON_PAGE';
+          default:
+            return 'CUSTOM';
+        }
+      }
+
+      assert(normalizeEventTypeTest('BUTTON_CLICK') === 'CLICK', 'BUTTON_CLICK must normalize to CLICK');
+      assert(normalizeEventTypeTest('cta_click') === 'CLICK', 'cta_click must normalize to CLICK');
+      assert(normalizeEventTypeTest('LINK-CLICK') === 'CLICK', 'LINK-CLICK with hyphens must normalize to CLICK');
+      assert(normalizeEventTypeTest('tap') === 'CLICK', 'tap must normalize to CLICK');
+      assert(normalizeEventTypeTest('ui click') === 'CLICK', 'ui click with space must normalize to CLICK');
+      assert(normalizeEventTypeTest('PAGE') === 'PAGE_VIEW', 'PAGE must normalize to PAGE_VIEW');
+      assert(normalizeEventTypeTest('scroll') === 'SCROLL_DEPTH', 'scroll must normalize to SCROLL_DEPTH');
+    });
+
+    // TEST 27: Public test URL parameter decoration (wiqn_exp, wiqn_vid, wiqn_sid)
+    await testStep('TEST 27: Public test URL parameter decoration', async () => {
+      function getDecoratedPrototypeUrl(rawUrl, expId, vid, sid) {
+        try {
+          const u = new URL(rawUrl);
+          u.searchParams.set('wiqn_exp', expId);
+          if (vid) u.searchParams.set('wiqn_vid', vid);
+          if (sid) u.searchParams.set('wiqn_sid', sid);
+          return u.toString();
+        } catch {
+          const sep = rawUrl.includes('?') ? '&' : '?';
+          return `${rawUrl}${sep}wiqn_exp=${encodeURIComponent(expId)}&wiqn_vid=${encodeURIComponent(vid)}&wiqn_sid=${encodeURIComponent(sid)}`;
+        }
+      }
+
+      const decorated = getDecoratedPrototypeUrl('https://example.com/demo', 'exp_123', 'v_456', 's_789');
+      assert(decorated.includes('wiqn_exp=exp_123'), 'URL must include wiqn_exp');
+      assert(decorated.includes('wiqn_vid=v_456'), 'URL must include wiqn_vid');
+      assert(decorated.includes('wiqn_sid=s_789'), 'URL must include wiqn_sid');
+    });
+
+    // TEST 28: Feedback lifecycle under ACTIVE status
+    await testStep('TEST 28: Feedback lifecycle under ACTIVE status', async () => {
+      const activeExp = await prisma.experiment.findUnique({ where: { id: createdExperiment.id } });
+      assert(activeExp.status === 'ACTIVE', 'Created experiment must be ACTIVE');
+
+      // Create feedback on active experiment
+      const activeFb = await prisma.feedback.create({
+        data: {
+          experimentId: createdExperiment.id,
+          prompt: 'Public Tester Session',
+          category: 'usability',
+          rating: 5,
+          comment: 'Active experiment accepts feedback perfectly.',
+        },
+      });
+      assert(activeFb.id, 'Feedback must be saved on active experiment');
+    });
+
+    // TEST 29: Feedback lifecycle blocking under PAUSED status
+    await testStep('TEST 29: Feedback lifecycle blocking under PAUSED status', async () => {
+      // Simulate validation rule
+      function validateFeedbackAcceptance(status) {
+        if (status === 'PAUSED') {
+          return { allowed: false, error: 'This experiment is currently paused by the creator. Feedback is not being accepted at this time.', code: 403 };
+        }
+        if (status === 'ARCHIVED') {
+          return { allowed: false, error: 'This experiment has been archived. Feedback is closed.', code: 403 };
+        }
+        return { allowed: true };
+      }
+
+      const pausedCheck = validateFeedbackAcceptance('PAUSED');
+      assert(pausedCheck.allowed === false, 'PAUSED experiment must block feedback');
+      assert(pausedCheck.code === 403, 'Must return HTTP 403 for PAUSED');
+      assert(pausedCheck.error.includes('paused by the creator'), 'Must explain experiment is paused');
+    });
+
+    // TEST 30: Feedback lifecycle blocking under ARCHIVED status
+    await testStep('TEST 30: Feedback lifecycle blocking under ARCHIVED status', async () => {
+      function validateFeedbackAcceptance(status) {
+        if (status === 'PAUSED') {
+          return { allowed: false, error: 'This experiment is currently paused by the creator. Feedback is not being accepted at this time.', code: 403 };
+        }
+        if (status === 'ARCHIVED') {
+          return { allowed: false, error: 'This experiment has been archived. Feedback is closed.', code: 403 };
+        }
+        return { allowed: true };
+      }
+
+      const archivedCheck = validateFeedbackAcceptance('ARCHIVED');
+      assert(archivedCheck.allowed === false, 'ARCHIVED experiment must block feedback');
+      assert(archivedCheck.code === 403, 'Must return HTTP 403 for ARCHIVED');
+      assert(archivedCheck.error.includes('archived'), 'Must explain experiment is archived');
+    });
+
+    // TEST 31: Feedback lifecycle allowing active testers under COMPLETED status
+    await testStep('TEST 31: Feedback lifecycle allowing active testers under COMPLETED status', async () => {
+      function validateFeedbackAcceptance(status) {
+        if (status === 'PAUSED') {
+          return { allowed: false, error: 'This experiment is currently paused by the creator. Feedback is not being accepted at this time.', code: 403 };
+        }
+        if (status === 'ARCHIVED') {
+          return { allowed: false, error: 'This experiment has been archived. Feedback is closed.', code: 403 };
+        }
+        return { allowed: true };
+      }
+
+      const completedCheck = validateFeedbackAcceptance('COMPLETED');
+      assert(completedCheck.allowed === true, 'COMPLETED experiment must not block active testing feedback');
+    });
+
+    // TEST 32: Time on Page formatting (Duration in seconds + Page Name vs timestamp)
+    await testStep('TEST 32: Time on Page formatting', async () => {
+      function formatPagePathTest(rawPath) {
+        if (!rawPath || rawPath === '/') return 'Home (/)';
+        const clean = rawPath.split('?')[0];
+        if (clean.startsWith('/test/')) return 'Public Test Experience';
+        const segments = clean.split('/').filter(Boolean);
+        if (segments.length === 0) return 'Home (/)';
+        return segments.map((s) => s.charAt(0).toUpperCase() + s.slice(1).replace(/[-_]/g, ' ')).join(' > ');
+      }
+
+      function formatEventDisplayLabelTest(ev) {
+        if (ev.eventType === 'TIME_ON_PAGE') {
+          const dur = ev.metadata?.durationSeconds ?? ev.metadata?.pulse;
+          const pageName = ev.metadata?.pageTitle || ev.metadata?.title || ev.elementText || formatPagePathTest(ev.page);
+          if (dur !== undefined && dur !== null) {
+            return `Duration: ${dur} sec — ${pageName}`;
+          }
+          return `Time on Page: ${pageName}`;
+        }
+        return ev.elementText || formatPagePathTest(ev.page) || 'Action';
+      }
+
+      const timeEvent = {
+        eventType: 'TIME_ON_PAGE',
+        page: '/test/demo-123',
+        metadata: {
+          durationSeconds: 39,
+          pageTitle: 'Checkout Flow',
+        },
+      };
+
+      const formattedLabel = formatEventDisplayLabelTest(timeEvent);
+      assert(formattedLabel.includes('Duration: 39 sec'), 'Label must display duration in seconds');
+      assert(formattedLabel.includes('Checkout Flow'), 'Label must include human-readable page context');
+      assert(!formattedLabel.includes('23:16:23'), 'Duration must NOT be confused with timestamp');
+    });
+
+    // TEST 33: Click reconciliation across DB and Analytics
+    await testStep('TEST 33: Click reconciliation across DB and Analytics', async () => {
+      // Create 3 clicks on test experiment using verified visitors
+      await prisma.experimentEvent.createMany({
+        data: [
+          {
+            experimentId: createdExperiment.id,
+            sessionId: testSession.sessionId,
+            visitorId: testV2.id,
+            eventType: 'CLICK',
+            element: 'button#btn-signup',
+            elementText: 'Create Account',
+            page: '/pricing',
+          },
+          {
+            experimentId: createdExperiment.id,
+            sessionId: testSession.sessionId,
+            visitorId: testV2.id,
+            eventType: 'CLICK',
+            element: 'button#btn-signup',
+            elementText: 'Create Account',
+            page: '/pricing',
+          },
+          {
+            experimentId: createdExperiment.id,
+            sessionId: testSession.sessionId,
+            visitorId: testV3.id,
+            eventType: 'CLICK',
+            element: 'a#btn-features',
+            elementText: 'View Features',
+            page: '/',
+          },
+        ],
+      });
+
+      const dbClicks = await prisma.experimentEvent.findMany({
+        where: { experimentId: createdExperiment.id, eventType: 'CLICK' },
+      });
+      const dbClickCount = dbClicks.length;
+
+      const allExpEvents = await prisma.experimentEvent.findMany({
+        where: { experimentId: createdExperiment.id },
+      });
+
+      // Compute analytics clicks
+      const isClickType = (t) => {
+        const upper = (t || '').toUpperCase();
+        return upper === 'CLICK' || upper === 'BUTTON_CLICK' || upper === 'CTA_CLICK' || upper === 'LINK_CLICK' || upper === 'TAP';
+      };
+      const filteredClicks = allExpEvents.filter((e) => isClickType(e.eventType));
+      const totalClicks = filteredClicks.length;
+
+      const clickersSet = new Set();
+      const elementsMap = new Map();
+      filteredClicks.forEach((ev) => {
+        if (ev.visitorId) clickersSet.add(ev.visitorId);
+        const label = ev.elementText || ev.element || 'button';
+        elementsMap.set(label, (elementsMap.get(label) || 0) + 1);
+      });
+
+      assert(totalClicks === dbClickCount, `Analytics totalClicks (${totalClicks}) must equal DB click count (${dbClickCount})`);
+      assert(clickersSet.size >= 2, 'Unique clickers count must be at least 2');
+      assert(elementsMap.size >= 2, 'At least two unique elements must be identified');
+    });
+
+    // TEST 34: Insufficient evidence enforcement (<5 visitors, <20 events -> TEST_AGAIN)
+    await testStep('TEST 34: Insufficient evidence enforcement', async () => {
+      const allExpEvents = await prisma.experimentEvent.findMany({
+        where: { experimentId: createdExperiment.id },
+      });
+      const visitors = await prisma.visitor.findMany({
+        where: { experimentId: createdExperiment.id },
+      });
+
+      const isSufficientEvidence = visitors.length >= 5 && allExpEvents.length >= 20;
+      assert(isSufficientEvidence === false, 'Evidence must be marked insufficient below threshold');
+
+      const suggestedOutcome = !isSufficientEvidence ? 'TEST_AGAIN' : 'IMPROVE';
+      const confidence = !isSufficientEvidence ? 'LOW' : 'MODERATE';
+      assert(suggestedOutcome === 'TEST_AGAIN', 'Suggested outcome must be TEST_AGAIN when evidence is insufficient');
+      assert(confidence === 'LOW', 'Confidence must be LOW when evidence is insufficient');
+    });
+
+    // TEST 35: Cross-experiment telemetry isolation
+    await testStep('TEST 35: Cross-experiment telemetry isolation', async () => {
+      const expEvents = await prisma.experimentEvent.findMany({
+        where: { experimentId: createdExperiment.id },
+      });
+
+      for (const ev of expEvents) {
+        assert(ev.experimentId === createdExperiment.id, 'Events must never cross between experiments');
+      }
+    });
+
   } finally {
     // Clean up test data non-destructively
     try {

@@ -14,14 +14,28 @@
 (function () {
   'use strict';
 
-  // Read configuration from script tag
+  // Read configuration from script tag and URL query parameters
   const scriptTag = document.currentScript || document.querySelector('script[data-experiment]');
-  const experimentId = scriptTag ? scriptTag.getAttribute('data-experiment') : 'default';
-  const prototypeId = scriptTag ? scriptTag.getAttribute('data-prototype') : 'v1';
+  let urlParams = null;
+  try {
+    urlParams = new URLSearchParams(window.location.search);
+  } catch (e) {}
+
+  const experimentId = (urlParams && (urlParams.get('wiqn_exp') || urlParams.get('wiqn_experiment') || urlParams.get('experimentId'))) ||
+    (scriptTag ? scriptTag.getAttribute('data-experiment') : null) || 'default';
+
+  const prototypeId = (urlParams && urlParams.get('wiqn_proto')) ||
+    (scriptTag ? scriptTag.getAttribute('data-prototype') : 'v1');
+
   const endpoint = scriptTag ? (scriptTag.getAttribute('data-endpoint') || '/api/capture') : '/api/capture';
 
-  // Persistent anonymous visitor ID
+  // Persistent anonymous visitor ID (inherited from URL or localStorage)
   function getVisitorId() {
+    const fromUrl = urlParams && (urlParams.get('wiqn_vid') || urlParams.get('visitorId'));
+    if (fromUrl) {
+      try { localStorage.setItem('__wiqn_vid', fromUrl); } catch (e) {}
+      return fromUrl;
+    }
     let vid = localStorage.getItem('__wiqn_vid');
     if (!vid) {
       vid = 'v_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
@@ -32,8 +46,13 @@
     return vid;
   }
 
-  // Session ID (persists for browser session)
+  // Session ID (inherited from URL or sessionStorage)
   function getSessionId() {
+    const fromUrl = urlParams && (urlParams.get('wiqn_sid') || urlParams.get('sessionId'));
+    if (fromUrl) {
+      try { sessionStorage.setItem('__wiqn_sid', fromUrl); } catch (e) {}
+      return fromUrl;
+    }
     let sid = sessionStorage.getItem('__wiqn_sid');
     if (!sid) {
       sid = 's_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
@@ -191,19 +210,33 @@
     title: document.title ? document.title.substring(0, 100) : undefined,
   });
 
-  // 2. Automatic Click & Interaction Capture
+  // 2. Automatic Click & Interaction Capture (Broad & reliable)
   document.addEventListener('click', function (e) {
-    const target = e.target.closest('button, a, input[type="submit"], input[type="button"], [role="button"], summary');
+    let target = e.target && e.target.closest
+      ? e.target.closest('button, a, input[type="submit"], input[type="button"], [role="button"], [role="link"], [data-wiqn-id], [data-testid], [data-id], summary, [onclick], .btn, .button, [tabindex="0"]')
+      : null;
+
+    // Fallback: check if the target itself has pointer cursor or inline onclick
+    if (!target && e.target && e.target.nodeType === 1) {
+      try {
+        const style = window.getComputedStyle(e.target);
+        if (style && style.cursor === 'pointer') {
+          target = e.target;
+        }
+      } catch (err) {}
+    }
+
     if (target) {
       const desc = describeElement(target);
       sendEvent('CLICK', {
-        element: desc ? desc.selector : null,
-        elementText: desc ? desc.text : null,
+        element: desc ? desc.selector : (target.tagName ? target.tagName.toLowerCase() : 'element'),
+        elementText: desc ? desc.text : undefined,
         targetHref: sanitizeUrl(target.getAttribute('href')) || undefined,
         metadata: {
-          tag: desc ? desc.tag : undefined,
+          tag: desc ? desc.tag : (target.tagName ? target.tagName.toLowerCase() : undefined),
           wiqnId: desc ? desc.wiqnId : undefined,
           href: sanitizeUrl(target.getAttribute('href')) || undefined,
+          pageTitle: document.title ? document.title.substring(0, 100) : undefined,
         },
       });
     }

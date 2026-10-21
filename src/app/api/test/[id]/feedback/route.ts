@@ -35,9 +35,20 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       );
     }
 
-    if (experiment.status === 'ARCHIVED' || experiment.status === 'PAUSED' || experiment.status === 'COMPLETED') {
+    // Experiment lifecycle policy:
+    // ACTIVE, DRAFT, COMPLETED -> feedback allowed (active testers can still submit feedback)
+    // PAUSED -> feedback blocked with clear explanation
+    // ARCHIVED -> feedback blocked with clear explanation
+    if (experiment.status === 'PAUSED') {
       return NextResponse.json(
-        { error: 'This testing session has concluded or is paused. Feedback is closed.' },
+        { error: 'This experiment is currently paused by the creator. Feedback is not being accepted at this time.', status: 'PAUSED' },
+        { status: 403 }
+      );
+    }
+
+    if (experiment.status === 'ARCHIVED') {
+      return NextResponse.json(
+        { error: 'This experiment has been archived. Feedback is closed.', status: 'ARCHIVED' },
         { status: 403 }
       );
     }

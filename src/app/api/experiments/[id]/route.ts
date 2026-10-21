@@ -8,6 +8,7 @@ import {
   formatVisitorLabel,
   formatSessionLabel,
   formatEventType,
+  formatEventDisplayLabel,
 } from '@/lib/behavioralAnalytics';
 
 interface RouteContext {
@@ -194,7 +195,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
             displayType: formatEventType(e.eventType),
             element: e.element,
             elementText: e.elementText,
-            label: e.eventType === 'CLICK' ? formatElementLabel(e.element, e.elementText) : (e.elementText || e.page),
+            label: formatEventDisplayLabel(e),
             page: e.page,
             referrer: e.referrer || null,
             timestamp: e.timestamp.toISOString(),
