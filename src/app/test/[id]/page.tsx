@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use, useRef } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { BrandLogo } from '@/components/BrandLogo';
 import {
   ExternalLink,
@@ -20,8 +21,19 @@ interface PageProps {
 }
 
 export default function PublicTestingPage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  const experimentId = resolvedParams.id;
+  const routeParams = useParams();
+  const rawId = routeParams?.id;
+  let experimentId = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : '';
+  if (!experimentId && params) {
+    try {
+      if (typeof (params as any)?.then === 'function') {
+        const resolved = use(params);
+        experimentId = resolved?.id || '';
+      } else if ((params as any)?.id) {
+        experimentId = (params as any).id;
+      }
+    } catch {}
+  }
 
   const [experiment, setExperiment] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);

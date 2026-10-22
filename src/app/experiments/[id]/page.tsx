@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { DashboardNav } from '@/components/DashboardNav';
 import { BehavioralAnalyticsView } from '@/components/BehavioralAnalyticsView';
 import { Experiment, StructuredInsight, FeedbackItem, DecisionRecord, DecisionOutcome } from '@/lib/types';
@@ -36,8 +37,19 @@ interface PageProps {
 }
 
 export default function ExperimentDetailPage({ params }: PageProps) {
-  const resolvedParams = use(params);
-  const experimentId = resolvedParams.id;
+  const routeParams = useParams();
+  const rawId = routeParams?.id;
+  let experimentId = typeof rawId === 'string' ? rawId : Array.isArray(rawId) ? rawId[0] : '';
+  if (!experimentId && params) {
+    try {
+      if (typeof (params as any)?.then === 'function') {
+        const resolved = use(params);
+        experimentId = resolved?.id || '';
+      } else if ((params as any)?.id) {
+        experimentId = (params as any).id;
+      }
+    } catch {}
+  }
 
   const [experiment, setExperiment] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'prototype' | 'analytics' | 'feedback' | 'insights' | 'decision'>('overview');
@@ -70,6 +82,15 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Active tab reference for smooth mobile scroll into view (hoisted to top level)
+  const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [activeTab]);
+
   const isLocal = typeof window !== 'undefined'
     ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('.local'))
     : process.env.NODE_ENV === 'development';
@@ -91,6 +112,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const publicTestUrl = shareUrls.testUrl;
 
   const loadExperiment = async () => {
+    if (!experimentId) return;
     try {
       setLoading(true);
       setAuthError(null);
@@ -312,14 +334,6 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const sessionsCount = experiment.metrics?.sessionsCount || 0;
   const feedbackCount = experiment.metrics?.feedbackCount || 0;
   const isSufficientEvidence = experiment.telemetrySummary?.isSufficientEvidence || false;
-
-  const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (activeTabRef.current) {
-      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [activeTab]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: 'var(--color-off-white)' }}>

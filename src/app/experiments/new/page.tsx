@@ -243,11 +243,22 @@ export default function NewExperimentPage() {
         return;
       }
 
+      // Clean up local draft upon verified persistence
       try {
         localStorage.removeItem('wiqn_experiment_draft');
       } catch {}
 
-      router.push(`/experiments/${experimentId}`);
+      // Navigate to the experiment workspace with guaranteed fallback
+      try {
+        router.push(`/experiments/${experimentId}`);
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && !window.location.pathname.includes(experimentId)) {
+            window.location.assign(`/experiments/${experimentId}`);
+          }
+        }, 1200);
+      } catch {
+        window.location.assign(`/experiments/${experimentId}`);
+      }
     } catch (err: any) {
       setError(err?.message || 'Network error communicating with server');
       setSubmitting(false);
