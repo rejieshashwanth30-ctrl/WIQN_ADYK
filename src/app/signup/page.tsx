@@ -122,6 +122,8 @@ function SignupForm() {
           setErrorMessage(error.message || 'Password must meet the minimum security requirements (at least 6 characters).');
         } else if (msg.includes('valid email') || msg.includes('invalid email')) {
           setErrorMessage('Please enter a valid email address.');
+        } else if (msg.includes('api key') || msg.includes('apikey')) {
+          setErrorMessage('Authentication gateway initializing. Please try again in a moment.');
         } else {
           setErrorMessage(error.message || 'Unable to create your account. Please check your details and try again.');
         }
@@ -237,6 +239,8 @@ function SignupForm() {
       const raw = (err?.message || String(err || '')).toLowerCase();
       if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('fetch failed')) {
         setErrorMessage('Unable to connect to the authentication service. Please check your internet connection or try again.');
+      } else if (raw.includes('api key') || raw.includes('apikey')) {
+        setErrorMessage('Authentication gateway initializing. Please try again in a moment.');
       } else {
         setErrorMessage(err?.message || 'Something went wrong while creating your account. Please try again.');
       }

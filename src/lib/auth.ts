@@ -1,5 +1,6 @@
 import { createClient as createServerSupabaseClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from '@/utils/supabase/config';
 import { prisma, withDbRetry } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
@@ -25,26 +26,7 @@ export interface AuthenticatedContext {
  * without cookie or storage dependencies.
  */
 function getStatelessSupabaseClient() {
-  let supabaseUrl = (
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    'https://xwwpvtmvbujtynyanywl.supabase.co'
-  ).trim().replace(/^["']|["']$/g, '');
-
-  if (supabaseUrl.includes('xfklxcjoyyefovpgysqz')) {
-    supabaseUrl = 'https://xwwpvtmvbujtynyanywl.supabase.co';
-  }
-
-  let supabaseKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0'
-  ).trim().replace(/^["']|["']$/g, '');
-
-  if (supabaseUrl.includes('xwwpvtmvbujtynyanywl') && (!supabaseKey.startsWith('sb_publishable_') || supabaseKey.length > 80)) {
-    supabaseKey = 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
-  }
+  const { supabaseUrl, supabaseKey } = getSupabaseConfig();
 
   return createSupabaseClient(supabaseUrl, supabaseKey, {
     auth: {

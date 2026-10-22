@@ -6,12 +6,56 @@
 
 const { PrismaClient } = require('@prisma/client');
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
-const CANONICAL_SUPABASE_URL = 'https://xwwpvtmvbujtynyanywl.supabase.co';
-const CANONICAL_ANON_KEY = 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
+function loadEnv() {
+  const envFiles = ['.env', '.env.local'];
+  for (const file of envFiles) {
+    const fullPath = path.resolve(process.cwd(), file);
+    if (fs.existsSync(fullPath)) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const key = trimmed.substring(0, idx).trim();
+          let val = trimmed.substring(idx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (!process.env[key]) {
+            process.env[key] = val;
+          }
+        }
+      }
+    }
+  }
+}
+loadEnv();
+
+let supabaseUrl = (
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  'https://xfklxcjoyyefovpgysqz.supabase.co'
+).trim().replace(/^["']|["']$/g, '');
+
+let supabaseKey = (
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV'
+).trim().replace(/^["']|["']$/g, '');
+
+if (supabaseUrl.includes('xwwpvtmvbujtynyanywl') || supabaseKey === 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0') {
+  supabaseUrl = 'https://xwwpvtmvbujtynyanywl.supabase.co';
+  supabaseKey = 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
+} else if (supabaseUrl.includes('xfklxcjoyyefovpgysqz') || supabaseKey === 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV') {
+  supabaseUrl = 'https://xfklxcjoyyefovpgysqz.supabase.co';
+  supabaseKey = 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV';
+}
 
 const prisma = new PrismaClient();
-const supabase = createClient(CANONICAL_SUPABASE_URL, CANONICAL_ANON_KEY);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const results = [];
 

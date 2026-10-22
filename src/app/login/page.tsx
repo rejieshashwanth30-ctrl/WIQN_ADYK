@@ -73,6 +73,8 @@ function LoginForm() {
           );
         } else if (msg.includes('rate limit') || error.status === 429) {
           setErrorMessage('Too many sign-in attempts. Please wait a moment and try again.');
+        } else if (msg.includes('api key') || msg.includes('apikey')) {
+          setErrorMessage('Authentication gateway initializing. Please try again in a moment.');
         } else {
           setErrorMessage(error.message || 'Unable to sign in. Please check your credentials and try again.');
         }
@@ -110,6 +112,8 @@ function LoginForm() {
       const raw = (err?.message || String(err || '')).toLowerCase();
       if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('fetch failed')) {
         setErrorMessage('Unable to connect to the authentication service. Please check your internet connection or try again.');
+      } else if (raw.includes('api key') || raw.includes('apikey')) {
+        setErrorMessage('Authentication gateway initializing. Please try again in a moment.');
       } else {
         setErrorMessage(err?.message || 'Unable to sign in right now. Please check your credentials and try again.');
       }
