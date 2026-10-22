@@ -151,7 +151,7 @@ export const Navigation: React.FC = () => {
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                03 // Company &amp; Founders
+                03 // Built By
               </Link>
 
               <Link

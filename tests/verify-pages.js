@@ -61,20 +61,27 @@ async function runTests() {
   assert(home.body.includes('Where WIQN Fits'), 'Comparison matrix: Where WIQN Fits present');
   assert(home.body.includes('Built for People Who Build.'), 'Audience matrix present');
 
-  // Built By / Founders Section
+  // Built By Section (REJIESH ASHWANTH V ONLY)
   assert(home.body.includes('Built by'), 'Section: Built by present');
-  assert(home.body.includes('REJIESH ASHWANTH'), 'Founder: REJIESH ASHWANTH present');
-  assert(home.body.includes('CEO &amp; CO-FOUNDER') || home.body.includes('CEO & CO-FOUNDER'), 'Rejiesh role present');
+  assert(home.body.includes('REJIESH ASHWANTH V'), 'Leader: REJIESH ASHWANTH V present');
+  assert(home.body.includes('CEO &amp; Co-Founder — ADYK Multi Venture Company') || home.body.includes('CEO & Co-Founder — ADYK Multi Venture Company'), 'Rejiesh role present');
   assert(home.body.includes('/brand/rejiesh-ashwanth.jpg'), 'Real uploaded photo of Rejiesh present');
   assert(home.body.includes('https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b'), 'Rejiesh LinkedIn link present');
 
-  assert(home.body.includes('DINESHRAJ S'), 'Founder: DINESHRAJ S present');
-  assert(home.body.includes('FOUNDER'), 'Dineshraj role present');
-  assert(home.body.includes('https://www.linkedin.com/in/dineshraj-s-758931390'), 'Dineshraj LinkedIn link present');
+  // Verify Built By section specifically does NOT include Dineshraj
+  const builtBySectionMatch = home.body.match(/id="company"[\s\S]*?<\/section>/);
+  const builtBySection = builtBySectionMatch ? builtBySectionMatch[0] : '';
+  assert(builtBySection.length > 0, 'Built By (#company) section extracted');
+  assert(!builtBySection.includes('DINESHRAJ') && !builtBySection.includes('Dineshraj'), 'Built By section contains NO Dineshraj content (Rejiesh ONLY)');
+
+  // Contact Section (Contains ADYK Multi Venture Company, Dineshraj S, Rejiesh Ashwanth V, Phone, Email, Instagram)
+  assert(home.body.includes("Let&#x27;s Talk.") || home.body.includes("Let's Talk."), 'Section: Let\'s Talk. present');
+  assert(home.body.includes('ADYK Multi Venture Company'), 'ADYK Multi Venture Company branding present in Contact');
+  assert(home.body.includes('Dineshraj S'), 'Founder: Dineshraj S present in Contact');
+  assert(home.body.includes('Founder — ADYK Multi Venture Company'), 'Dineshraj role present in Contact');
+  assert(home.body.includes('https://www.linkedin.com/in/dineshraj-s-758931390'), 'Dineshraj LinkedIn link present in Contact');
   assert(home.body.includes('Launched by ADYK Multi Venture Company') || home.body.includes('Launched by'), 'Launched by ADYK Multi Venture Company present');
 
-  // Contact Section
-  assert(home.body.includes("Let&#x27;s Talk.") || home.body.includes("Let's Talk."), 'Section: Let\'s Talk. present');
   assert(home.body.includes('8870605699'), 'Contact phone 8870605699 present');
   assert(home.body.includes('tel:8870605699'), 'Interactive tel: link present');
   assert(home.body.includes('adykcompany.in@gmail.com'), 'Contact email adykcompany.in@gmail.com present');

@@ -205,7 +205,7 @@ export const Footer: React.FC = () => {
           }}
         >
           <div>
-            Built by <span style={{ color: 'var(--color-silver-200)', fontWeight: 500 }}>REJIESH ASHWANTH</span> — CEO &amp; Co-Founder, ADYK Multi Venture Company
+            Built by <span style={{ color: 'var(--color-silver-200)', fontWeight: 500 }}>REJIESH ASHWANTH V</span> — CEO &amp; Co-Founder, ADYK Multi Venture Company
           </div>
           <div>
             Launched by <span style={{ color: 'var(--color-silver-200)' }}>ADYK Multi Venture Company</span>

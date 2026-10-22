@@ -1145,7 +1145,7 @@ export default function HomePage() {
         </section>
 
         {/* ==================================================================
-            SECTION 6: BUILT BY / FOUNDERS
+            SECTION 6: BUILT BY — REJIESH ASHWANTH V ONLY
             ================================================================== */}
         <section
           id="company"
@@ -1155,7 +1155,7 @@ export default function HomePage() {
             backgroundColor: '#070709',
           }}
         >
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '840px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '36px' }}>
               <div
                 style={{
@@ -1192,257 +1192,151 @@ export default function HomePage() {
                 Built by
               </h2>
 
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
-                The builders and leadership driving WIQN and ADYK forward.
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', maxWidth: '520px', margin: '0 auto' }}>
+                The creator and engineering leadership behind WIQN.
               </p>
             </div>
 
-            {/* Two Balanced Founder Cards Side-by-Side (Stacked on Mobile) */}
+            {/* Single Profile Card: REJIESH ASHWANTH V ONLY */}
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                maxWidth: '640px',
+                margin: '0 auto 28px',
+                padding: 'clamp(24px, 4vw, 32px)',
+                borderRadius: '8px',
+                backgroundColor: '#0a0a0d',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                display: 'flex',
+                flexDirection: 'column',
                 gap: '20px',
-                marginBottom: '28px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
               }}
             >
-              {/* Founder 1: REJIESH ASHWANTH (With Uploaded Image) */}
               <div
                 style={{
-                  padding: '24px',
-                  borderRadius: '4px',
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                  transition: 'border-color 200ms ease',
+                  alignItems: 'center',
+                  gap: '22px',
+                  flexWrap: 'wrap',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {/* Real Uploaded Photo - No AI Alteration */}
-                  <div
+                {/* Real Uploaded Photo - Subtle circular/rounded crop with refined border/shadow */}
+                <div
+                  style={{
+                    width: '104px',
+                    height: '104px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    backgroundColor: '#121215',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+                    position: 'relative',
+                  }}
+                >
+                  <Image
+                    src="/brand/rejiesh-ashwanth.jpg"
+                    alt="Rejiesh Ashwanth V, CEO and Co-Founder of ADYK Multi Venture Company"
+                    width={104}
+                    height={104}
                     style={{
-                      width: '88px',
-                      height: '88px',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                      border: '1px solid rgba(255, 255, 255, 0.18)',
-                      backgroundColor: '#121215',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
                     }}
-                  >
-                    <Image
-                      src="/brand/rejiesh-ashwanth.jpg"
-                      alt="Rejiesh Ashwanth, CEO and Co-Founder of ADYK Multi Venture Company"
-                      width={88}
-                      height={88}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block',
-                      }}
-                      priority
-                    />
-                  </div>
-
-                  <div>
-                    <h3
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '1.1875rem',
-                        fontWeight: 700,
-                        color: '#ffffff',
-                        letterSpacing: '0.02em',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      REJIESH ASHWANTH
-                    </h3>
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.6875rem',
-                        color: 'var(--color-silver-200)',
-                        letterSpacing: '0.08em',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      CEO &amp; CO-FOUNDER
-                      <br />
-                      <span style={{ color: 'var(--color-gray-400)' }}>ADYK MULTI VENTURE COMPANY</span>
-                    </div>
-                  </div>
+                    priority
+                  />
                 </div>
 
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.55 }}>
-                  Leading product architecture, experimentation intelligence, and engineering at ADYK.
-                </p>
-
-                <a
-                  href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '2px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#ffffff',
-                    fontSize: '0.75rem',
-                    fontFamily: 'var(--font-mono)',
-                    textDecoration: 'none',
-                    alignSelf: 'flex-start',
-                    transition: 'background-color 150ms ease, border-color 150ms ease',
-                  }}
-                  aria-label="View LinkedIn profile of Rejiesh Ashwanth"
-                >
-                  <LinkedInIcon size={14} />
-                  <span>View LinkedIn</span>
-                  <ArrowUpRight size={12} />
-                </a>
-              </div>
-
-              {/* Founder 2: DINESHRAJ S */}
-              <div
-                style={{
-                  padding: '24px',
-                  borderRadius: '4px',
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                  transition: 'border-color 200ms ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {/* Clean Technical Emblem Avatar */}
+                <div style={{ flex: 1, minWidth: '220px' }}>
+                  <h3
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 'clamp(1.25rem, 2.5vw, 1.45rem)',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      letterSpacing: '0.02em',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    REJIESH ASHWANTH V
+                  </h3>
                   <div
                     style={{
-                      width: '88px',
-                      height: '88px',
-                      borderRadius: '8px',
-                      flexShrink: 0,
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.14)',
-                      display: 'flex',
-                      flexDirection: 'column',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-silver-200)',
+                      letterSpacing: '0.06em',
+                      lineHeight: 1.5,
+                      marginBottom: '12px',
+                    }}
+                  >
+                    CEO &amp; Co-Founder — ADYK Multi Venture Company
+                  </div>
+
+                  <a
+                    href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                      color: '#ffffff',
+                      fontSize: '0.78125rem',
+                      fontFamily: 'var(--font-mono)',
+                      textDecoration: 'none',
+                      transition: 'all 150ms ease',
                     }}
+                    aria-label="View LinkedIn profile of Rejiesh Ashwanth V"
                   >
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '1.25rem',
-                        fontWeight: 700,
-                        color: '#ffffff',
-                      }}
-                    >
-                      DS
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.5625rem',
-                        letterSpacing: '0.12em',
-                        color: 'var(--color-gray-500)',
-                        textTransform: 'uppercase',
-                        marginTop: '2px',
-                      }}
-                    >
-                      ADYK
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '1.1875rem',
-                        fontWeight: 700,
-                        color: '#ffffff',
-                        letterSpacing: '0.02em',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      DINESHRAJ S
-                    </h3>
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.6875rem',
-                        color: 'var(--color-silver-200)',
-                        letterSpacing: '0.08em',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      FOUNDER
-                      <br />
-                      <span style={{ color: 'var(--color-gray-400)' }}>ADYK MULTI VENTURE COMPANY</span>
-                    </div>
-                  </div>
+                    <LinkedInIcon size={14} />
+                    <span>View LinkedIn</span>
+                    <ArrowUpRight size={13} />
+                  </a>
                 </div>
-
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.55 }}>
-                  Guiding venture strategy, company operations, and ecosystem expansion at ADYK.
-                </p>
-
-                <a
-                  href="https://www.linkedin.com/in/dineshraj-s-758931390"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '2px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#ffffff',
-                    fontSize: '0.75rem',
-                    fontFamily: 'var(--font-mono)',
-                    textDecoration: 'none',
-                    alignSelf: 'flex-start',
-                    transition: 'background-color 150ms ease, border-color 150ms ease',
-                  }}
-                  aria-label="View LinkedIn profile of Dineshraj S"
-                >
-                  <LinkedInIcon size={14} />
-                  <span>View LinkedIn</span>
-                  <ArrowUpRight size={12} />
-                </a>
               </div>
+
+              <p
+                style={{
+                  fontSize: '0.84375rem',
+                  color: 'var(--color-silver-300)',
+                  lineHeight: 1.6,
+                  borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                  paddingTop: '16px',
+                  margin: 0,
+                }}
+              >
+                Leading product architecture, experimentation intelligence, and engineering at ADYK Multi Venture Company.
+              </p>
             </div>
 
             {/* Company Attribution Statement */}
             <div
               style={{
+                maxWidth: '640px',
+                margin: '0 auto',
                 padding: '16px 20px',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 backgroundColor: 'rgba(255, 255, 255, 0.02)',
                 border: '1px solid rgba(255, 255, 255, 0.07)',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px',
+                flexDirection: 'column',
+                gap: '8px',
+                textAlign: 'center',
               }}
             >
               <p
                 style={{
                   fontSize: '0.8125rem',
                   color: 'var(--color-silver-300)',
-                  lineHeight: 1.5,
-                  maxWidth: '680px',
+                  lineHeight: 1.55,
+                  margin: 0,
                 }}
               >
                 WIQN is built as part of ADYK&apos;s vision to create technology products that solve real problems and help people build smarter.
@@ -1462,7 +1356,7 @@ export default function HomePage() {
         </section>
 
         {/* ==================================================================
-            SECTION 7: CONTACT (DIRECT INTERACTIVE CONTACT CARDS)
+            SECTION 7: CONTACT (COMPANY & LEADERSHIP CONTACT)
             ================================================================== */}
         <section
           id="contact"
@@ -1472,7 +1366,7 @@ export default function HomePage() {
             backgroundColor: '#050505',
           }}
         >
-          <div style={{ maxWidth: '1080px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '36px' }}>
               <div
                 style={{
@@ -1518,15 +1412,203 @@ export default function HomePage() {
                   lineHeight: 1.5,
                 }}
               >
-                Questions, feedback, partnerships, or ideas? Get in touch with us.
+                Questions, feedback, partnerships, or ideas? Connect with the ADYK leadership team and direct inquiry channels.
               </p>
             </div>
 
-            {/* Direct Contact Cards */}
+            {/* Company & Leadership Contact Area */}
+            <div
+              style={{
+                marginBottom: '20px',
+                padding: 'clamp(20px, 3.5vw, 28px)',
+                borderRadius: '6px',
+                backgroundColor: '#0a0a0d',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  paddingBottom: '16px',
+                  marginBottom: '18px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      letterSpacing: '0.14em',
+                      color: 'var(--color-silver-300)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    COMPANY CONTACT
+                  </span>
+                  <h3
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      marginTop: '2px',
+                    }}
+                  >
+                    ADYK Multi Venture Company
+                  </h3>
+                </div>
+              </div>
+
+              {/* Leadership Directory: Dineshraj S + Rejiesh Ashwanth V */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '16px',
+                }}
+              >
+                {/* Dineshraj S Card */}
+                <div
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                  }}
+                >
+                  <div>
+                    <h4
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.0625rem',
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Dineshraj S
+                    </h4>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.71875rem',
+                        color: 'var(--color-silver-300)',
+                        letterSpacing: '0.04em',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      Founder — ADYK Multi Venture Company
+                    </div>
+                  </div>
+
+                  <a
+                    href="https://www.linkedin.com/in/dineshraj-s-758931390"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '2px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#ffffff',
+                      fontSize: '0.75rem',
+                      fontFamily: 'var(--font-mono)',
+                      textDecoration: 'none',
+                      alignSelf: 'flex-start',
+                      transition: 'background-color 150ms ease, border-color 150ms ease',
+                    }}
+                    aria-label="View LinkedIn profile of Dineshraj S"
+                  >
+                    <LinkedInIcon size={13} />
+                    <span>LinkedIn</span>
+                    <ArrowUpRight size={11} />
+                  </a>
+                </div>
+
+                {/* Rejiesh Ashwanth V Card */}
+                <div
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                  }}
+                >
+                  <div>
+                    <h4
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.0625rem',
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      Rejiesh Ashwanth V
+                    </h4>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.71875rem',
+                        color: 'var(--color-silver-300)',
+                        letterSpacing: '0.04em',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      CEO &amp; Co-Founder — ADYK Multi Venture Company
+                    </div>
+                  </div>
+
+                  <a
+                    href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '2px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#ffffff',
+                      fontSize: '0.75rem',
+                      fontFamily: 'var(--font-mono)',
+                      textDecoration: 'none',
+                      alignSelf: 'flex-start',
+                      transition: 'background-color 150ms ease, border-color 150ms ease',
+                    }}
+                    aria-label="View LinkedIn profile of Rejiesh Ashwanth V"
+                  >
+                    <LinkedInIcon size={13} />
+                    <span>LinkedIn</span>
+                    <ArrowUpRight size={11} />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Direct Inquiry Channels: Phone, Email, Instagram */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
                 gap: '14px',
               }}
             >
@@ -1594,6 +1676,7 @@ export default function HomePage() {
                     fontSize: '0.78125rem',
                     fontFamily: 'var(--font-mono)',
                     textDecoration: 'none',
+                    transition: 'background-color 150ms ease, border-color 150ms ease',
                   }}
                 >
                   <span>Call Us</span>
@@ -1665,112 +1748,12 @@ export default function HomePage() {
                     fontSize: '0.78125rem',
                     fontFamily: 'var(--font-mono)',
                     textDecoration: 'none',
+                    transition: 'background-color 150ms ease, border-color 150ms ease',
                   }}
                 >
                   <span>Email Us</span>
                   <ArrowUpRight size={13} />
                 </a>
-              </div>
-
-              {/* LinkedIn Card */}
-              <div
-                style={{
-                  padding: '20px 18px',
-                  borderRadius: '4px',
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '16px',
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '2px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <LinkedInIcon size={16} />
-                  </div>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.6875rem',
-                      letterSpacing: '0.12em',
-                      color: 'var(--color-gray-500)',
-                      textTransform: 'uppercase',
-                      display: 'block',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    LINKEDIN
-                  </span>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9375rem', fontWeight: 600, color: '#ffffff' }}>
-                    Rejiesh &amp; Dineshraj
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-gray-400)', marginTop: '2px' }}>
-                    ADYK Multi Venture Company
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <a
-                    href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      padding: '8px 8px',
-                      borderRadius: '2px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#ffffff',
-                      fontSize: '0.71875rem',
-                      fontFamily: 'var(--font-mono)',
-                      textDecoration: 'none',
-                    }}
-                    aria-label="Rejiesh LinkedIn"
-                  >
-                    <span>Rejiesh</span>
-                    <ArrowUpRight size={11} />
-                  </a>
-                  <a
-                    href="https://www.linkedin.com/in/dineshraj-s-758931390"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      padding: '8px 8px',
-                      borderRadius: '2px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#ffffff',
-                      fontSize: '0.71875rem',
-                      fontFamily: 'var(--font-mono)',
-                      textDecoration: 'none',
-                    }}
-                    aria-label="Dineshraj LinkedIn"
-                  >
-                    <span>Dineshraj</span>
-                    <ArrowUpRight size={11} />
-                  </a>
-                </div>
               </div>
 
               {/* Instagram Card */}
@@ -1839,6 +1822,7 @@ export default function HomePage() {
                     fontSize: '0.78125rem',
                     fontFamily: 'var(--font-mono)',
                     textDecoration: 'none',
+                    transition: 'background-color 150ms ease, border-color 150ms ease',
                   }}
                   aria-label="Visit Instagram @buildby.adyk"
                 >
