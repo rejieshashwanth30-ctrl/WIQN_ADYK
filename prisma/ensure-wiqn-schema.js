@@ -252,8 +252,14 @@ const SCHEMA_STATEMENTS = [
 ];
 
 function getSanitizedUrl() {
-  const raw = process.env.DATABASE_URL;
-  if (!raw) return undefined;
+  let raw = process.env.DATABASE_URL;
+  const CANONICAL_NEON_URL =
+    'postgresql://neondb_owner:npg_NvejApK02Wyt@ep-crimson-water-b57gv6za-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require';
+
+  if (!raw || raw.includes('db.prisma.io') || raw.includes('accelerate.prisma-data.net')) {
+    raw = CANONICAL_NEON_URL;
+  }
+
   try {
     const parsed = new URL(raw);
     parsed.searchParams.delete('channel_binding');

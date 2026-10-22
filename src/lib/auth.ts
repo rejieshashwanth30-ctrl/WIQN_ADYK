@@ -25,11 +25,16 @@ export interface AuthenticatedContext {
  * without cookie or storage dependencies.
  */
 function getStatelessSupabaseClient() {
-  const supabaseUrl = (
+  let supabaseUrl = (
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
     'https://xwwpvtmvbujtynyanywl.supabase.co'
   ).trim().replace(/^["']|["']$/g, '');
+
+  if (supabaseUrl.includes('xfklxcjoyyefovpgysqz')) {
+    supabaseUrl = 'https://xwwpvtmvbujtynyanywl.supabase.co';
+  }
+
   const supabaseKey = (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -91,7 +96,7 @@ export async function ensureApplicationUser({
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const cleanName = (name || '').trim() || cleanEmail.split('@')[0];
+  const cleanName = (name || '').trim();
 
   // 1. Try finding by supabaseUserId (primary identity mapping)
   const existing = await withDbRetry(() =>
@@ -101,15 +106,18 @@ export async function ensureApplicationUser({
   );
 
   if (existing) {
-    // Non-blocking best-effort update of name or organization if changed
-    if ((cleanName && existing.name !== cleanName) || (organization && organization !== existing.organization)) {
+    // Only update name or organization if explicitly provided and actually changed
+    const needsNameUpdate = Boolean(cleanName && cleanName !== cleanEmail.split('@')[0] && existing.name !== cleanName);
+    const needsOrgUpdate = Boolean(organization && existing.organization !== organization);
+
+    if (needsNameUpdate || needsOrgUpdate) {
       try {
         return await withDbRetry(() =>
           prisma.user.update({
             where: { id: existing.id },
             data: {
-              name: cleanName || existing.name,
-              organization: organization !== undefined ? organization : existing.organization,
+              ...(needsNameUpdate ? { name: cleanName } : {}),
+              ...(needsOrgUpdate ? { organization } : {}),
             },
           })
         );
@@ -123,7 +131,7 @@ export async function ensureApplicationUser({
 
   // 2. Check if user with same email exists from previous registration or migration
   const existingByEmail = await withDbRetry(() =>
-    prisma.user.findUnique({
+    prisma.user.findFirst({
       where: { email: cleanEmail },
     })
   );
@@ -140,8 +148,8 @@ export async function ensureApplicationUser({
           where: { id: existingByEmail.id },
           data: {
             supabaseUserId, // Link to verified Supabase identity
-            name: cleanName || existingByEmail.name,
-            organization: organization !== undefined ? organization : existingByEmail.organization,
+            ...(cleanName && cleanName !== cleanEmail.split('@')[0] ? { name: cleanName } : {}),
+            ...(organization ? { organization } : {}),
           },
         })
       );
@@ -158,13 +166,13 @@ export async function ensureApplicationUser({
         where: { supabaseUserId },
         update: {
           email: cleanEmail,
-          name: cleanName,
-          organization: organization ?? undefined,
+          ...(cleanName ? { name: cleanName } : {}),
+          ...(organization !== undefined ? { organization } : {}),
         },
         create: {
           supabaseUserId,
           email: cleanEmail,
-          name: cleanName,
+          name: cleanName || cleanEmail.split('@')[0],
           organization: organization ?? null,
           role: 'FOUNDER',
         },
@@ -182,12 +190,16 @@ export async function ensureApplicationUser({
 
     if (fallbackUser) {
       if (fallbackUser.supabaseUserId !== supabaseUserId) {
-        return await withDbRetry(() =>
-          prisma.user.update({
-            where: { id: fallbackUser.id },
-            data: { supabaseUserId },
-          })
-        );
+        try {
+          return await withDbRetry(() =>
+            prisma.user.update({
+              where: { id: fallbackUser.id },
+              data: { supabaseUserId },
+            })
+          );
+        } catch {
+          return fallbackUser;
+        }
       }
       return fallbackUser;
     }
@@ -276,6 +288,7 @@ export type AuthResult =
 
 /**
  * Resolves both the authenticated Supabase user and the WIQN application profile in Neon PostgreSQL.
+ * Performs fast-path read-first resolution to prevent unnecessary database write-locks and updates.
  * Performs atomic self-healing profile sync if the user exists in Supabase but not in Neon.
  * Returns { success: true, supabaseUser, applicationUser } or { success: false, error, status }.
  * Never displays an unhelpful generic error if the underlying failure was a connection glitch.
@@ -285,14 +298,54 @@ export async function getAuthenticatedUserContext(
 ): Promise<AuthResult> {
   const supaUser = await getAuthenticatedSupabaseUser(req);
   if (supaUser) {
+    const cleanEmail = supaUser.email.trim().toLowerCase();
+
+    // 1. FAST-PATH: Query for existing profile (read-first, avoids write locks and redundant updates)
+    try {
+      const existingUser = await withDbRetry(() =>
+        prisma.user.findFirst({
+          where: {
+            OR: [
+              { supabaseUserId: supaUser.id },
+              { email: cleanEmail },
+            ],
+          },
+        })
+      );
+
+      if (existingUser) {
+        // If profile was linked to a different supabaseUserId, update it in background
+        if (existingUser.supabaseUserId !== supaUser.id) {
+          withDbRetry(() =>
+            prisma.user.update({
+              where: { id: existingUser.id },
+              data: { supabaseUserId: supaUser.id },
+            })
+          ).catch((e) => console.warn('[WIQN AUTH] Non-blocking supabaseUserId re-link note:', e?.message || e));
+        }
+
+        return {
+          success: true,
+          supabaseUser: {
+            id: supaUser.id,
+            email: supaUser.email,
+          },
+          applicationUser: existingUser,
+        };
+      }
+    } catch (readErr: any) {
+      console.warn('[WIQN AUTH] Read-first profile lookup encountered error, falling back to ensureUser:', readErr?.message || readErr);
+    }
+
+    // 2. SLOW-PATH: Profile does not exist yet; provision it
     const metadata = supaUser.user_metadata || {};
-    const name = metadata.name || metadata.full_name || supaUser.email.split('@')[0];
+    const name = metadata.name || metadata.full_name || null;
     const organization = metadata.organization || null;
 
     try {
       const appUser = await ensureApplicationUser({
         supabaseUserId: supaUser.id,
-        email: supaUser.email,
+        email: cleanEmail,
         name,
         organization,
       });
@@ -323,7 +376,7 @@ export async function getAuthenticatedUserContext(
             where: {
               OR: [
                 { supabaseUserId: supaUser.id },
-                { email: supaUser.email.toLowerCase().trim() },
+                { email: cleanEmail },
               ],
             },
           })
@@ -344,10 +397,18 @@ export async function getAuthenticatedUserContext(
         console.error('[WIQN AUTH] Direct profile recovery lookup also failed:', recErr?.message || recErr);
       }
 
-      let userMessage = 'Service temporarily unavailable: database error during profile resolution';
-      if (errMsg.includes('reach database') || errCode === 'P1001') {
+      let userMessage = 'Database service temporarily unavailable. Please retry in a moment.';
+      if (
+        errMsg.includes('reach database') ||
+        errCode === 'P1001' ||
+        errCode === 'P1002' ||
+        errCode === 'P1008' ||
+        errCode === 'P2024' ||
+        errMsg.includes('timed out') ||
+        errMsg.includes('timeout')
+      ) {
         userMessage = 'Database connection error: unable to reach PostgreSQL database server. Please retry in a moment.';
-      } else if (errCode === 'P1017' || errMsg.includes('Closed')) {
+      } else if (errCode === 'P1017' || errMsg.includes('Closed') || errMsg.includes('terminating connection')) {
         userMessage = 'Database connection error: connection was closed by database server. Please retry.';
       } else if (errCode === 'P2002') {
         userMessage = 'Account profile synchronization conflict. Please retry.';

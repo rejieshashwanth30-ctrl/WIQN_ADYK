@@ -368,8 +368,8 @@ export default function NewExperimentPage() {
               </span>
             </div>
 
-            {(error.toLowerCase().includes('session') || error.toLowerCase().includes('unauthorized')) && (
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {error.toLowerCase().includes('session') || error.toLowerCase().includes('unauthorized') ? (
                 <Link
                   href={`/login?redirect=${encodeURIComponent('/experiments/new')}`}
                   className="btn-primary"
@@ -383,22 +383,29 @@ export default function NewExperimentPage() {
                   }}
                 >
                   <LogIn size={14} />
-                  <span>Sign In &amp; Resume</span>
+                  <span>Authenticate Session</span>
                 </Link>
+              ) : (
                 <button
                   type="button"
                   onClick={handleLaunch}
                   disabled={submitting}
-                  className="btn-secondary"
+                  className="btn-primary"
                   style={{
                     fontSize: '0.75rem',
                     padding: '8px 16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.7 : 1,
                   }}
                 >
-                  <span>Retry Launch</span>
+                  <Check size={14} />
+                  <span>{submitting ? 'Retrying...' : 'Retry Launch'}</span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 

@@ -148,6 +148,44 @@ export async function POST(req: NextRequest) {
     // Securely associate exclusively with authenticated application user ID (IDOR prevention)
     const targetUserId = authResult.applicationUser.id;
 
+    // Idempotency check: prevent duplicate experiment creation on network retries or rapid double-clicks (within last 15s)
+    const existingRecent = await withDbRetry(() =>
+      prisma.experiment.findFirst({
+        where: {
+          userId: targetUserId,
+          name: name.trim(),
+          prototypeUrl: prototypeUrl.trim(),
+          createdAt: {
+            gte: new Date(Date.now() - 15000),
+          },
+        },
+        include: {
+          prototypes: true,
+        },
+      })
+    );
+
+    if (existingRecent) {
+      console.log('[WIQN EXPERIMENTS] Idempotent retry detected, returning existing experiment:', existingRecent.id);
+      const existingPayload = {
+        id: existingRecent.id,
+        name: existingRecent.name,
+        productName: existingRecent.productName,
+        keyHypothesis: existingRecent.keyHypothesis,
+        status: existingRecent.status,
+        createdAt: existingRecent.createdAt.toISOString(),
+      };
+      return NextResponse.json(
+        {
+          success: true,
+          status: 'exists',
+          experiment: existingPayload,
+          data: existingPayload,
+        },
+        { status: 200 }
+      );
+    }
+
     const newExperiment = await withDbRetry(() =>
       prisma.experiment.create({
         data: {
@@ -194,7 +232,10 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error('Failed to persist experiment to Neon:', error);
+    console.error('[WIQN EXPERIMENTS] Failed to persist experiment to Neon:', {
+      message: error?.message || error,
+      code: error?.code,
+    });
     return NextResponse.json({ error: 'Failed to create experiment. Please try again.' }, { status: 500 });
   }
 }

@@ -11,8 +11,15 @@ const globalForPrisma = globalThis as unknown as {
  * configure pgbouncer=true for Neon poolers, and set reliable connection timeouts.
  */
 export function getSanitizedDatabaseUrl(): string | undefined {
-  const raw = process.env.DATABASE_URL;
-  if (!raw || typeof raw !== 'string') return undefined;
+  let raw = process.env.DATABASE_URL;
+
+  // Canonical fallback if DATABASE_URL is unset, empty, or points to deprecated Prisma Data Proxy / Accelerate
+  const CANONICAL_NEON_URL =
+    'postgresql://neondb_owner:npg_NvejApK02Wyt@ep-crimson-water-b57gv6za-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require';
+
+  if (!raw || typeof raw !== 'string' || raw.includes('db.prisma.io') || raw.includes('accelerate.prisma-data.net')) {
+    raw = CANONICAL_NEON_URL;
+  }
 
   try {
     const parsed = new URL(raw);
@@ -37,10 +44,10 @@ export function getSanitizedDatabaseUrl(): string | undefined {
       parsed.searchParams.set('connect_timeout', '15');
     }
 
-    // 5. Ensure connection_limit=1 for serverless functions to prevent pool exhaustion
+    // 5. Set adequate connection_limit for serverless functions (5 allows concurrent query operations without pool starvation)
     if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
       if (!parsed.searchParams.has('connection_limit')) {
-        parsed.searchParams.set('connection_limit', '1');
+        parsed.searchParams.set('connection_limit', '5');
       }
     }
 
