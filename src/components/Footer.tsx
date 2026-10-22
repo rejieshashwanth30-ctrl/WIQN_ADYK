@@ -53,7 +53,7 @@ export const Footer: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '20px',
+              gap: '18px',
               flexWrap: 'wrap',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
@@ -61,17 +61,17 @@ export const Footer: React.FC = () => {
             }}
             aria-label="Footer Navigation"
           >
-            <Link href="/#how-it-works" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+            <Link href="#how-it-works" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
               How It Works
             </Link>
-            <Link href="/about" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+            <Link href="#about" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
               About
             </Link>
-            <Link href="/contact" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
-              Contact
+            <Link href="#company" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+              Company
             </Link>
-            <Link href="/dashboard" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
-              Dashboard
+            <Link href="#contact" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+              Contact
             </Link>
             <Link href="/login" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
               Log In
@@ -92,62 +92,105 @@ export const Footer: React.FC = () => {
             </Link>
           </nav>
 
-          {/* Social Links */}
+          {/* Direct Contact & Social Links */}
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '8px',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
             }}
           >
-            <a
-              href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'var(--color-silver-300)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'color 150ms ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
-              aria-label="LinkedIn: Rejiesh Ashwanth V"
-            >
-              <span>LinkedIn</span>
-              <ArrowUpRight size={12} />
-            </a>
-            <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>•</span>
-            <a
-              href="https://www.instagram.com/buildby.adyk"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: 'var(--color-silver-300)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'color 150ms ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
-              aria-label="Instagram: ADYK"
-            >
-              <span>Instagram</span>
-              <ArrowUpRight size={12} />
-            </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <a
+                href="tel:8870605699"
+                style={{ color: 'var(--color-silver-300)', textDecoration: 'none' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+              >
+                8870605699
+              </a>
+              <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>•</span>
+              <a
+                href="mailto:adykcompany.in@gmail.com"
+                style={{ color: 'var(--color-silver-300)', textDecoration: 'none' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+              >
+                adykcompany.in@gmail.com
+              </a>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <a
+                href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--color-silver-300)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+                aria-label="LinkedIn: Rejiesh Ashwanth V"
+              >
+                <span>Rejiesh (LinkedIn)</span>
+                <ArrowUpRight size={12} />
+              </a>
+              <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>•</span>
+              <a
+                href="https://www.linkedin.com/in/dineshraj-s-758931390"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--color-silver-300)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+                aria-label="LinkedIn: Dineshraj S"
+              >
+                <span>Dineshraj (LinkedIn)</span>
+                <ArrowUpRight size={12} />
+              </a>
+              <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>•</span>
+              <a
+                href="https://www.instagram.com/buildby.adyk"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--color-silver-300)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+                aria-label="Instagram: ADYK"
+              >
+                <span>Instagram</span>
+                <ArrowUpRight size={12} />
+              </a>
+            </div>
           </div>
         </div>
 
         {/* Founder & Launch Attribution Row */}
         <div
           style={{
-            padding: '18px 0',
+            padding: '16px 0',
             borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
             display: 'flex',
             flexDirection: 'row',
@@ -162,17 +205,17 @@ export const Footer: React.FC = () => {
           }}
         >
           <div>
-            Built by <span style={{ color: 'var(--color-silver-200)', fontWeight: 500 }}>REJIESH ASHWANTH</span> — CEO & Co-Founder, ADYK Multi Venture Company
+            Built by <span style={{ color: 'var(--color-silver-200)', fontWeight: 500 }}>REJIESH ASHWANTH</span> — CEO &amp; Co-Founder, ADYK Multi Venture Company
           </div>
           <div>
-            Launch by <span style={{ color: 'var(--color-silver-200)' }}>ADYK Multi Venture Company</span>
+            Launched by <span style={{ color: 'var(--color-silver-200)' }}>ADYK Multi Venture Company</span>
           </div>
         </div>
 
         {/* Bottom Legal & Copyright */}
         <div
           style={{
-            paddingTop: '18px',
+            paddingTop: '16px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -188,7 +231,7 @@ export const Footer: React.FC = () => {
             © 2026 ADYK Multi Venture Company. All rights reserved.
           </div>
           <div>
-            WIQN PRODUCT VALIDATION & EXPERIMENTATION PLATFORM
+            WIQN PRODUCT VALIDATION &amp; EXPERIMENTATION PLATFORM
           </div>
         </div>
       </div>

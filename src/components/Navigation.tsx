@@ -52,17 +52,17 @@ export const Navigation: React.FC = () => {
 
             {/* Desktop Navigation Links */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
-              <Link href="/#how-it-works" className="nav-link-item">
+              <Link href="#how-it-works" className="nav-link-item">
                 How It Works
               </Link>
-              <Link href="/about" className="nav-link-item">
+              <Link href="#about" className="nav-link-item">
                 About
               </Link>
-              <Link href="/contact" className="nav-link-item">
-                Contact
+              <Link href="#company" className="nav-link-item">
+                Company
               </Link>
-              <Link href="/dashboard" className="nav-link-item">
-                Dashboard
+              <Link href="#contact" className="nav-link-item">
+                Contact
               </Link>
             </nav>
 
@@ -131,7 +131,7 @@ export const Navigation: React.FC = () => {
               </div>
 
               <Link
-                href="/#how-it-works"
+                href="#how-it-works"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
@@ -139,7 +139,7 @@ export const Navigation: React.FC = () => {
               </Link>
 
               <Link
-                href="/about"
+                href="#about"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
@@ -147,19 +147,19 @@ export const Navigation: React.FC = () => {
               </Link>
 
               <Link
-                href="/contact"
+                href="#company"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                03 // Contact
+                03 // Company &amp; Founders
               </Link>
 
               <Link
-                href="/dashboard"
+                href="#contact"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                04 // Dashboard
+                04 // Contact
               </Link>
             </div>
 
