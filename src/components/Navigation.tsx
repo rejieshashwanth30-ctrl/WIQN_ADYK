@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { BrandLogo } from './BrandLogo';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 
-export const Navigation: React.FC = () => {
+interface NavigationProps {
+  theme?: 'light' | 'dark';
+}
+
+export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
+  const isLight = theme === 'light';
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -42,26 +47,42 @@ export const Navigation: React.FC = () => {
 
   return (
     <>
-      <header className={`nav-header ${scrolled ? 'nav-header-scrolled' : 'nav-header-transparent'}`}>
+      <header
+        className={`nav-header ${
+          isLight
+            ? scrolled
+              ? 'nav-header-light-scrolled'
+              : 'nav-header-light-transparent'
+            : scrolled
+            ? 'nav-header-scrolled'
+            : 'nav-header-transparent'
+        }`}
+      >
         <div className="container">
           <div className="nav-inner-container">
-            {/* Logo with Brand Hierarchy - strictly aligned center */}
+            {/* Logo with Brand Hierarchy */}
             <Link href="/" aria-label="ADYK Wiqn Homepage" style={{ display: 'inline-flex', alignItems: 'center' }}>
-              <BrandLogo size={32} showWordmark={true} wordmarkVariant="default" />
+              <BrandLogo size={32} showWordmark={true} wordmarkVariant="default" theme={isLight ? 'light' : 'dark'} />
             </Link>
 
             {/* Desktop Navigation Links */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
-              <Link href="#how-it-works" className="nav-link-item">
+              <Link href="#product" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+                Product
+              </Link>
+              <Link href="#how-it-works" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 How It Works
               </Link>
-              <Link href="#about" className="nav-link-item">
+              <Link href="#loop" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+                The Loop
+              </Link>
+              <Link href="#evidence" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+                Evidence
+              </Link>
+              <Link href="#about" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 About
               </Link>
-              <Link href="#company" className="nav-link-item">
-                Company
-              </Link>
-              <Link href="#contact" className="nav-link-item">
+              <Link href="#contact" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 Contact
               </Link>
             </nav>
@@ -70,34 +91,34 @@ export const Navigation: React.FC = () => {
             <div className="nav-actions-right">
               <Link
                 href="/login"
-                className="nav-link-item desktop-login-link"
+                className={`${isLight ? 'nav-link-item-light' : 'nav-link-item'} desktop-login-link`}
                 style={{ padding: '8px 12px' }}
               >
                 Log In
               </Link>
 
-              {/* Start Validating CTA */}
+              {/* Start Experiment CTA */}
               <Link
                 href="/experiments/new"
-                className="nav-cta-btn"
-                aria-label="Start validating"
+                className={isLight ? 'nav-cta-btn-light' : 'nav-cta-btn'}
+                aria-label="Start an Experiment"
               >
-                <span className="nav-cta-label-desktop">Start Validating</span>
+                <span className="nav-cta-label-desktop">Start an Experiment</span>
                 <span className="nav-cta-label-mobile">
                   <span>START</span>
-                  <span>VALIDATING</span>
+                  <span>EXPERIMENT</span>
                 </span>
                 <ArrowUpRight className="nav-cta-arrow" size={13} />
               </Link>
 
-              {/* Mobile Hamburger Button: 44x44 touch target, perfectly center-aligned */}
+              {/* Mobile Hamburger Button: 44x44 touch target */}
               <button
                 type="button"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={mobileOpen}
                 aria-controls="mobile-navigation-drawer"
-                className="mobile-menu-btn"
+                className={isLight ? 'mobile-menu-btn mobile-menu-btn-light' : 'mobile-menu-btn'}
               >
                 {mobileOpen ? <X size={22} strokeWidth={1.8} /> : <Menu size={22} strokeWidth={1.8} />}
               </button>
@@ -113,7 +134,7 @@ export const Navigation: React.FC = () => {
           role="dialog"
           aria-modal="true"
           aria-label="Mobile Navigation Menu"
-          className="mobile-drawer-overlay"
+          className={`mobile-drawer-overlay ${isLight ? 'mobile-drawer-overlay-light' : ''}`}
         >
           <div className="mobile-drawer-content">
             <div className="mobile-drawer-links">
@@ -122,44 +143,68 @@ export const Navigation: React.FC = () => {
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.6875rem',
                   letterSpacing: '0.22em',
-                  color: 'var(--color-gray-500)',
+                  color: isLight ? '#71717a' : 'var(--color-gray-500)',
                   textTransform: 'uppercase',
-                  marginBottom: '4px',
+                  marginBottom: '8px',
                 }}
               >
-                NAVIGATION REGISTRY
+                NAVIGATION
               </div>
+
+              <Link
+                href="#product"
+                onClick={() => setMobileOpen(false)}
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
+              >
+                01 // Product Suite
+              </Link>
 
               <Link
                 href="#how-it-works"
                 onClick={() => setMobileOpen(false)}
-                className="mobile-drawer-link"
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                01 // How It Works
+                02 // The Problem & Method
+              </Link>
+
+              <Link
+                href="#loop"
+                onClick={() => setMobileOpen(false)}
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
+              >
+                03 // Validation Loop
+              </Link>
+
+              <Link
+                href="#evidence"
+                onClick={() => setMobileOpen(false)}
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
+              >
+                04 // Behavioral Evidence
               </Link>
 
               <Link
                 href="#about"
                 onClick={() => setMobileOpen(false)}
-                className="mobile-drawer-link"
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                02 // About WIQN
+                05 // About WIQN
               </Link>
 
               <Link
                 href="#company"
                 onClick={() => setMobileOpen(false)}
-                className="mobile-drawer-link"
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                03 // Built By
+                06 // Leadership
               </Link>
 
               <Link
                 href="#contact"
                 onClick={() => setMobileOpen(false)}
-                className="mobile-drawer-link"
+                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                04 // Contact
+                07 // Contact
               </Link>
             </div>
 
@@ -167,7 +212,7 @@ export const Navigation: React.FC = () => {
               <Link
                 href="/login"
                 onClick={() => setMobileOpen(false)}
-                className="btn-secondary"
+                className={isLight ? 'btn-secondary-light' : 'btn-secondary'}
                 style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}
               >
                 Log In
@@ -176,10 +221,10 @@ export const Navigation: React.FC = () => {
               <Link
                 href="/experiments/new"
                 onClick={() => setMobileOpen(false)}
-                className="btn-primary"
+                className={isLight ? 'btn-primary-light' : 'btn-primary'}
                 style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}
               >
-                <span>Start Validating</span>
+                <span>Start an Experiment</span>
                 <ArrowUpRight size={14} />
               </Link>
 
@@ -190,7 +235,7 @@ export const Navigation: React.FC = () => {
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.625rem',
                   letterSpacing: '0.16em',
-                  color: 'var(--color-gray-500)',
+                  color: isLight ? '#71717a' : 'var(--color-gray-500)',
                   textTransform: 'uppercase',
                 }}
               >

@@ -2,19 +2,19 @@ import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'ADYK Wiqn | From Idea to Evidence',
-  description: 'Validate your product with real users, real behavior and real feedback before investing heavily in building it.',
+  title: 'WIQN | From Idea to Evidence',
+  description: 'WIQN helps founders test prototypes with real users, collect behavioral evidence and feedback, and make smarter product decisions.',
   keywords: [
+    'WIQN',
     'ADYK',
-    'Wiqn',
     'product validation',
-    'product intelligence',
+    'product experimentation',
     'user behavior telemetry',
     'prototyping evidence',
     'falsifiable hypothesis',
     'founder research',
   ],
-  publisher: 'ADYK',
+  publisher: 'ADYK Multi Venture Company',
   metadataBase: new URL(
     (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('adyk-wiqn'))
       ? process.env.NEXT_PUBLIC_APP_URL
@@ -24,16 +24,16 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'ADYK Wiqn | From Idea to Evidence',
-    description: 'Validate your product with real users, real behavior and real feedback before investing heavily in building it.',
+    title: 'WIQN | From Idea to Evidence',
+    description: 'WIQN helps founders test prototypes with real users, collect behavioral evidence and feedback, and make smarter product decisions.',
     url: process.env.NEXT_PUBLIC_APP_URL || '/',
-    siteName: 'ADYK Wiqn',
+    siteName: 'WIQN',
     images: [
       {
         url: '/brand/adyk-wiqn-logo.jpg',
         width: 960,
         height: 960,
-        alt: 'ADYK Wiqn Brand Mark',
+        alt: 'WIQN Brand Mark',
       },
     ],
     locale: 'en_US',
@@ -41,8 +41,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ADYK Wiqn | From Idea to Evidence',
-    description: 'Validate your product with real users, real behavior and real feedback before investing heavily in building it.',
+    title: 'WIQN | From Idea to Evidence',
+    description: 'WIQN helps founders test prototypes with real users, collect behavioral evidence and feedback, and make smarter product decisions.',
     images: ['/brand/adyk-wiqn-logo.jpg'],
   },
   icons: {

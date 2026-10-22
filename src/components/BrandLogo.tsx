@@ -6,6 +6,7 @@ interface BrandLogoProps {
   showWordmark?: boolean;
   wordmarkVariant?: 'default' | 'stacked' | 'wiqn-only';
   className?: string;
+  theme?: 'light' | 'dark';
 }
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
@@ -13,7 +14,13 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   showWordmark = true,
   wordmarkVariant = 'default',
   className = '',
+  theme = 'dark',
 }) => {
+  const isLight = theme === 'light';
+  const wiqnColor = isLight ? '#09090b' : 'var(--color-white)';
+  const adykColor = isLight ? '#71717a' : 'var(--color-silver-300)';
+  const dividerColor = isLight ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.25)';
+
   return (
     <div
       className={`brand-logo-root ${className}`}
@@ -29,6 +36,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           width: size,
           height: size,
           borderRadius: size > 48 ? '4px' : '2px',
+          borderColor: isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
         }}
       >
         <Image
@@ -65,7 +73,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 fontWeight: 700,
                 fontSize: size > 36 ? '1.25rem' : '0.9375rem',
                 letterSpacing: '0.14em',
-                color: 'var(--color-white)',
+                color: wiqnColor,
               }}
             >
               WIQN
@@ -79,7 +87,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                   fontWeight: 500,
                   fontSize: '0.625rem',
                   letterSpacing: '0.22em',
-                  color: 'var(--color-silver-300)',
+                  color: adykColor,
                 }}
               >
                 ADYK
@@ -91,7 +99,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                   fontWeight: 700,
                   fontSize: size > 36 ? '1.125rem' : '0.875rem',
                   letterSpacing: '0.14em',
-                  color: 'var(--color-white)',
+                  color: wiqnColor,
                 }}
               >
                 WIQN
@@ -106,7 +114,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                   fontWeight: 500,
                   fontSize: '0.75rem',
                   letterSpacing: '0.2em',
-                  color: 'var(--color-silver-300)',
+                  color: adykColor,
                 }}
               >
                 ADYK
@@ -114,7 +122,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
               <span
                 className="brand-wordmark-divider"
                 style={{
-                  color: 'rgba(255,255,255,0.25)',
+                  color: dividerColor,
                   fontSize: '0.75rem',
                 }}
               >
@@ -127,7 +135,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                   fontWeight: 700,
                   fontSize: '0.875rem',
                   letterSpacing: '0.16em',
-                  color: 'var(--color-white)',
+                  color: wiqnColor,
                 }}
               >
                 WIQN
