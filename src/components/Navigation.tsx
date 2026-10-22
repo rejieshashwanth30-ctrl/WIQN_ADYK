@@ -52,14 +52,14 @@ export const Navigation: React.FC = () => {
 
             {/* Desktop Navigation Links */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
-              <Link href="#overview" className="nav-link-item">
-                Overview
-              </Link>
-              <Link href="#method" className="nav-link-item">
+              <Link href="#how-it-works" className="nav-link-item">
                 How It Works
               </Link>
-              <Link href="#cardex" className="nav-link-item">
-                Cardex Alpha
+              <Link href="#evidence" className="nav-link-item">
+                Evidence
+              </Link>
+              <Link href="#platform" className="nav-link-item">
+                Platform
               </Link>
               <Link href="/dashboard" className="nav-link-item">
                 Dashboard
@@ -76,16 +76,16 @@ export const Navigation: React.FC = () => {
                 Log In
               </Link>
 
-              {/* Start Experiment CTA - refined compact proportions on mobile */}
+              {/* Start Validating CTA */}
               <Link
                 href="/experiments/new"
                 className="nav-cta-btn"
-                aria-label="Start an experiment"
+                aria-label="Start validating"
               >
-                <span className="nav-cta-label-desktop">Start Experiment</span>
+                <span className="nav-cta-label-desktop">Start Validating</span>
                 <span className="nav-cta-label-mobile">
                   <span>START</span>
-                  <span>EXPERIMENT</span>
+                  <span>VALIDATING</span>
                 </span>
                 <ArrowUpRight className="nav-cta-arrow" size={13} />
               </Link>
@@ -131,27 +131,27 @@ export const Navigation: React.FC = () => {
               </div>
 
               <Link
-                href="#overview"
+                href="#how-it-works"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                01 // Overview
+                01 // How It Works
               </Link>
 
               <Link
-                href="#method"
+                href="#evidence"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                02 // The Method
+                02 // Evidence & Value
               </Link>
 
               <Link
-                href="#cardex"
+                href="#platform"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                03 // Cardex Alpha
+                03 // Platform
               </Link>
 
               <Link
