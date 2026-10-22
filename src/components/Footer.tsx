@@ -10,27 +10,28 @@ export const Footer: React.FC = () => {
     <footer
       style={{
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-        backgroundColor: '#030304',
-        padding: '48px 0 36px 0',
+        backgroundColor: '#040405',
+        padding: '40px 0 32px 0',
         position: 'relative',
         zIndex: 2,
       }}
     >
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px' }}>
+        {/* Main Footer Row: Brand + Navigation + Social Links */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'row',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             flexWrap: 'wrap',
-            gap: '24px',
-            paddingBottom: '32px',
+            gap: '28px',
+            paddingBottom: '28px',
             borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           }}
         >
           {/* Brand & Tagline */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px' }}>
             <Link href="/" aria-label="ADYK Wiqn Homepage" style={{ display: 'inline-flex', alignItems: 'center' }}>
               <BrandLogo size={28} showWordmark={true} wordmarkVariant="default" />
             </Link>
@@ -40,13 +41,14 @@ export const Footer: React.FC = () => {
                 fontSize: '0.75rem',
                 color: 'var(--color-silver-300)',
                 letterSpacing: '0.04em',
+                lineHeight: 1.5,
               }}
             >
               Test Ideas. Discover Truth. Build Smarter.
             </p>
           </div>
 
-          {/* Quick Nav Links */}
+          {/* Core Navigation Links */}
           <nav
             style={{
               display: 'flex',
@@ -59,11 +61,14 @@ export const Footer: React.FC = () => {
             }}
             aria-label="Footer Navigation"
           >
-            <Link href="#how-it-works" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+            <Link href="/#how-it-works" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
               How It Works
             </Link>
-            <Link href="#evidence" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
-              Evidence
+            <Link href="/about" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+              About
+            </Link>
+            <Link href="/contact" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
+              Contact
             </Link>
             <Link href="/dashboard" style={{ color: 'inherit', textDecoration: 'none' }} className="nav-link-item">
               Dashboard
@@ -86,12 +91,88 @@ export const Footer: React.FC = () => {
               <ArrowUpRight size={13} />
             </Link>
           </nav>
+
+          {/* Social Links */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
+            }}
+          >
+            <a
+              href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--color-silver-300)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'color 150ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+              aria-label="LinkedIn: Rejiesh Ashwanth V"
+            >
+              <span>LinkedIn</span>
+              <ArrowUpRight size={12} />
+            </a>
+            <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>•</span>
+            <a
+              href="https://www.instagram.com/buildby.adyk"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'var(--color-silver-300)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'color 150ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-silver-300)')}
+              aria-label="Instagram: ADYK"
+            >
+              <span>Instagram</span>
+              <ArrowUpRight size={12} />
+            </a>
+          </div>
+        </div>
+
+        {/* Founder & Launch Attribution Row */}
+        <div
+          style={{
+            padding: '18px 0',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.7rem',
+            color: 'var(--color-gray-400)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          <div>
+            Built by <span style={{ color: 'var(--color-silver-200)', fontWeight: 500 }}>REJIESH ASHWANTH</span> — CEO & Co-Founder, ADYK Multi Venture Company
+          </div>
+          <div>
+            Launch by <span style={{ color: 'var(--color-silver-200)' }}>ADYK Multi Venture Company</span>
+          </div>
         </div>
 
         {/* Bottom Legal & Copyright */}
         <div
           style={{
-            paddingTop: '24px',
+            paddingTop: '18px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -100,14 +181,14 @@ export const Footer: React.FC = () => {
             fontFamily: 'var(--font-mono)',
             fontSize: '0.6875rem',
             color: 'var(--color-gray-500)',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.04em',
           }}
         >
           <div>
-            © 2026 ADYK Wiqn. All rights reserved.
+            © 2026 ADYK Multi Venture Company. All rights reserved.
           </div>
           <div>
-            A VENTURE OF ADYK • EXPERIMENTATION & VALIDATION PLATFORM
+            WIQN PRODUCT VALIDATION & EXPERIMENTATION PLATFORM
           </div>
         </div>
       </div>

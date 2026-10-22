@@ -52,14 +52,14 @@ export const Navigation: React.FC = () => {
 
             {/* Desktop Navigation Links */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
-              <Link href="#how-it-works" className="nav-link-item">
+              <Link href="/#how-it-works" className="nav-link-item">
                 How It Works
               </Link>
-              <Link href="#evidence" className="nav-link-item">
-                Evidence
+              <Link href="/about" className="nav-link-item">
+                About
               </Link>
-              <Link href="#platform" className="nav-link-item">
-                Platform
+              <Link href="/contact" className="nav-link-item">
+                Contact
               </Link>
               <Link href="/dashboard" className="nav-link-item">
                 Dashboard
@@ -131,7 +131,7 @@ export const Navigation: React.FC = () => {
               </div>
 
               <Link
-                href="#how-it-works"
+                href="/#how-it-works"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
@@ -139,19 +139,19 @@ export const Navigation: React.FC = () => {
               </Link>
 
               <Link
-                href="#evidence"
+                href="/about"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                02 // Evidence & Value
+                02 // About WIQN
               </Link>
 
               <Link
-                href="#platform"
+                href="/contact"
                 onClick={() => setMobileOpen(false)}
                 className="mobile-drawer-link"
               >
-                03 // Platform
+                03 // Contact
               </Link>
 
               <Link
@@ -179,7 +179,7 @@ export const Navigation: React.FC = () => {
                 className="btn-primary"
                 style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}
               >
-                <span>Start An Experiment</span>
+                <span>Start Validating</span>
                 <ArrowUpRight size={14} />
               </Link>
 
