@@ -53,12 +53,20 @@ export default function NewExperimentPage() {
 
     const supabase = createClient();
     supabase.auth.getSession().then(({ data }: any) => {
-      setIsAuthenticated(!!data?.session);
+      if (!data?.session) {
+        window.location.href = '/login?redirect=/experiments/new';
+        return;
+      }
+      setIsAuthenticated(true);
       setUserEmail(data?.session?.user?.email || null);
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      setIsAuthenticated(!!session);
+      if (!session) {
+        window.location.href = '/login?redirect=/experiments/new';
+        return;
+      }
+      setIsAuthenticated(true);
       setUserEmail(session?.user?.email || null);
     });
 
@@ -212,6 +220,11 @@ export default function NewExperimentPage() {
             status,
           }),
         });
+      }
+
+      if (res.status === 401) {
+        window.location.href = '/login?redirect=/experiments/new';
+        return;
       }
 
       if (!res.ok) {

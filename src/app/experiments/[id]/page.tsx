@@ -95,6 +95,10 @@ export default function ExperimentDetailPage({ params }: PageProps) {
       setLoading(true);
       setAuthError(null);
       const res = await authenticatedFetch(`/api/experiments/${experimentId}`);
+      if (res.status === 401) {
+        window.location.href = `/login?redirect=${encodeURIComponent(`/experiments/${experimentId}`)}`;
+        return;
+      }
       if (res.status === 403) {
         setAuthError('You do not have permission to view this experiment. Each founder can only view their own experiments.');
         setExperiment(null);
@@ -305,8 +309,17 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
   const visitorsCount = experiment.metrics?.visitorsCount || 0;
   const eventsCount = experiment.metrics?.interactionsCount || 0;
+  const sessionsCount = experiment.metrics?.sessionsCount || 0;
   const feedbackCount = experiment.metrics?.feedbackCount || 0;
   const isSufficientEvidence = experiment.telemetrySummary?.isSufficientEvidence || false;
+
+  const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [activeTab]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: 'var(--color-off-white)' }}>
@@ -395,6 +408,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             return (
               <button
                 key={tab.key}
+                ref={isActive ? activeTabRef : null}
                 onClick={() => setActiveTab(tab.key as any)}
                 className={`exp-tab-btn ${isActive ? 'exp-tab-active' : ''}`}
                 style={{
@@ -408,10 +422,10 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   padding: '12px 18px',
                   color: isActive ? '#ffffff' : 'var(--color-silver-300)',
                   borderBottom: isActive ? '2px solid #ffffff' : '2px solid transparent',
-                  background: 'none',
+                  background: isActive ? 'rgba(255, 255, 255, 0.04)' : 'none',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  transition: 'color 180ms ease',
+                  transition: 'color 180ms ease, background-color 180ms ease',
                   flexShrink: 0,
                 }}
               >
@@ -424,24 +438,24 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="exp-overview-grid">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Hypothesis Card */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '32px', borderRadius: '2px' }}>
-                <div className="eyebrow" style={{ marginBottom: '8px' }}>
+              <div className="exp-card">
+                <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
                   <span className="eyebrow-dot" />
                   <span>WHAT YOU ARE TESTING</span>
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff', marginBottom: '12px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff', marginBottom: '10px' }}>
                   Your Idea to Test
                 </h3>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '1rem', color: 'var(--color-silver-200)', lineHeight: 1.6 }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-200)', lineHeight: 1.6 }}>
                   {experiment.keyHypothesis}
                 </p>
               </div>
 
               {/* Problem Space */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '32px', borderRadius: '2px' }}>
+              <div className="exp-card">
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                   THE PROBLEM YOU ARE SOLVING
                 </div>
@@ -451,13 +465,13 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Target & Learning Goal */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '32px', borderRadius: '2px' }}>
+              <div className="exp-card">
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                   WHO THIS IS FOR
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '24px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '20px' }}>
                   {experiment.targetAudience || 'General prospective users and testers.'}
                 </p>
 
@@ -470,7 +484,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </div>
 
               {/* Public Test Link Card */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '32px', borderRadius: '2px' }}>
+              <div className="exp-card">
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                   SHAREABLE PUBLIC TEST LINK
                 </div>
@@ -492,9 +506,10 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 2: TEST YOUR PROTOTYPE */}
         {activeTab === 'prototype' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Viewport Control Bar */}
             <div
+              className="exp-prototype-bar"
               style={{
                 backgroundColor: '#0a0a0d',
                 border: '1px solid var(--border-subtle)',
@@ -504,17 +519,17 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '16px',
+                gap: '12px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff' }} />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   Interactive Preview: {experiment.prototypeUrl}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setShowShareModal(true)}
                   className="btn-secondary"
@@ -539,6 +554,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Sandbox Embed Frame */}
             <div
+              className="exp-sandbox-frame"
               style={{
                 position: 'relative',
                 height: '640px',
@@ -563,6 +579,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Tracking Snippet Integration Notice */}
             <div
+              className="exp-tracking-card"
               style={{
                 backgroundColor: '#0a0a0d',
                 border: '1px solid var(--border-subtle)',
@@ -570,7 +587,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 borderRadius: '2px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
                   AUTOMATIC TRACKING SCRIPT // READY TO USE
                 </div>
@@ -635,13 +652,13 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   overflowX: 'auto',
                 }}
               >
-                <code>{currentSnippet}</code>
+                <code style={{ wordBreak: 'break-all' }}>{currentSnippet}</code>
                 <button onClick={() => copyTrackerSnippet(snippetMode === 'production')} className="btn-ghost" style={{ flexShrink: 0, marginLeft: '12px' }}>
                   {copiedSnippet ? 'Copied' : 'Copy'}
                 </button>
               </div>
 
-              <div style={{ marginTop: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ marginTop: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 <span>HOST: {effectiveOrigin}</span>
                 <span>ENDPOINT: {effectiveOrigin}/api/capture</span>
                 <span>PRIVACY: Form passwords, payment details &amp; sensitive inputs are automatically redacted</span>
@@ -652,22 +669,23 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 3: VISITOR ACTIVITY */}
         {activeTab === 'analytics' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="exp-section-header">
+              <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
                 <span className="eyebrow-dot" />
                 <span>VISITOR ACTIONS</span>
               </div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+              <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
                 Visitor Activity
               </h2>
-              <p style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
+              <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
                 See how many people tested your prototype, what they clicked, and how long they stayed. Tracking records interactions, not personal identities or intentions.
               </p>
             </div>
 
             {(!experiment.metrics || experiment.metrics.interactionsCount === 0) ? (
               <div
+                className="dash-empty-state exp-empty-state"
                 style={{
                   backgroundColor: '#0a0a0d',
                   border: '1px dashed rgba(255, 255, 255, 0.15)',
@@ -678,27 +696,27 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   margin: '20px auto',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
                   NO ACTIVITY YET
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#ffffff', marginBottom: '12px' }}>
+                <h3 className="dash-empty-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
                   No Activity Yet
                 </h3>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '28px' }}>
+                <p className="dash-empty-desc" style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '24px' }}>
                   Open your prototype and interact with it, or share it with testers. Their supported interactions will appear here after tracking is installed correctly.
                 </p>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => setShowShareModal(true)} className="btn-primary">
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
                     <span>Share Testing Link</span>
                   </button>
-                  <button onClick={() => copyTrackerSnippet(true)} className="btn-secondary">
+                  <button onClick={() => copyTrackerSnippet(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
                     <span>Copy Tracking Code</span>
                   </button>
                 </div>
               </div>
             ) : (
               /* Real Visitor Activity Visualizations & Behavioral Analytics */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <BehavioralAnalyticsView
                   experimentId={experimentId}
                   behavioral={experiment.telemetrySummary?.behavioral}
@@ -713,22 +731,22 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 4: TESTER FEEDBACK */}
         {activeTab === 'feedback' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="exp-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '4px' }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff' }}>
+                <h3 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff' }}>
                   Tester Feedback
                 </h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
+                <p className="exp-desc" style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
                   Feedback, notes, and observations from people who tested your prototype.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => setShowShareModal(true)}
                   className="btn-secondary"
-                  style={{ fontSize: '0.6875rem', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  style={{ fontSize: '0.6875rem', padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                 >
                   <Share2 size={12} />
                   <span>Invite Testers</span>
@@ -737,7 +755,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 <button
                   onClick={() => setShowFeedbackModal(true)}
                   className="btn-primary"
-                  style={{ fontSize: '0.6875rem', padding: '8px 14px' }}
+                  style={{ fontSize: '0.6875rem', padding: '7px 12px' }}
                 >
                   + Add Observation
                 </button>
@@ -745,7 +763,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             </div>
 
             {feedbackNotice && (
-              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '12px 16px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
+              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '10px 14px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
                 ✓ {feedbackNotice}
               </div>
             )}
@@ -753,21 +771,22 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             {/* Modal to log observation */}
             {showFeedbackModal && (
               <div
+                className="exp-feedback-form"
                 style={{
                   backgroundColor: '#0a0a0d',
                   border: '1px solid rgba(255, 255, 255, 0.25)',
-                  padding: '28px',
+                  padding: '24px',
                   borderRadius: '2px',
-                  marginBottom: '16px',
+                  marginBottom: '12px',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   Add Observation
                 </div>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginBottom: '18px' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginBottom: '14px' }}>
                   Record what you observed during user testing, or notes from direct tester conversations.
                 </p>
-                <form onSubmit={handleSaveFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <form onSubmit={handleSaveFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                       WHAT DID YOU OBSERVE? (TOPIC OR SCREEN)
@@ -778,7 +797,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       value={feedbackPrompt}
                       onChange={(e) => setFeedbackPrompt(e.target.value)}
                       placeholder="e.g. Signup button on mobile, pricing question"
-                      style={{ width: '100%', padding: '10px 14px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
+                      style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
                     />
                   </div>
 
@@ -792,19 +811,19 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       value={feedbackComment}
                       onChange={(e) => setFeedbackComment(e.target.value)}
                       placeholder="e.g. Tester couldn't find the signup button on mobile until they scrolled all the way to the bottom..."
-                      style={{ width: '100%', padding: '10px 14px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
+                      style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
                     />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 200px' }}>
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 180px' }}>
                       <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                         FEEDBACK CATEGORY
                       </label>
                       <select
                         value={feedbackCategory}
                         onChange={(e) => setFeedbackCategory(e.target.value)}
-                        style={{ width: '100%', padding: '10px 14px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
+                        style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
                       >
                         <option value="clarity">Clarity (Did they understand it?)</option>
                         <option value="friction">Difficulty (Where did they get stuck?)</option>
@@ -813,14 +832,14 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       </select>
                     </div>
 
-                    <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ flex: '1 1 180px' }}>
                       <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                         OPTIONAL RATING
                       </label>
                       <select
                         value={feedbackRating}
                         onChange={(e) => setFeedbackRating(Number(e.target.value))}
-                        style={{ width: '100%', padding: '10px 14px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
+                        style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
                       >
                         <option value={5}>5 - Clear and easy to use</option>
                         <option value={4}>4 - Minor note</option>
@@ -831,11 +850,11 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                    <button type="submit" disabled={savingFeedback} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '9px 18px' }}>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                    <button type="submit" disabled={savingFeedback} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '8px 16px' }}>
                       {savingFeedback ? 'Saving observation...' : 'Save Observation'}
                     </button>
-                    <button type="button" onClick={() => setShowFeedbackModal(false)} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '9px 18px' }}>
+                    <button type="button" onClick={() => setShowFeedbackModal(false)} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '8px 16px' }}>
                       Cancel
                     </button>
                   </div>
@@ -845,7 +864,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Feedback List from Database */}
             {experiment.feedback && experiment.feedback.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              <div className="exp-feedback-grid">
                 {experiment.feedback.map((fb: any) => {
                   const isTesterSource = Boolean(fb.visitorId);
                   const categoryNameMap: Record<string, string> = {
@@ -862,27 +881,19 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   return (
                     <div
                       key={fb.id}
-                      style={{
-                        backgroundColor: '#0a0a0d',
-                        border: '1px solid var(--border-subtle)',
-                        padding: '28px',
-                        borderRadius: '2px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                      }}
+                      className="exp-feedback-card"
                     >
                       <div>
                         {/* Source & Category Badges */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {isTesterSource ? (
-                              <span className="badge badge-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <span className="badge badge-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                 <UserCheck size={11} />
                                 <span>Tester feedback</span>
                               </span>
                             ) : (
-                              <span className="badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <span className="badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                 <User size={11} />
                                 <span>Founder observation</span>
                               </span>
@@ -898,17 +909,17 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                         </div>
 
                         {fb.prompt && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '10px' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
                             Context: &ldquo;{fb.prompt}&rdquo;
                           </div>
                         )}
 
-                        <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-white)', lineHeight: 1.6 }}>
+                        <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-white)', lineHeight: 1.55 }}>
                           &ldquo;{fb.comment}&rdquo;
                         </p>
                       </div>
 
-                      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', marginTop: '20px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '12px', marginTop: '16px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
                         Submitted on {new Date(fb.createdAt).toLocaleString()}
                       </div>
                     </div>
@@ -917,28 +928,29 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </div>
             ) : (
               <div
+                className="dash-empty-state exp-empty-state"
                 style={{
                   backgroundColor: '#0a0a0d',
                   border: '1px dashed rgba(255, 255, 255, 0.15)',
-                  padding: '60px 24px',
+                  padding: '48px 20px',
                   textAlign: 'center',
                   borderRadius: '2px',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                   NO FEEDBACK YET
                 </div>
-                <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: '#ffffff', marginBottom: '8px' }}>
+                <h4 className="dash-empty-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: '#ffffff', marginBottom: '6px' }}>
                   No Feedback Yet
                 </h4>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', maxWidth: '480px', margin: '0 auto 20px auto', lineHeight: 1.5 }}>
+                <p className="dash-empty-desc" style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', maxWidth: '480px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
                   Feedback will appear here when testers share their experience. You can also record your own observations.
                 </p>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                  <button onClick={() => setShowFeedbackModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button onClick={() => setShowFeedbackModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                     Add First Observation
                   </button>
-                  <button onClick={() => setShowShareModal(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                  <button onClick={() => setShowShareModal(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                     Invite Testers
                   </button>
                 </div>
@@ -949,18 +961,18 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 5: INSIGHTS & SUGGESTIONS (AI VALIDATION ENGINE) */}
         {activeTab === 'insights' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* A. Page Heading with Run AI Action */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+            <div className="exp-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
               <div style={{ maxWidth: '780px' }}>
-                <div className="eyebrow" style={{ marginBottom: '8px' }}>
+                <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
                   <span className="eyebrow-dot" />
                   <span>UNDERSTAND YOUR RESULTS</span>
                 </div>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+                <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
                   Understand Your Results
                 </h2>
-                <p style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
+                <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
                   See what people do on your prototype, where they struggle, and what you can improve.
                 </p>
               </div>
@@ -968,7 +980,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               <button
                 onClick={handleRunAIAnalysis}
                 disabled={runningAI}
-                className="btn-primary"
+                className="btn-primary exp-ai-btn"
                 style={{ padding: '10px 18px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 {runningAI ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -978,7 +990,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* AI Error Notice */}
             {aiError && (
-              <div style={{ backgroundColor: '#18110b', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '14px 18px', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ backgroundColor: '#18110b', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '12px 16px', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8125rem', color: 'var(--color-silver-200)' }}>
                   <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
                   <span>{aiError}</span>
@@ -989,41 +1001,53 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {/* B. Three Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                  People who visited
+            {/* B. Four Summary Metric Cards - Dense 2-Column Grid on Mobile, 4 Columns on Desktop */}
+            <div className="exp-summary-grid">
+              <div className="exp-summary-card">
+                <div className="exp-summary-label">
+                  PEOPLE VISITED
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+                <div className="exp-summary-val">
                   {visitorsCount}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+                <div className="exp-summary-hint">
                   {visitorsCount === 1 ? '1 different person' : `${visitorsCount} different people`}
                 </div>
               </div>
 
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                  Actions tracked
+              <div className="exp-summary-card">
+                <div className="exp-summary-label">
+                  TOTAL ACTIONS
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+                <div className="exp-summary-val">
                   {eventsCount}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                  {eventsCount === 1 ? '1 click or page view' : `${eventsCount} clicks and page views`}
+                <div className="exp-summary-hint">
+                  {eventsCount === 1 ? '1 click or page view' : `${eventsCount} clicks and views`}
                 </div>
               </div>
 
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                  Feedback received
+              <div className="exp-summary-card">
+                <div className="exp-summary-label">
+                  SESSIONS
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+                <div className="exp-summary-val">
+                  {sessionsCount}
+                </div>
+                <div className="exp-summary-hint">
+                  {sessionsCount === 1 ? '1 test session' : `${sessionsCount} test sessions`}
+                </div>
+              </div>
+
+              <div className="exp-summary-card">
+                <div className="exp-summary-label">
+                  FEEDBACK
+                </div>
+                <div className="exp-summary-val">
                   {feedbackCount}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                  {feedbackCount === 1 ? '1 note or response' : `${feedbackCount} notes and responses`}
+                <div className="exp-summary-hint">
+                  {feedbackCount === 1 ? '1 response note' : `${feedbackCount} response notes`}
                 </div>
               </div>
             </div>
@@ -1031,19 +1055,20 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             {/* AI Synthesized Results (if run) */}
             {aiResult && (
               <div
+                className="exp-ai-result-card"
                 style={{
                   backgroundColor: '#0a0a0d',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '32px',
+                  padding: '24px',
                   borderRadius: '2px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '24px',
+                  gap: '20px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
                   <div>
-                    <div className="eyebrow" style={{ marginBottom: '4px' }}>
+                    <div className="eyebrow exp-eyebrow" style={{ marginBottom: '4px' }}>
                       <span className="eyebrow-dot" />
                       <span>AI EVIDENCE SYNTHESIS // {aiResult.provider.toUpperCase()}</span>
                     </div>
@@ -1052,7 +1077,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     </h3>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <span className="badge badge-active">CONFIDENCE: {aiResult.confidence}</span>
                     <span className="badge">RECOMMENDATION: {aiResult.suggestedOutcome}</span>
                   </div>
@@ -1064,12 +1089,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
                 {/* Say-vs-Do Signals Section */}
                 {aiResult.sayVsDoSignals && aiResult.sayVsDoSignals.length > 0 && (
-                  <div style={{ backgroundColor: '#13110a', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '20px', borderRadius: '2px' }}>
+                  <div className="exp-ai-signal-box" style={{ backgroundColor: '#13110a', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '16px', borderRadius: '2px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>
                       POTENTIAL SAY-VS-DO SIGNAL
                     </div>
                     {aiResult.sayVsDoSignals.map((sig: any, idx: number) => (
-                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>
                           {sig.title}
                         </div>
@@ -1079,7 +1104,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                         <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
                           <strong>Observed Behavior:</strong> {sig.observedBehavior}
                         </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginTop: '2px' }}>
                           <em>{sig.interpretation}</em>
                         </div>
                       </div>
@@ -1088,15 +1113,15 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 )}
 
                 {/* Hypotheses & Recommendations Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                <div className="exp-ai-hyp-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                   {/* Hypotheses */}
                   <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                       WORKING HYPOTHESES (INTERPRETATIONS)
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {aiResult.hypotheses.map((hyp: any, i: number) => (
-                        <div key={i} style={{ backgroundColor: '#121215', padding: '14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="exp-ai-hyp-item" key={i} style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
                           <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
                             {hyp.statement}
                           </div>
@@ -1110,12 +1135,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
                   {/* Recommendations */}
                   <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
                       RECOMMENDED NEXT ACTIONS
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {aiResult.recommendations.map((rec: any, i: number) => (
-                        <div key={i} style={{ backgroundColor: '#121215', padding: '14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="exp-ai-hyp-item" key={i} style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
                           <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
                             {rec.action}
                           </div>
@@ -1130,7 +1155,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
                 {/* Evidence Limitations */}
                 {aiResult.limitations && aiResult.limitations.length > 0 && (
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
                     <strong>EVIDENCE LIMITATIONS: </strong> {aiResult.limitations.join(' | ')}
                   </div>
                 )}
@@ -1140,18 +1165,19 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             {/* C. Testing Progress Panel (When sample is too small) */}
             {!isSufficientEvidence && (
               <div
+                className="exp-progress-panel"
                 style={{
                   backgroundColor: '#0a0a0d',
                   border: '1px solid rgba(255, 255, 255, 0.16)',
-                  padding: '32px',
+                  padding: '24px',
                   borderRadius: '2px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '20px',
+                  gap: '16px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <AlertCircle size={20} style={{ color: '#ffffff', flexShrink: 0 }} />
+                  <AlertCircle size={18} style={{ color: '#ffffff', flexShrink: 0 }} />
                   <div>
                     <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: '#ffffff' }}>
                       We&apos;re Still Collecting Evidence
@@ -1159,16 +1185,16 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   </div>
                 </div>
 
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-200)', lineHeight: 1.6 }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
                   Your prototype has been visited by {visitorsCount} {visitorsCount === 1 ? 'person' : 'people'} and recorded {eventsCount} {eventsCount === 1 ? 'action' : 'actions'}. We need more testing before drawing reliable conclusions.
                 </p>
 
                 {/* Progress Indicators */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', backgroundColor: '#121215', padding: '20px', borderRadius: '2px' }}>
+                <div className="exp-progress-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', backgroundColor: '#121215', padding: '16px', borderRadius: '2px' }}>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                       <span>VISITORS TARGET</span>
-                      <span>{visitorsCount} / 5 minimum target</span>
+                      <span>{visitorsCount} / 5 target</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '1px', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.min(100, (visitorsCount / 5) * 100)}%`, height: '100%', backgroundColor: '#ffffff' }} />
@@ -1176,9 +1202,9 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   </div>
 
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                       <span>ACTIONS TARGET</span>
-                      <span>{eventsCount} / 20 minimum target</span>
+                      <span>{eventsCount} / 20 target</span>
                     </div>
                     <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '1px', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.min(100, (eventsCount / 20) * 100)}%`, height: '100%', backgroundColor: '#ffffff' }} />
@@ -1186,11 +1212,11 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
-                    These targets are guidelines for collecting initial evidence, not proof of statistical significance.
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
+                    These targets are guidelines for collecting initial evidence.
                   </span>
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={copyTestUrl} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
                       {copiedTestUrl ? 'Link Copied!' : 'Copy Test Link'}
                     </button>
@@ -1203,60 +1229,60 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             )}
 
             {/* D. What We Know So Far */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff', marginBottom: '4px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 600, color: '#ffffff', marginBottom: '2px' }}>
                   What We Know So Far
                 </h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
                   Findings calculated directly from your real prototype records.
                 </p>
               </div>
 
               {experiment.telemetrySummary?.empiricalFacts && experiment.telemetrySummary.empiricalFacts.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {experiment.telemetrySummary.empiricalFacts.map((fact: any) => (
-                    <div key={fact.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '20px 24px', borderRadius: '2px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div className="exp-fact-card" key={fact.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '16px 18px', borderRadius: '2px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, color: '#ffffff' }}>
                           {fact.title}
                         </span>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                          How Reliable Is This Finding? <strong style={{ color: '#ffffff' }}>{fact.confidence === 'HIGH' ? 'High' : fact.confidence === 'MODERATE' ? 'Moderate' : 'Early finding'}</strong>
+                          Reliability: <strong style={{ color: '#ffffff' }}>{fact.confidence === 'HIGH' ? 'High' : fact.confidence === 'MODERATE' ? 'Moderate' : 'Early'}</strong>
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.9375rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '10px' }}>
+                      <p style={{ fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '8px' }}>
                         {fact.statement}
                       </p>
-                      <div style={{ backgroundColor: '#121215', padding: '10px 14px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                      <div className="exp-evidence-box" style={{ backgroundColor: '#121215', padding: '8px 12px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
                         Supporting Evidence: {fact.evidence}
                       </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
                         Important limitation: {fact.limitations}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px', color: 'var(--color-silver-300)', fontSize: '0.875rem' }}>
+                <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px', borderRadius: '2px', color: 'var(--color-silver-300)', fontSize: '0.8125rem' }}>
                   No interactions recorded yet. As soon as visitors test your prototype, calculated findings will appear here.
                 </div>
               )}
             </div>
 
             {/* E. Suggestions for Improvement */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff', marginBottom: '4px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 600, color: '#ffffff', marginBottom: '2px' }}>
                   Suggestions for Improvement
                 </h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
                   Actionable next steps based on real observed behavior and feedback.
                 </p>
               </div>
 
               {isSufficientEvidence ? (
-                <div style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.16)', padding: '24px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="exp-suggestion-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.16)', padding: '18px 20px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className="badge badge-active">SUGGESTED NEXT STEP</span>
                   </div>
@@ -1264,7 +1290,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '4px' }}>
                       MEASURED FACT
                     </div>
-                    <p style={{ fontSize: '0.875rem', color: '#ffffff', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '0.875rem', color: '#ffffff', marginBottom: '10px' }}>
                       {experiment.telemetrySummary?.topInteractions?.[0]
                         ? `Visitors interacted with "${experiment.telemetrySummary.topInteractions[0].element}" ${experiment.telemetrySummary.topInteractions[0].count} time(s).`
                         : `${visitorsCount} people visited your prototype and took ${eventsCount} actions.`}
@@ -1273,7 +1299,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '4px' }}>
                       POSSIBLE EXPLANATION
                     </div>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-200)', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', marginBottom: '10px' }}>
                       Visitors are exploring the primary pathway, but clearer next steps could help guide them toward completing the full experience.
                     </p>
 
@@ -1286,18 +1312,18 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               ) : (
-                <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="exp-suggestion-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px 20px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div className="badge" style={{ alignSelf: 'flex-start' }}>
                     GENERAL SUGGESTION (NOT AN EXPERIMENT FINDING)
                   </div>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                    Because your experiment is still in the early stages with ${visitorsCount} visitor(s), we do not have enough evidence to identify specific usability problems yet.
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
+                    Because your experiment is still in the early stages with {visitorsCount} visitor(s), we do not have enough evidence to identify specific usability problems yet.
                   </p>
-                  <div style={{ backgroundColor: '#121215', padding: '14px 18px', borderRadius: '2px' }}>
+                  <div style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '4px' }}>
                       RECOMMENDED NEXT STEP
                     </div>
-                    <div style={{ fontSize: '0.875rem', color: '#ffffff' }}>
+                    <div style={{ fontSize: '0.8125rem', color: '#ffffff' }}>
                       Share your prototype with 3 to 5 colleagues, prospective users, or classmates and ask them to complete the primary action.
                     </div>
                   </div>
@@ -1309,43 +1335,43 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 6: DECIDE WHAT TO DO NEXT */}
         {activeTab === 'decision' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <div style={{ maxWidth: '820px' }}>
-              <div className="eyebrow" style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="exp-section-header" style={{ maxWidth: '820px' }}>
+              <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
                 <span className="eyebrow-dot" />
                 <span>DECISION PLANNING</span>
               </div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+              <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
                 Decide What to Do Next
               </h2>
-              <p style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
+              <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
                 Choose the best path forward based on your real evidence and test results. Your recorded decisions are saved permanently in your workspace.
               </p>
             </div>
 
             {decisionNotice && (
-              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '14px 18px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
+              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '12px 16px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
                 ✓ {decisionNotice}
               </div>
             )}
 
             {/* Low-data recommendation banner */}
             {(eventsCount < 20 || visitorsCount < 5) && (
-              <div style={{ backgroundColor: '#141108', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '20px 24px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <AlertCircle size={18} style={{ color: '#ffffff', flexShrink: 0 }} />
-                  <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
+              <div style={{ backgroundColor: '#141108', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '16px 18px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
+                  <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff' }}>
                     Our Recommendation: Run Another Test
                   </h4>
                 </div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
                   There&apos;s not enough evidence yet to make a confident decision. Your prototype currently has {visitorsCount} visitor(s) and {eventsCount} tracked action(s). Invite more testers before committing significant time or money.
                 </p>
               </div>
             )}
 
             {/* Five Understandable Options */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            <div className="exp-decision-options-grid">
               {[
                 {
                   outcome: 'BUILD' as DecisionOutcome,
@@ -1398,22 +1424,10 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   <div
                     key={item.outcome}
                     onClick={() => setSelectedDecision(item.outcome)}
-                    style={{
-                      padding: '24px 20px',
-                      backgroundColor: isSelected ? 'var(--color-white)' : '#0a0a0d',
-                      border: isSelected ? '1px solid #ffffff' : '1px solid var(--border-subtle)',
-                      color: isSelected ? '#000000' : '#ffffff',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                      transition: 'all 180ms ease',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                    }}
+                    className={`exp-decision-option-card ${isSelected ? 'selected' : ''}`}
                   >
                     <div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700 }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 700 }}>
                         {item.label}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: isSelected ? '#333333' : 'var(--color-silver-300)', marginTop: '4px', lineHeight: 1.4 }}>
@@ -1421,7 +1435,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       </div>
                     </div>
 
-                    <div style={{ fontSize: '0.6875rem', color: isSelected ? '#555555' : 'var(--color-gray-500)', borderTop: isSelected ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+                    <div style={{ fontSize: '0.6875rem', color: isSelected ? '#555555' : 'var(--color-gray-500)', borderTop: isSelected ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
                       {item.means}
                     </div>
                   </div>
@@ -1472,22 +1486,23 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
               return (
                 <div
+                  className="exp-decision-deepdive"
                   style={{
                     backgroundColor: '#0a0a0d',
                     border: '1px solid rgba(255, 255, 255, 0.16)',
-                    padding: '32px',
+                    padding: '24px',
                     borderRadius: '2px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '24px',
+                    gap: '20px',
                   }}
                 >
-                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                         SELECTED OPTION:
                       </div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 700, color: '#ffffff' }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
                         {current.label}
                       </div>
                     </div>
@@ -1496,7 +1511,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                         DATA RELIABILITY:
                       </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: eventsCount >= 20 ? '#ffffff' : 'var(--color-silver-300)' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: eventsCount >= 20 ? '#ffffff' : 'var(--color-silver-300)' }}>
                         {eventsCount >= 20 ? 'Supported by initial testing' : 'Low data — early exploratory decision'}
                       </div>
                     </div>
@@ -1504,16 +1519,16 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
                   {/* Warning if choosing to build with low data */}
                   {selectedDecision === 'BUILD' && eventsCount < 20 && (
-                    <div style={{ backgroundColor: '#181205', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '14px 18px', borderRadius: '2px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ backgroundColor: '#181205', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '12px 14px', borderRadius: '2px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.4 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-silver-200)', lineHeight: 1.4 }}>
                         Notice: You have chosen to build this idea, but only {eventsCount} action(s) have been tracked. We recommend collecting more evidence first to avoid building something users might not need.
                       </div>
                     </div>
                   )}
 
                   {/* 4 Details Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', backgroundColor: '#121215', padding: '20px', borderRadius: '2px' }}>
+                  <div className="exp-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', backgroundColor: '#121215', padding: '16px', borderRadius: '2px' }}>
                     <div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', marginBottom: '4px' }}>
                         WHAT THIS CHOICE MEANS
@@ -1553,7 +1568,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
                   {/* User Inputs Form */}
                   <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '6px' }}>
                       WHY DID YOU CHOOSE THIS DIRECTION? (YOUR REASONING) *
                     </label>
                     <textarea
@@ -1561,12 +1576,12 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       value={decisionReasoning}
                       onChange={(e) => setDecisionReasoning(e.target.value)}
                       placeholder={`Explain why you are choosing to ${current.label.toLowerCase()} based on what you saw in your prototype or what testers told you...`}
-                      style={{ width: '100%', padding: '12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
+                      style={{ width: '100%', padding: '10px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none', fontSize: '0.8125rem' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '6px' }}>
                       WHAT IS YOUR IMMEDIATE NEXT STEP?
                     </label>
                     <input
@@ -1574,11 +1589,11 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       value={decisionNextStep}
                       onChange={(e) => setDecisionNextStep(e.target.value)}
                       placeholder={current.nextStep}
-                      style={{ width: '100%', padding: '12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
+                      style={{ width: '100%', padding: '10px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none', fontSize: '0.8125rem' }}
                     />
                   </div>
 
-                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
                       Persists permanently to your workspace database
                     </span>
@@ -1587,7 +1602,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       onClick={handleSaveDecision}
                       disabled={savingDecision}
                       className="btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '10px 20px' }}
+                      style={{ fontSize: '0.75rem', padding: '9px 18px' }}
                     >
                       {savingDecision ? 'Saving decision...' : 'Save My Decision'}
                     </button>
@@ -1598,11 +1613,11 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Decision History / Audit Trail from Database */}
             {experiment.decisions && experiment.decisions.length > 0 && (
-              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '28px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', letterSpacing: '0.08em', marginBottom: '16px', textTransform: 'uppercase' }}>
+              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', letterSpacing: '0.08em', marginBottom: '12px', textTransform: 'uppercase' }}>
                   YOUR RECORDED DECISIONS ({experiment.decisions.length})
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {experiment.decisions.map((dec: any) => {
                     const outcomeNameMap: Record<string, string> = {
                       BUILD: 'Build It',
@@ -1614,21 +1629,21 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                     const outcomeLabel = outcomeNameMap[dec.outcome] || dec.outcome;
 
                     return (
-                      <div key={dec.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '24px', borderRadius: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div className="exp-audit-card" key={dec.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '16px 18px', borderRadius: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                           <span className="badge badge-active">{outcomeLabel}</span>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
                             Decided on {new Date(dec.decidedAt).toLocaleString()}
                           </span>
                         </div>
-                        <p style={{ fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '8px' }}>
+                        <p style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '6px' }}>
                           {dec.reasoning}
                         </p>
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
                           NEXT STEP: {dec.recommendedNextStep}
                         </div>
                         {dec.limitations && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', marginTop: '6px' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>
                             NOTE: {dec.limitations}
                           </div>
                         )}
@@ -1654,27 +1669,29 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '12px',
           }}
         >
           <div
+            className="exp-modal-box"
             style={{
               backgroundColor: '#0a0a0d',
               border: '1px solid rgba(255, 255, 255, 0.2)',
               borderRadius: '3px',
-              padding: '32px',
+              padding: '24px',
               maxWidth: '540px',
               width: '100%',
               boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
               position: 'relative',
+              boxSizing: 'border-box',
             }}
           >
             <button
               onClick={() => setShowShareModal(false)}
               style={{
                 position: 'absolute',
-                top: '20px',
-                right: '20px',
+                top: '16px',
+                right: '16px',
                 background: 'none',
                 border: 'none',
                 color: 'var(--color-silver-300)',
@@ -1684,21 +1701,21 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               <X size={18} />
             </button>
 
-            <div className="eyebrow" style={{ marginBottom: '6px' }}>
+            <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
               <span className="eyebrow-dot" />
               <span>SHAREABLE TEST LINK</span>
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
               Invite Real Testers
             </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginBottom: '20px' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginBottom: '16px' }}>
               Anyone with this link can test your prototype and submit feedback directly. No Wiqn account or login required.
             </p>
 
             {/* Environment Toggle if in Local Dev */}
             {isLocal && (
-              <div style={{ marginBottom: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
                     TARGET ENVIRONMENT
                   </span>
@@ -1714,7 +1731,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       flex: 1,
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.6875rem',
-                      padding: '7px 12px',
+                      padding: '7px 10px',
                       borderRadius: '2px',
                       cursor: 'pointer',
                       border: shareLinkMode === 'production' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
@@ -1723,7 +1740,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       fontWeight: shareLinkMode === 'production' ? 600 : 400,
                     }}
                   >
-                    PRODUCTION (VERCEL / PUBLIC)
+                    PRODUCTION
                   </button>
                   <button
                     type="button"
@@ -1732,7 +1749,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       flex: 1,
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.6875rem',
-                      padding: '7px 12px',
+                      padding: '7px 10px',
                       borderRadius: '2px',
                       cursor: 'pointer',
                       border: shareLinkMode === 'local' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
@@ -1741,17 +1758,17 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       fontWeight: shareLinkMode === 'local' ? 600 : 400,
                     }}
                   >
-                    LOCAL DEV (localhost)
+                    LOCAL DEV
                   </button>
                 </div>
                 {shareLinkMode === 'local' && (
-                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
-                    Notice: This localhost URL only opens on this computer. Switch to PRODUCTION (VERCEL / PUBLIC) to share with external testers on other phones or computers.
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '6px', lineHeight: 1.4 }}>
+                    Notice: This localhost URL only opens on this computer. Switch to PRODUCTION to share with external testers.
                   </p>
                 )}
                 {shareLinkMode === 'production' && (
-                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '8px', lineHeight: 1.4 }}>
-                    Production URL: Anyone with this link can test your prototype from any phone or computer across the internet.
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '6px', lineHeight: 1.4 }}>
+                    Production URL: Anyone with this link can test your prototype from any phone or computer.
                   </p>
                 )}
               </div>
@@ -1761,7 +1778,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
             <div
               style={{
                 backgroundColor: '#121215',
-                padding: '12px 16px',
+                padding: '10px 14px',
                 borderRadius: '2px',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.75rem',
@@ -1769,7 +1786,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '24px',
+                marginBottom: '18px',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 overflowX: 'auto',
               }}
@@ -1778,25 +1795,25 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               <button
                 onClick={() => copyTestUrl(publicTestUrl)}
                 className="btn-ghost"
-                style={{ flexShrink: 0, marginLeft: '12px', fontSize: '0.6875rem', padding: '4px 8px' }}
+                style={{ flexShrink: 0, marginLeft: '10px', fontSize: '0.6875rem', padding: '4px 8px' }}
               >
                 {copiedTestUrl ? 'Copied!' : 'Copy'}
               </button>
             </div>
 
             {/* One-Click Share Destinations */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
                 SHARE DIRECTLY VIA:
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 <a
                   href={shareUrls.whatsapp}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
                 >
                   WhatsApp
                 </a>
@@ -1806,7 +1823,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
                 >
                   X (Twitter)
                 </a>
@@ -1816,7 +1833,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
                 >
                   LinkedIn
                 </a>
@@ -1824,23 +1841,23 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 <a
                   href={shareUrls.email}
                   className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
                 >
                   Email
                 </a>
               </div>
             </div>
 
-            <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginTop: '18px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-                Attribution: Tied automatically to Experiment {experiment.id}
+                Attribution: Exp {experiment.id}
               </span>
               <a
                 href={publicTestUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary"
-                style={{ fontSize: '0.6875rem', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
                 <span>Open Test View</span>
                 <ExternalLink size={12} />

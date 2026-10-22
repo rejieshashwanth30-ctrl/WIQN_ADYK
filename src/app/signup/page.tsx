@@ -28,8 +28,9 @@ function SignupForm() {
     setIsExistingAccount(false);
 
     // 1. Email format validation
+    const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
@@ -53,11 +54,11 @@ function SignupForm() {
 
       // Sign up directly with email + password (instant session flow)
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
+        email: cleanEmail,
+        password, // Password is passed exactly as entered
         options: {
           data: {
-            name: name.trim() || email.trim().split('@')[0],
+            name: name.trim() || cleanEmail.split('@')[0],
           },
         },
       });
@@ -79,7 +80,7 @@ function SignupForm() {
         if (isExisting) {
           // If the account already exists, try signing in with the provided password immediately
           const { data: autoSignInData, error: autoSignInError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: cleanEmail,
             password,
           });
 
@@ -94,7 +95,7 @@ function SignupForm() {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                  name: name.trim() || email.trim().split('@')[0],
+                  name: name.trim() || cleanEmail.split('@')[0],
                 }),
               });
             } catch {}
@@ -134,7 +135,7 @@ function SignupForm() {
       if (data?.user && Array.isArray(identities) && identities.length === 0) {
         // User already exists in Supabase
         const { data: autoSignInData, error: autoSignInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: cleanEmail,
           password,
         });
 
@@ -149,7 +150,7 @@ function SignupForm() {
               },
               credentials: 'include',
               body: JSON.stringify({
-                name: name.trim() || email.trim().split('@')[0],
+                name: name.trim() || cleanEmail.split('@')[0],
               }),
             });
           } catch {}
@@ -170,7 +171,7 @@ function SignupForm() {
       let session = data?.session;
       if (!session) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: cleanEmail,
           password,
         });
 
@@ -460,6 +461,9 @@ function SignupForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="founder@venture.com"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               disabled={submitting || !!successMessage}
               style={{
                 width: '100%',

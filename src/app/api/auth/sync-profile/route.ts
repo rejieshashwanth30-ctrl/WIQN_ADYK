@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext, ensureApplicationUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const authResult = await getAuthenticatedUserContext(req);

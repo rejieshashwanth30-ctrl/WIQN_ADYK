@@ -333,8 +333,8 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* MOST INTERACTED ELEMENTS / CLICK DISTRIBUTION */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   CLICK DISTRIBUTION & ATTENTION TARGETS
@@ -349,12 +349,12 @@ export function BehavioralAnalyticsView({
             </div>
 
             {clickDistribution.elements.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+              <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
                 No button or link clicks recorded yet.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', minWidth: '480px' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', textAlign: 'left', color: 'var(--color-gray-500)' }}>
                       <th style={{ padding: '10px 12px' }}>ELEMENT / CTA LABEL</th>
@@ -406,8 +406,8 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* BEHAVIORAL SIGNALS (Strict Observation vs Interpretation vs Conclusion) */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-            <div style={{ marginBottom: '20px' }}>
+          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+            <div style={{ marginBottom: '16px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 EMPIRICAL BEHAVIORAL SIGNALS
               </div>
@@ -420,22 +420,22 @@ export function BehavioralAnalyticsView({
             </div>
 
             {behavioralSignals.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+              <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
                 Signals will be generated as visitors test your prototype.
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
                 {behavioralSignals.map((sig) => (
                   <div
                     key={sig.id}
                     style={{
                       backgroundColor: '#0c0c0f',
                       border: '1px solid rgba(255, 255, 255, 0.12)',
-                      padding: '20px',
+                      padding: '16px',
                       borderRadius: '2px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '12px',
+                      gap: '10px',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -456,7 +456,7 @@ export function BehavioralAnalyticsView({
                       </span>
                     </div>
 
-                    <div style={{ borderLeft: '2px solid #ffffff', paddingLeft: '12px' }}>
+                    <div style={{ borderLeft: '2px solid #ffffff', paddingLeft: '10px' }}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#ffffff', textTransform: 'uppercase' }}>
                         OBSERVATION (MEASURED)
                       </div>
@@ -465,7 +465,7 @@ export function BehavioralAnalyticsView({
                       </div>
                     </div>
 
-                    <div style={{ borderLeft: '2px solid var(--color-silver-300)', paddingLeft: '12px' }}>
+                    <div style={{ borderLeft: '2px solid var(--color-silver-300)', paddingLeft: '10px' }}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
                         INTERPRETATION (HYPOTHESIS)
                       </div>
@@ -474,7 +474,7 @@ export function BehavioralAnalyticsView({
                       </div>
                     </div>
 
-                    <div style={{ borderLeft: '2px solid rgba(255, 255, 255, 0.3)', paddingLeft: '12px' }}>
+                    <div style={{ borderLeft: '2px solid rgba(255, 255, 255, 0.3)', paddingLeft: '10px' }}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase' }}>
                         CONCLUSION (CAVEAT)
                       </div>
@@ -490,7 +490,7 @@ export function BehavioralAnalyticsView({
 
           {/* 7 STRUCTURED EVIDENCE CARDS */}
           <div>
-            <div style={{ marginBottom: '16px' }}>
+            <div style={{ marginBottom: '14px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 STRUCTURED EVIDENCE PACK
               </div>
@@ -499,13 +499,13 @@ export function BehavioralAnalyticsView({
               </h3>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+            <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
               {/* Card 1: WHAT USERS DID */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   1. {evidenceCards.whatUsersDid.title}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '14px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
                   {evidenceCards.whatUsersDid.statement}
                 </p>
                 <ul style={{ paddingLeft: '16px', margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -516,14 +516,14 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 2: WHAT USERS CLICKED */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   2. {evidenceCards.whatUsersClicked.title}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '14px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
                   {evidenceCards.whatUsersClicked.statement}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                   {evidenceCards.whatUsersClicked.items.map((it, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
                       <span style={{ color: '#ffffff' }}>• {it.label}</span>
@@ -534,11 +534,11 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 3: WHERE USERS DROPPED */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   3. {evidenceCards.whereUsersDropped.title}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '14px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
                   {evidenceCards.whereUsersDropped.statement}
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
@@ -553,14 +553,14 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 4: WHAT USERS SAID */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   4. {evidenceCards.whatUsersSaid.title}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '14px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
                   {evidenceCards.whatUsersSaid.statement}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {evidenceCards.whatUsersSaid.quotes.length > 0 ? (
                     evidenceCards.whatUsersSaid.quotes.map((q, i) => (
                       <div key={i} style={{ fontFamily: 'var(--font-primary)', fontStyle: 'italic', fontSize: '0.8125rem', color: '#d4d4d8', borderLeft: '2px solid rgba(255,255,255,0.2)', paddingLeft: '10px' }}>
@@ -576,11 +576,11 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 5: WHAT WE KNOW SO FAR */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   5. {evidenceCards.whatWeKnow.title}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {evidenceCards.whatWeKnow.facts.map((f, i) => (
                     <div key={i}>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: '#ffffff' }}>
@@ -595,11 +595,11 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 6: WHAT WE DON'T KNOW YET */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   6. {evidenceCards.whatWeDontKnowYet.title}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
                   {evidenceCards.whatWeDontKnowYet.uncertainties.map((u, i) => (
                     <div key={i} style={{ display: 'flex', gap: '8px' }}>
                       <span style={{ color: 'rgba(255,255,255,0.4)' }}>?</span>
@@ -610,13 +610,13 @@ export function BehavioralAnalyticsView({
               </div>
 
               {/* Card 7: WHAT TO TEST NEXT */}
-              <div style={{ backgroundColor: '#0a0a0d', border: '1px solid #ffffff', padding: '24px', borderRadius: '2px', gridColumn: '1 / -1' }}>
+              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid #ffffff', padding: '20px', borderRadius: '2px', gridColumn: '1 / -1' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                   7. {evidenceCards.whatToTestNext.title}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginTop: '10px' }}>
+                <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '10px', marginTop: '10px' }}>
                   {evidenceCards.whatToTestNext.recommendations.map((rec, i) => (
-                    <div key={i} style={{ backgroundColor: '#141418', border: '1px solid rgba(255,255,255,0.1)', padding: '14px', borderRadius: '2px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#ffffff' }}>
+                    <div key={i} style={{ backgroundColor: '#141418', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '2px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#ffffff' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', display: 'block', marginBottom: '4px' }}>
                         ACTION {i + 1}
                       </span>
@@ -979,8 +979,8 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* Scroll Depth Milestones */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-            <div style={{ marginBottom: '16px' }}>
+          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+            <div style={{ marginBottom: '14px' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 SCROLL DEPTH PENETRATION
               </div>
@@ -989,18 +989,18 @@ export function BehavioralAnalyticsView({
               </h3>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '12px' }}>
               {[
                 { depth: '25%', data: scrollDistribution.reaching25 },
                 { depth: '50%', data: scrollDistribution.reaching50 },
                 { depth: '75%', data: scrollDistribution.reaching75 },
                 { depth: '100%', data: scrollDistribution.reaching100 },
               ].map((item) => (
-                <div key={item.depth} style={{ backgroundColor: '#121216', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '2px' }}>
+                <div key={item.depth} style={{ backgroundColor: '#121216', border: '1px solid rgba(255,255,255,0.08)', padding: '14px', borderRadius: '2px' }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', fontWeight: 600 }}>
                     Reached {item.depth}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
                     {item.data.percentage}%
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
@@ -1017,8 +1017,8 @@ export function BehavioralAnalyticsView({
       {/* SUB-TAB 4: VISITOR PROFILES */}
       {/* ======================================================== */}
       {subTab === 'visitors' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px 20px', borderRadius: '2px' }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
               Individual Anonymous Visitor Profiles
             </h3>
@@ -1028,13 +1028,13 @@ export function BehavioralAnalyticsView({
           </div>
 
           {visitors.length === 0 ? (
-            <div style={{ padding: '48px', textAlign: 'center', backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ padding: '36px 20px', textAlign: 'center', backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)' }}>
               <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
                 No visitor profiles recorded yet.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
               {visitors.map((v) => (
                 <div
                   key={v.visitorId}
@@ -1042,11 +1042,11 @@ export function BehavioralAnalyticsView({
                   style={{
                     backgroundColor: '#0a0a0d',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    padding: '20px',
+                    padding: '16px 18px',
                     borderRadius: '2px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px',
+                    gap: '10px',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1067,7 +1067,7 @@ export function BehavioralAnalyticsView({
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                     <div>
                       <span style={{ color: 'var(--color-gray-500)' }}>Actions: </span>
                       <strong style={{ color: '#ffffff' }}>{v.actionsCount}</strong>
@@ -1091,7 +1091,7 @@ export function BehavioralAnalyticsView({
                   <button
                     onClick={() => setInspectedVisitor(v)}
                     className="btn-secondary"
-                    style={{ fontSize: '0.6875rem', padding: '6px 12px', marginTop: '6px' }}
+                    style={{ fontSize: '0.6875rem', padding: '6px 12px', marginTop: '4px' }}
                   >
                     View Visitor Timeline ({v.actionsCount}) →
                   </button>

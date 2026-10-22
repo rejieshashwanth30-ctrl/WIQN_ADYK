@@ -41,7 +41,7 @@ export function getProductionAppUrl(): string {
 
   // 2. Explicitly configured production environment variable
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '');
-  if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io')) {
+  if (envUrl && envUrl.startsWith('https://') && !envUrl.includes('adyk.io') && !envUrl.includes('adyk-wiqn.vercel.app')) {
     return envUrl;
   }
 
@@ -56,12 +56,8 @@ export function getProductionAppUrl(): string {
     return `https://${process.env.VERCEL_URL.trim().replace(/\/+$/, '')}`;
   }
 
-  // 4. Default Vercel production fallback (avoids any dead unowned domains)
-  if (envUrl && envUrl.startsWith('https://')) {
-    return envUrl;
-  }
-
-  return 'https://adyk-wiqn.vercel.app';
+  // 4. Default Vercel production fallback (points to verified active 200 OK production deployment)
+  return 'https://adykwiqn.vercel.app';
 }
 
 /**

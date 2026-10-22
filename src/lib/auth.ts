@@ -25,15 +25,17 @@ export interface AuthenticatedContext {
  * without cookie or storage dependencies.
  */
 function getStatelessSupabaseClient() {
-  const supabaseUrl =
+  const supabaseUrl = (
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
-    'https://xwwpvtmvbujtynyanywl.supabase.co';
-  const supabaseKey =
+    'https://xwwpvtmvbujtynyanywl.supabase.co'
+  ).trim().replace(/^["']|["']$/g, '');
+  const supabaseKey = (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
-    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
+    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0'
+  ).trim().replace(/^["']|["']$/g, '');
 
   return createSupabaseClient(supabaseUrl, supabaseKey, {
     auth: {
@@ -361,54 +363,6 @@ export async function getAuthenticatedUserContext(
     }
   }
 
-  // Resilient Founder Workspace Fallback:
-  // If no Supabase session was found (e.g. mobile Safari 3rd-party cookie restrictions,
-  // expired access token during drafting, or direct unauthenticated launch), resolve to the
-  // primary workspace founder profile in Neon PostgreSQL so launching and validating experiments
-  // never fails with cryptic 401 Unauthorized errors.
-  try {
-    let founder = await withDbRetry(() =>
-      prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: 'rejieshashwanth30@gmail.com' },
-            { role: 'FOUNDER' },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-      })
-    );
-
-    if (!founder) {
-      founder = await withDbRetry(() =>
-        prisma.user.upsert({
-          where: { email: 'rejieshashwanth30@gmail.com' },
-          update: {},
-          create: {
-            supabaseUserId: 'default_founder_wiqn',
-            email: 'rejieshashwanth30@gmail.com',
-            name: 'Rejiesh Ashwanth',
-            organization: 'ADYK',
-            role: 'FOUNDER',
-          },
-        })
-      );
-    }
-
-    if (founder) {
-      return {
-        success: true,
-        supabaseUser: {
-          id: founder.supabaseUserId || 'default_founder_wiqn',
-          email: founder.email,
-        },
-        applicationUser: founder,
-      };
-    }
-  } catch (neonErr: any) {
-    console.error('[WIQN AUTH] Neon default founder resolution error:', neonErr?.message || neonErr);
-  }
-
   return {
     success: false,
     error: 'Unauthorized: Session required',
@@ -488,12 +442,8 @@ export async function verifyExperimentOwnership(experimentId: string, applicatio
       return { status: 404, error: 'Experiment not found', experiment: null };
     }
 
-    // Direct account isolation or workspace founder access
-    const isAuthorized =
-      experiment.userId === applicationUserId ||
-      applicationUserId === 'cmvc3n9bn000013e6eanfpj0t' ||
-      experiment.user?.email === 'rejieshashwanth30@gmail.com' ||
-      experiment.user?.role === 'FOUNDER';
+    // Strict account isolation check (IDOR protection)
+    const isAuthorized = experiment.userId === applicationUserId;
 
     if (!isAuthorized) {
       return { status: 403, error: 'Access denied: unauthorized resource ownership', experiment: null };

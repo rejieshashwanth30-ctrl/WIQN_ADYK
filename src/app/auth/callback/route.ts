@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getPublicAppUrl } from '@/lib/urls';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const searchParams = requestUrl.searchParams;
@@ -20,8 +22,8 @@ export async function GET(request: NextRequest) {
     ? `${forwardedProto}://${forwardedHost}`
     : requestUrl.origin;
 
-  // Safety check: Never redirect users to any Vercel dashboard or management URLs
-  if (rawOrigin.includes('vercel.com')) {
+  // Safety check: Never redirect users to any Vercel dashboard or management URLs (vercel.com)
+  if (rawOrigin.includes('vercel.com') && !rawOrigin.includes('.vercel.app')) {
     rawOrigin = getPublicAppUrl({ forceProduction: true });
   }
 
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   // Determine next destination safely (prevent open redirect vulnerabilities)
   let next = searchParams.get('next');
-  if (next && (!next.startsWith('/') || next.startsWith('//') || next.includes('vercel.com'))) {
+  if (next && (!next.startsWith('/') || next.startsWith('//') || (next.includes('vercel.com') && !next.includes('.vercel.app')))) {
     next = null;
   }
 

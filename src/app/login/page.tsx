@@ -33,9 +33,16 @@ function LoginForm() {
     setErrorMessage(null);
     setShowResetAction(false);
 
-    // Client-side empty field validation
-    if (!email.trim() || !password) {
-      setErrorMessage('Please enter both your email address and password.');
+    // Client-side empty field and format validation
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Please enter your password.');
       return;
     }
 
@@ -44,8 +51,8 @@ function LoginForm() {
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+        email: cleanEmail,
+        password, // Password is passed exactly as entered without trimming or case conversion
       });
 
       if (error) {
@@ -58,7 +65,7 @@ function LoginForm() {
           msg.includes('invalid login credentials') ||
           msg.includes('invalid credentials')
         ) {
-          setErrorMessage('Incorrect email or password. Please verify your credentials or reset your password.');
+          setErrorMessage('Email or password is incorrect. Please check your credentials and try again.');
           setShowResetAction(true);
         } else if (msg.includes('email not confirmed')) {
           setErrorMessage(
@@ -290,6 +297,9 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="founder@venture.com"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             disabled={submitting}
             style={{
               width: '100%',

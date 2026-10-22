@@ -26,18 +26,63 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
   useEffect(() => {
     const supabase = createClient();
+
+    // 1. Resolve current user identity
     supabase.auth.getUser().then(({ data }: any) => {
       if (data?.user?.email) {
         setUserEmail(data.user.email);
+      } else {
+        // If on protected page without active user, navigate to login
+        if (pathname.startsWith('/dashboard') || pathname.startsWith('/experiments')) {
+          window.location.href = '/login';
+        }
       }
     });
-  }, []);
+
+    // 2. Synchronize multi-tab session state via auth change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange((event: string, session: any) => {
+      if (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION')) {
+        setUserEmail(null);
+        if (pathname.startsWith('/dashboard') || pathname.startsWith('/experiments')) {
+          window.location.href = '/login';
+        }
+      } else if (session?.user?.email) {
+        setUserEmail(session.user.email);
+      }
+    });
+
+    // 3. Prevent Back-Forward Cache (bfcache) from exposing stale protected pages on Chrome history navigation
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        supabase.auth.getSession().then(({ data }: any) => {
+          if (!data?.session) {
+            window.location.href = '/login';
+          }
+        });
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.refresh();
-    router.push('/login');
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[WIQN AUTH] SignOut warning:', err);
+    }
+
+    try {
+      sessionStorage.clear();
+    } catch {}
+
+    // Hard navigation purges Next.js router cache, memory state, and triggers fresh server check
+    window.location.href = '/login';
   };
 
   return (
@@ -68,7 +113,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         {/* Left: Brand & Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
           <Link href="/dashboard" aria-label="Wiqn Workspace" style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-            <BrandLogo size={26} showWordmark={true} wordmarkVariant="stacked" />
+            <BrandLogo size={32} showWordmark={true} wordmarkVariant="stacked" />
           </Link>
 
           <span className="dash-breadcrumb-sep" style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>/</span>
@@ -107,8 +152,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         </div>
 
         {/* Right: Actions & User Context */}
-        {/* Right: Actions & User Context */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <div className="dash-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <Link
             href="/"
             className="dash-icon-btn"
@@ -134,6 +178,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
           {/* Founder Identity Pill */}
           <div
+            className="dash-user-pill"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -146,6 +191,7 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
             title={userEmail || 'Authenticated Founder'}
           >
             <div
+              className="dash-user-avatar"
               style={{
                 width: '20px',
                 height: '20px',

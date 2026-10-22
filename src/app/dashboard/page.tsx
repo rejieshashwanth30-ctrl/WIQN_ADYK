@@ -15,6 +15,10 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       const res = await authenticatedFetch('/api/experiments');
+      if (res.status === 401) {
+        window.location.href = '/login?redirect=/dashboard';
+        return;
+      }
       if (res.ok) {
         const json = await res.json();
         setExperiments(json.data || []);

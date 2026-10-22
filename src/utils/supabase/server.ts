@@ -4,15 +4,17 @@ import { cookies } from 'next/headers';
 export async function createClient() {
   const cookieStore = await cookies();
 
-  const supabaseUrl =
+  const supabaseUrl = (
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
-    'https://xwwpvtmvbujtynyanywl.supabase.co';
-  const supabaseKey =
+    'https://xwwpvtmvbujtynyanywl.supabase.co'
+  ).trim().replace(/^["']|["']$/g, '');
+  const supabaseKey = (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
-    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
+    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0'
+  ).trim().replace(/^["']|["']$/g, '');
 
   return createServerClient(supabaseUrl, supabaseKey, {
     cookies: {

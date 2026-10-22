@@ -6,15 +6,17 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const supabaseUrl =
+  const supabaseUrl = (
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
-    'https://xwwpvtmvbujtynyanywl.supabase.co';
-  const supabaseKey =
+    'https://xwwpvtmvbujtynyanywl.supabase.co'
+  ).trim().replace(/^["']|["']$/g, '');
+  const supabaseKey = (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
-    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
+    'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0'
+  ).trim().replace(/^["']|["']$/g, '');
 
   if (!supabaseUrl || !supabaseKey) {
     return supabaseResponse;
@@ -55,16 +57,33 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Protected route check - allow drafting on /experiments/new with auto-save and resilient founder workspace
+  // Strict protected route check: all /dashboard and /experiments routes require authentication
   const isProtected =
     pathname.startsWith('/dashboard') ||
-    (pathname.startsWith('/experiments') && pathname !== '/experiments/new');
+    pathname.startsWith('/experiments');
+
+  // Prevent browser back/forward cache (bfcache) or proxies from caching private views
+  if (isProtected) {
+    supabaseResponse.headers.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
+    supabaseResponse.headers.set('Pragma', 'no-cache');
+    supabaseResponse.headers.set('Expires', '0');
+  }
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    redirectResponse.headers.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
+    redirectResponse.headers.set('Pragma', 'no-cache');
+    redirectResponse.headers.set('Expires', '0');
+    return redirectResponse;
   }
 
   // Redirect authenticated users away from /login and /signup

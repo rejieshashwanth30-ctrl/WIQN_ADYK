@@ -9,6 +9,8 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest, { params }: RouteContext) {
   try {
     const authResult = await getAuthenticatedUserContext(req);

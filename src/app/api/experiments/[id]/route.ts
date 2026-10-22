@@ -15,6 +15,8 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
     const authResult = await getAuthenticatedUserContext(req);
@@ -206,6 +208,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
             metadata: e.metadata || null,
           })),
         },
+      },
+    }, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
       },
     });
   } catch (error) {

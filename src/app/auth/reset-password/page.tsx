@@ -49,8 +49,9 @@ function ResetPasswordForm() {
     setErrorMessage(null);
     setInfoMessage(null);
 
+    const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
@@ -67,7 +68,7 @@ function ResetPasswordForm() {
       // Ensure redirect lands safely on Wiqn application callback, NEVER Vercel
       const redirectTo = `${origin}/auth/callback?next=/auth/reset-password`;
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo,
       });
 
@@ -326,6 +327,9 @@ function ResetPasswordForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="founder@venture.com"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 disabled={submitting}
                 style={{
                   width: '100%',

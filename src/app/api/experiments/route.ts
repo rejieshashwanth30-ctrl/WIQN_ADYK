@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUserContext } from '@/lib/auth';
 import { prisma, withDbRetry } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const authResult = await getAuthenticatedUserContext(req);
@@ -78,10 +80,20 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      status: 'success',
-      data: mapped,
-    });
+    return NextResponse.json(
+      {
+        status: 'success',
+        data: mapped,
+      },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching user experiments from Neon:', error);
     return NextResponse.json({ error: 'Internal server error fetching experiments' }, { status: 500 });

@@ -15,7 +15,11 @@ export const metadata: Metadata = {
     'founder research',
   ],
   publisher: 'ADYK',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://adyk-wiqn.vercel.app')),
+  metadataBase: new URL(
+    (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('adyk-wiqn'))
+      ? process.env.NEXT_PUBLIC_APP_URL
+      : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://adykwiqn.vercel.app')
+  ),
   alternates: {
     canonical: '/',
   },
