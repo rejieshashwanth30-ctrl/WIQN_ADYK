@@ -65,13 +65,14 @@ export const BehavioralEvidenceSection: React.FC = () => {
         borderBottom: '1px solid #e4e4e7',
       }}
     >
+      <div id="product" style={{ position: 'relative', top: '-80px', visibility: 'hidden' }} />
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Section Header */}
+        {/* Section Header (Part 27: 03 - What WIQN Measures) */}
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>BEHAVIORAL EVIDENCE</span>
+              <span>03 // WHAT WIQN MEASURES</span>
             </div>
           </div>
 
@@ -86,7 +87,7 @@ export const BehavioralEvidenceSection: React.FC = () => {
               marginBottom: '16px',
             }}
           >
-            SEE WHAT USERS ACTUALLY DO.
+            What WIQN Measures
           </h2>
 
           <p

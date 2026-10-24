@@ -33,7 +33,7 @@ const PROBLEMS = [
 export const TheProblemSection: React.FC = () => {
   return (
     <section
-      id="problem"
+      id="why-wiqn"
       style={{
         padding: 'clamp(72px, 11vh, 128px) 20px',
         backgroundColor: '#fafafa',
@@ -42,12 +42,12 @@ export const TheProblemSection: React.FC = () => {
       }}
     >
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        {/* Section Header */}
+        {/* Section Header (Part 27: 04 - Why WIQN) */}
         <div style={{ textAlign: 'center', marginBottom: '52px' }}>
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>THE PROBLEM</span>
+              <span>04 // WHY WIQN</span>
             </div>
           </div>
 

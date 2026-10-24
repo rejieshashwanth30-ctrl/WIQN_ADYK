@@ -19,7 +19,7 @@ export const FinalCtaSection: React.FC = () => {
         <div style={{ marginBottom: '16px' }}>
           <div className="eyebrow-light">
             <span className="eyebrow-dot-light" />
-            <span>START EXPERIMENTING TODAY</span>
+            <span>09 // START VALIDATING</span>
           </div>
         </div>
 
@@ -65,9 +65,9 @@ export const FinalCtaSection: React.FC = () => {
             href="/experiments/new"
             className="btn-primary-light"
             style={{ padding: '14px 28px', fontSize: '0.875rem' }}
-            aria-label="Start an Experiment"
+            aria-label="Start Validating"
           >
-            <span>Start an Experiment</span>
+            <span>Start Validating</span>
             <ArrowUpRight size={16} />
           </Link>
 

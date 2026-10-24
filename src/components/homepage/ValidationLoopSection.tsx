@@ -92,19 +92,19 @@ export const ValidationLoopSection: React.FC = () => {
 
   return (
     <section
-      id="loop"
+      id="how-it-works"
       style={{
         padding: 'clamp(72px, 11vh, 128px) 20px',
         backgroundColor: '#ffffff',
       }}
     >
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Section Header */}
+        {/* Section Header (Part 27: 02 - How WIQN Works) */}
         <div style={{ textAlign: 'center', marginBottom: '56px' }}>
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>THE VALIDATION LOOP</span>
+              <span>02 // HOW WIQN WORKS</span>
             </div>
           </div>
 
@@ -119,7 +119,7 @@ export const ValidationLoopSection: React.FC = () => {
               marginBottom: '16px',
             }}
           >
-            FORMULATE. TEST. OBSERVE. LEARN.
+            How WIQN Works
           </h2>
 
           <p

@@ -8,8 +8,10 @@ const JOURNEY_STEPS = [
   { num: '01', label: 'IDEA', detail: 'Falsifiable Hypothesis' },
   { num: '02', label: 'PROTOTYPE', detail: 'Interactive URL' },
   { num: '03', label: 'REAL USERS', detail: 'Authentic Testers' },
-  { num: '04', label: 'EVIDENCE', detail: 'Telemetry & Signals' },
-  { num: '05', label: 'DECISION', detail: 'Structured Verdict' },
+  { num: '04', label: 'BEHAVIOR', detail: 'Telemetry & Clicks' },
+  { num: '05', label: 'FEEDBACK', detail: 'Qualitative Signals' },
+  { num: '06', label: 'AI INSIGHTS', detail: 'Epistemic Synthesis' },
+  { num: '07', label: 'DECISION', detail: 'Build, Improve, Pivot' },
 ];
 
 export const HeroSection: React.FC = () => {
@@ -51,11 +53,11 @@ export const HeroSection: React.FC = () => {
         <div style={{ marginBottom: '24px' }}>
           <div className="eyebrow-light">
             <span className="eyebrow-dot-light" />
-            <span>WIQN &nbsp;//&nbsp; PRODUCT VALIDATION &amp; EXPERIMENTATION</span>
+            <span>WIQN &nbsp;//&nbsp; PRODUCT VALIDATION &amp; EXPERIMENTATION PLATFORM</span>
           </div>
         </div>
 
-        {/* Main Controlled Headline */}
+        {/* Main Headline (Part 26) */}
         <h1
           style={{
             fontFamily: 'var(--font-display)',
@@ -68,10 +70,10 @@ export const HeroSection: React.FC = () => {
             textWrap: 'balance',
           }}
         >
-          FROM IDEA TO EVIDENCE.
+          Test Ideas. Discover Truth. Build Smarter.
         </h1>
 
-        {/* Supporting Headline */}
+        {/* Supporting Headline (Part 26) */}
         <p
           style={{
             fontFamily: 'var(--font-primary)',
@@ -79,15 +81,15 @@ export const HeroSection: React.FC = () => {
             fontWeight: 500,
             color: '#18181b',
             lineHeight: 1.5,
-            maxWidth: '720px',
+            maxWidth: '740px',
             margin: '0 auto 16px auto',
             textWrap: 'pretty',
           }}
         >
-          Test what you build with real users, behavioral evidence, feedback, and AI-assisted interpretation.
+          Validate product ideas with real users, behavioral evidence, feedback, and AI-powered insights before investing heavily in development.
         </p>
 
-        {/* Core Value Paragraph: Clear, Direct, Editorial */}
+        {/* First Viewport Explanation: What is WIQN? Who is it for? Why does it matter? */}
         <p
           style={{
             fontSize: 'clamp(0.9375rem, 1.8vw, 1.0625rem)',
@@ -97,10 +99,10 @@ export const HeroSection: React.FC = () => {
             margin: '0 auto 36px auto',
           }}
         >
-          WIQN is an experimentation platform for founders and product teams. Connect any prototype, observe authentic tester behavior, capture qualitative friction signals, and make confident product decisions before heavy engineering investment.
+          Built for founders, product builders, and startups. Connect your live prototype or website, invite authentic testers, autocapture physical clicks and friction, and decide whether to build, improve, or pivot with data-driven conviction.
         </p>
 
-        {/* Primary & Secondary CTAs */}
+        {/* Primary & Secondary CTAs (Part 26) */}
         <div
           style={{
             display: 'flex',
@@ -114,18 +116,20 @@ export const HeroSection: React.FC = () => {
           <Link
             href="/experiments/new"
             className="btn-primary-light"
-            aria-label="Start an Experiment"
+            aria-label="Start Validating"
+            style={{ padding: '14px 28px', fontSize: '0.875rem' }}
           >
-            <span>Start an Experiment</span>
+            <span>Start Validating</span>
             <ArrowUpRight size={15} />
           </Link>
 
           <Link
             href="#how-it-works"
             className="btn-secondary-light"
-            aria-label="Explore WIQN"
+            aria-label="See How It Works"
+            style={{ padding: '14px 24px', fontSize: '0.875rem' }}
           >
-            <span>Explore WIQN</span>
+            <span>See How It Works</span>
             <ArrowDown size={14} />
           </Link>
         </div>

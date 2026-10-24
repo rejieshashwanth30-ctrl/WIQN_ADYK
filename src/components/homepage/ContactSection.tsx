@@ -54,7 +54,7 @@ export const ContactSection: React.FC = () => {
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>GET IN TOUCH</span>
+              <span>08 // CONTACT</span>
             </div>
           </div>
 

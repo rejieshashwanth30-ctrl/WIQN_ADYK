@@ -3,16 +3,12 @@
 import React from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
-import { StickyValidationJourney } from '@/components/homepage/StickyValidationJourney';
 import { HeroSection } from '@/components/homepage/HeroSection';
-import { TheProblemSection } from '@/components/homepage/TheProblemSection';
 import { ValidationLoopSection } from '@/components/homepage/ValidationLoopSection';
 import { BehavioralEvidenceSection } from '@/components/homepage/BehavioralEvidenceSection';
-import { QualitativeSignalsSection } from '@/components/homepage/QualitativeSignalsSection';
-import { AiInterpretationSection } from '@/components/homepage/AiInterpretationSection';
-import { DecisionFrameworkSection } from '@/components/homepage/DecisionFrameworkSection';
-import { ProductExperienceSection } from '@/components/homepage/ProductExperienceSection';
+import { TheProblemSection } from '@/components/homepage/TheProblemSection';
 import { WhoItIsForSection } from '@/components/homepage/WhoItIsForSection';
+import { AboutWiqnSection } from '@/components/homepage/AboutWiqnSection';
 import { CompanyLeadershipSection } from '@/components/homepage/CompanyLeadershipSection';
 import { ContactSection } from '@/components/homepage/ContactSection';
 import { FinalCtaSection } from '@/components/homepage/FinalCtaSection';
@@ -39,45 +35,33 @@ export default function HomePage() {
       {/* Light Theme Navigation Header */}
       <Navigation theme="light" />
 
-      {/* Desktop Sticky Validation Journey Indicator */}
-      <StickyValidationJourney />
-
-      {/* Main Content Sections */}
+      {/* Main Content Sections: Exact 9-section compact architecture */}
       <main style={{ position: 'relative', zIndex: 1 }}>
-        {/* Section 01: Hero */}
+        {/* 01 — Hero */}
         <HeroSection />
 
-        {/* Section 02: The Problem */}
-        <TheProblemSection />
-
-        {/* Section 03: The Validation Loop */}
+        {/* 02 — How WIQN Works */}
         <ValidationLoopSection />
 
-        {/* Section 04: Behavioral Evidence */}
+        {/* 03 — What WIQN Measures */}
         <BehavioralEvidenceSection />
 
-        {/* Section 05: Qualitative Signals */}
-        <QualitativeSignalsSection />
+        {/* 04 — Why WIQN */}
+        <TheProblemSection />
 
-        {/* Section 06: AI Interpretation */}
-        <AiInterpretationSection />
-
-        {/* Section 07: Decision Framework */}
-        <DecisionFrameworkSection />
-
-        {/* Section 08: Product Experience */}
-        <ProductExperienceSection />
-
-        {/* Section 09: Who It Is For */}
+        {/* 05 — Built For */}
         <WhoItIsForSection />
 
-        {/* Company Leadership & Built By */}
+        {/* 06 — About WIQN */}
+        <AboutWiqnSection />
+
+        {/* 07 — Built By (Rejiesh Ashwanth V) */}
         <CompanyLeadershipSection />
 
-        {/* Contact & Inquiries */}
+        {/* 08 — Contact (Dineshraj S & Rejiesh Ashwanth V) */}
         <ContactSection />
 
-        {/* Section 10: Final CTA */}
+        {/* 09 — Final CTA */}
         <FinalCtaSection />
       </main>
 

@@ -10,12 +10,15 @@ import { createClient } from '@/utils/supabase/client';
 interface DashboardNavProps {
   currentExperimentId?: string;
   currentExperimentName?: string;
+  theme?: 'light' | 'dark';
 }
 
 export const DashboardNav: React.FC<DashboardNavProps> = ({
   currentExperimentId,
   currentExperimentName,
+  theme = 'dark',
 }) => {
+  const isLight = theme === 'light';
   const pathname = usePathname();
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -87,14 +90,15 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
   return (
     <header
+      className={isLight ? 'dash-nav-light' : ''}
       style={{
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backgroundColor: 'rgba(7, 7, 9, 0.94)',
+        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(7, 7, 9, 0.94)',
         backdropFilter: 'blur(14px)',
         WebkitBackdropFilter: 'blur(14px)',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderBottom: isLight ? '1px solid #e4e4e7' : '1px solid var(--border-subtle)',
       }}
     >
       <div
@@ -113,19 +117,20 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
         {/* Left: Brand & Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
           <Link href="/dashboard" aria-label="Wiqn Workspace" style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-            <BrandLogo size={32} showWordmark={true} wordmarkVariant="stacked" />
+            <BrandLogo size={32} showWordmark={true} wordmarkVariant="stacked" theme={isLight ? 'light' : 'dark'} />
           </Link>
 
-          <span className="dash-breadcrumb-sep" style={{ color: 'var(--color-gray-500)', fontSize: '0.875rem' }}>/</span>
+          <span className="dash-breadcrumb-sep" style={{ color: isLight ? '#a1a1aa' : 'var(--color-gray-500)', fontSize: '0.875rem' }}>/</span>
 
           <nav className="dash-breadcrumb-nav" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', minWidth: 0, overflow: 'hidden' }}>
             <Link
               href="/dashboard"
               style={{
-                color: isDashboard ? 'var(--color-white)' : 'var(--color-silver-300)',
+                color: isDashboard ? (isLight ? '#09090b' : 'var(--color-white)') : (isLight ? '#52525b' : 'var(--color-silver-300)'),
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 flexShrink: 0,
+                fontWeight: isDashboard ? 600 : 400,
               }}
             >
               Workspace
@@ -133,8 +138,8 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
             {isNew && (
               <>
-                <span style={{ color: 'var(--color-gray-500)' }}>/</span>
-                <span style={{ color: 'var(--color-white)', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                <span style={{ color: isLight ? '#a1a1aa' : 'var(--color-gray-500)' }}>/</span>
+                <span style={{ color: isLight ? '#09090b' : 'var(--color-white)', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', fontWeight: 600 }}>
                   New
                 </span>
               </>
@@ -142,8 +147,8 @@ export const DashboardNav: React.FC<DashboardNavProps> = ({
 
             {isDetail && currentExperimentName && (
               <>
-                <span style={{ color: 'var(--color-gray-500)' }}>/</span>
-                <span style={{ color: 'var(--color-white)', letterSpacing: '0.04em', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ color: isLight ? '#a1a1aa' : 'var(--color-gray-500)' }}>/</span>
+                <span style={{ color: isLight ? '#09090b' : 'var(--color-white)', letterSpacing: '0.04em', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                   {currentExperimentName}
                 </span>
               </>

@@ -65,16 +65,13 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
               <BrandLogo size={32} showWordmark={true} wordmarkVariant="default" theme={isLight ? 'light' : 'dark'} />
             </Link>
 
-            {/* Desktop Navigation Links */}
+            {/* Desktop Navigation Links (Part 29) */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
               <Link href="#product" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 Product
               </Link>
               <Link href="#how-it-works" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 How It Works
-              </Link>
-              <Link href="#loop" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-                The Loop
               </Link>
               <Link href="#evidence" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 Evidence
@@ -127,7 +124,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
         </div>
       </header>
 
-      {/* Mobile Navigation Drawer Overlay */}
+      {/* Mobile Navigation Drawer Overlay (Part 29) */}
       {mobileOpen && (
         <div
           id="mobile-navigation-drawer"
@@ -156,7 +153,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                01 // Product Suite
+                Product
               </Link>
 
               <Link
@@ -164,15 +161,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                02 // The Problem & Method
-              </Link>
-
-              <Link
-                href="#loop"
-                onClick={() => setMobileOpen(false)}
-                className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
-              >
-                03 // Validation Loop
+                How It Works
               </Link>
 
               <Link
@@ -180,7 +169,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                04 // Behavioral Evidence
+                Evidence
               </Link>
 
               <Link
@@ -188,7 +177,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                05 // About WIQN
+                About
               </Link>
 
               <Link
@@ -196,7 +185,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                06 // Leadership
+                Company
               </Link>
 
               <Link
@@ -204,7 +193,7 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                07 // Contact
+                Contact
               </Link>
             </div>
 

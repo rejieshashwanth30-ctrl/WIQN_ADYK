@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Activity,
   MousePointer,
@@ -9,8 +9,11 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Clock,
   ArrowRight,
+  ArrowDown,
   TrendingDown,
   AlertCircle,
   CheckCircle2,
@@ -20,6 +23,9 @@ import {
   FileText,
   Eye,
   RefreshCw,
+  BarChart2,
+  GitCommit,
+  Share2,
 } from 'lucide-react';
 import { BehavioralAnalyticsResult, ClickedElementMetric, computeBehavioralAnalytics } from '@/lib/behavioralAnalytics';
 import { authenticatedFetch } from '@/lib/api-client';
@@ -63,12 +69,15 @@ export function BehavioralAnalyticsView({
     hasPrevPage: boolean;
   }>({
     page: 1,
-    totalPages: Math.max(1, Math.ceil(initialEvents.length / 25)),
+    totalPages: Math.max(1, Math.ceil((initialEvents.length || 0) / 25)),
     totalCount: initialEvents.length,
     hasNextPage: false,
     hasPrevPage: false,
   });
   const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Expanded dimension in 7 Evidence Dimensions to prevent wall-of-text
+  const [expandedDimension, setExpandedDimension] = useState<string | null>(null);
 
   // Modals / Detail drawers
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
@@ -135,25 +144,171 @@ export function BehavioralAnalyticsView({
     evidenceCards,
   } = effectiveBehavioral;
 
+  // Build Chronological User Activity Timeline from real events (Part 8 #1)
+  const timelineBuckets = useMemo(() => {
+    const rawEvents = initialEvents && initialEvents.length > 0 ? initialEvents : explorerEvents;
+    if (!rawEvents || rawEvents.length === 0) return [];
+
+    // Sort chronological ascending
+    const sorted = [...rawEvents].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    const count = sorted.length;
+    const bucketCount = Math.min(6, Math.max(1, count));
+    const bucketSize = Math.max(1, Math.ceil(count / bucketCount));
+
+    const buckets: Array<{
+      id: number;
+      timeLabel: string;
+      views: number;
+      clicks: number;
+      forms: number;
+      feedback: number;
+      total: number;
+    }> = [];
+
+    for (let i = 0; i < sorted.length; i += bucketSize) {
+      const slice = sorted.slice(i, i + bucketSize);
+      if (slice.length === 0) continue;
+
+      let views = 0;
+      let clicks = 0;
+      let forms = 0;
+      let feedback = 0;
+
+      slice.forEach((ev) => {
+        const upper = (ev.eventType || '').toUpperCase();
+        if (upper.includes('PAGE') || upper.includes('VIEW')) views++;
+        else if (upper.includes('CLICK') || upper.includes('TAP') || upper.includes('BUTTON')) clicks++;
+        else if (upper.includes('FORM')) forms++;
+        else if (upper.includes('FEEDBACK')) feedback++;
+        else views++; // default to general interaction
+      });
+
+      const firstTime = new Date(slice[0].timestamp);
+      const timeStr = firstTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      buckets.push({
+        id: buckets.length + 1,
+        timeLabel: timeStr,
+        views,
+        clicks,
+        forms,
+        feedback,
+        total: slice.length,
+      });
+    }
+
+    return buckets;
+  }, [initialEvents, explorerEvents]);
+
+  // Max events in any bucket for chart scaling
+  const maxBucketCount = useMemo(() => {
+    if (timelineBuckets.length === 0) return 1;
+    return Math.max(...timelineBuckets.map((b) => b.total), 1);
+  }, [timelineBuckets]);
+
+  // Visual Funnel stages (Part 8 #3)
+  const funnelStages = useMemo(() => {
+    const vCount = bMetrics.totalVisitors || 0;
+    const viewCount = bMetrics.totalVisitors || 0; // Each visitor viewed prototype
+    const clickCount = clickDistribution.uniqueClickers || 0;
+    const formStartCount = funnel.steps?.[2]?.count || 0;
+    const feedbackCount = bMetrics.totalFeedback || 0;
+
+    return [
+      {
+        step: 1,
+        title: 'Visitors',
+        count: vCount,
+        percentage: vCount > 0 ? 100 : 0,
+        dropOff: 0,
+        dropOffPct: 0,
+        hasData: vCount > 0,
+      },
+      {
+        step: 2,
+        title: 'Prototype Viewed',
+        count: viewCount,
+        percentage: vCount > 0 ? Math.round((viewCount / vCount) * 100) : 0,
+        dropOff: 0,
+        dropOffPct: 0,
+        hasData: viewCount > 0,
+      },
+      {
+        step: 3,
+        title: 'Interaction (Clicks)',
+        count: clickCount,
+        percentage: vCount > 0 ? Math.round((clickCount / vCount) * 100) : 0,
+        dropOff: Math.max(0, viewCount - clickCount),
+        dropOffPct: viewCount > 0 ? Math.round(((viewCount - clickCount) / viewCount) * 100) : 0,
+        hasData: clickCount > 0,
+      },
+      {
+        step: 4,
+        title: 'Form Started',
+        count: formStartCount,
+        percentage: vCount > 0 ? Math.round((formStartCount / vCount) * 100) : 0,
+        dropOff: Math.max(0, clickCount - formStartCount),
+        dropOffPct: clickCount > 0 ? Math.round(((clickCount - formStartCount) / clickCount) * 100) : 0,
+        hasData: formStartCount > 0,
+      },
+      {
+        step: 5,
+        title: 'Feedback Submitted',
+        count: feedbackCount,
+        percentage: vCount > 0 ? Math.round((feedbackCount / vCount) * 100) : 0,
+        dropOff: Math.max(0, (formStartCount > 0 ? formStartCount : clickCount) - feedbackCount),
+        dropOffPct: (formStartCount > 0 ? formStartCount : clickCount) > 0
+          ? Math.round((((formStartCount > 0 ? formStartCount : clickCount) - feedbackCount) / (formStartCount > 0 ? formStartCount : clickCount)) * 100)
+          : 0,
+        hasData: feedbackCount > 0,
+      },
+    ];
+  }, [bMetrics, clickDistribution, funnel]);
+
+  const toggleDimension = (key: string) => {
+    setExpandedDimension((prev) => (prev === key ? null : key));
+  };
+
+  // Helper for confidence badge styling
+  const renderConfidenceBadge = (confidence: string, rationale?: string) => {
+    const cUpper = (confidence || 'EARLY').toUpperCase();
+    let badgeClass = 'exp-evidence-badge early';
+    if (cUpper === 'HIGH') badgeClass = 'exp-evidence-badge high';
+    else if (cUpper === 'MODERATE') badgeClass = 'exp-evidence-badge moderate';
+    else if (cUpper === 'INSUFFICIENT') badgeClass = 'exp-evidence-badge insufficient';
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span className={badgeClass}>{cUpper}</span>
+        {rationale && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
+            {rationale}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Sub-navigation Bar */}
       <div
-        className="ba-subnav-container"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '12px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+          borderBottom: '1px solid #e4e4e7',
           paddingBottom: '12px',
         }}
       >
-        <div className="ba-subnav-scroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setSubTab('overview')}
-            className={`ba-subnav-btn ${subTab === 'overview' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -161,15 +316,17 @@ export function BehavioralAnalyticsView({
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderRadius: '2px',
-              border: subTab === 'overview' ? '1px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
-              backgroundColor: subTab === 'overview' ? '#ffffff' : 'transparent',
-              color: subTab === 'overview' ? '#000000' : 'var(--color-silver-300)',
+              borderRadius: '4px',
+              border: subTab === 'overview' ? '1px solid #09090b' : '1px solid #e4e4e7',
+              backgroundColor: subTab === 'overview' ? '#09090b' : '#ffffff',
+              color: subTab === 'overview' ? '#ffffff' : '#52525b',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
               flexShrink: 0,
+              minHeight: '38px',
+              transition: 'all 160ms ease',
             }}
           >
             <Activity size={14} />
@@ -178,7 +335,6 @@ export function BehavioralAnalyticsView({
 
           <button
             onClick={() => setSubTab('explorer')}
-            className={`ba-subnav-btn ${subTab === 'explorer' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -186,15 +342,17 @@ export function BehavioralAnalyticsView({
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderRadius: '2px',
-              border: subTab === 'explorer' ? '1px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
-              backgroundColor: subTab === 'explorer' ? '#ffffff' : 'transparent',
-              color: subTab === 'explorer' ? '#000000' : 'var(--color-silver-300)',
+              borderRadius: '4px',
+              border: subTab === 'explorer' ? '1px solid #09090b' : '1px solid #e4e4e7',
+              backgroundColor: subTab === 'explorer' ? '#09090b' : '#ffffff',
+              color: subTab === 'explorer' ? '#ffffff' : '#52525b',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
               flexShrink: 0,
+              minHeight: '38px',
+              transition: 'all 160ms ease',
             }}
           >
             <MousePointer size={14} />
@@ -203,7 +361,6 @@ export function BehavioralAnalyticsView({
 
           <button
             onClick={() => setSubTab('journeys')}
-            className={`ba-subnav-btn ${subTab === 'journeys' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -211,24 +368,25 @@ export function BehavioralAnalyticsView({
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderRadius: '2px',
-              border: subTab === 'journeys' ? '1px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
-              backgroundColor: subTab === 'journeys' ? '#ffffff' : 'transparent',
-              color: subTab === 'journeys' ? '#000000' : 'var(--color-silver-300)',
+              borderRadius: '4px',
+              border: subTab === 'journeys' ? '1px solid #09090b' : '1px solid #e4e4e7',
+              backgroundColor: subTab === 'journeys' ? '#09090b' : '#ffffff',
+              color: subTab === 'journeys' ? '#ffffff' : '#52525b',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
               flexShrink: 0,
+              minHeight: '38px',
+              transition: 'all 160ms ease',
             }}
           >
             <Compass size={14} />
-            <span>Journeys & Funnel</span>
+            <span>Journeys &amp; Funnel</span>
           </button>
 
           <button
             onClick={() => setSubTab('visitors')}
-            className={`ba-subnav-btn ${subTab === 'visitors' ? 'active' : ''}`}
             style={{
               padding: '8px 16px',
               fontFamily: 'var(--font-mono)',
@@ -236,15 +394,17 @@ export function BehavioralAnalyticsView({
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              borderRadius: '2px',
-              border: subTab === 'visitors' ? '1px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
-              backgroundColor: subTab === 'visitors' ? '#ffffff' : 'transparent',
-              color: subTab === 'visitors' ? '#000000' : 'var(--color-silver-300)',
+              borderRadius: '4px',
+              border: subTab === 'visitors' ? '1px solid #09090b' : '1px solid #e4e4e7',
+              backgroundColor: subTab === 'visitors' ? '#09090b' : '#ffffff',
+              color: subTab === 'visitors' ? '#ffffff' : '#52525b',
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
               flexShrink: 0,
+              minHeight: '38px',
+              transition: 'all 160ms ease',
             }}
           >
             <User size={14} />
@@ -255,8 +415,8 @@ export function BehavioralAnalyticsView({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="btn-ghost ba-refresh-btn"
-            style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            className="exp-btn-secondary"
+            style={{ fontSize: '0.6875rem', padding: '6px 12px', minHeight: '36px' }}
           >
             <RefreshCw size={12} />
             <span>Refresh Telemetry</span>
@@ -269,217 +429,484 @@ export function BehavioralAnalyticsView({
       {/* ======================================================== */}
       {subTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Key Metrics Strip */}
-          <div className="ba-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                Unique Visitors
-              </div>
-              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                {bMetrics.totalVisitors}
-              </div>
-              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                Individual device sessions
+          {/* PART 7: COMPACT KPI ROW (Number -> Short label -> One-line explanation) */}
+          <div className="exp-kpi-grid">
+            {/* 1. Unique Visitors */}
+            <div className="exp-kpi-card">
+              <div className="exp-kpi-number">{bMetrics.totalVisitors}</div>
+              <div className="exp-kpi-label">Unique Visitors</div>
+              <div className="exp-kpi-explanation">Individual device sessions</div>
+            </div>
+
+            {/* 2. Actions Tracked */}
+            <div className="exp-kpi-card">
+              <div className="exp-kpi-number">{bMetrics.totalEvents}</div>
+              <div className="exp-kpi-label">Actions Tracked</div>
+              <div className="exp-kpi-explanation">Observable behavioral events</div>
+            </div>
+
+            {/* 3. Total Clicks */}
+            <div className="exp-kpi-card">
+              <div className="exp-kpi-number">{clickDistribution.totalClicks}</div>
+              <div className="exp-kpi-label">Total Clicks</div>
+              <div className="exp-kpi-explanation">
+                From {clickDistribution.uniqueClickers} distinct visitor{clickDistribution.uniqueClickers === 1 ? '' : 's'}
               </div>
             </div>
 
-            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                Total Actions Tracked
-              </div>
-              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                {bMetrics.totalEvents}
-              </div>
-              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                Observable behavioral events
-              </div>
-            </div>
-
-            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                Total Clicks
-              </div>
-              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                {clickDistribution.totalClicks}
-              </div>
-              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                From {clickDistribution.uniqueClickers} distinct visitor(s)
-              </div>
-            </div>
-
-            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                Avg Engagement Time
-              </div>
-              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                {bMetrics.avgDurationSec}s
-              </div>
-              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+            {/* 4. Avg Engagement Time */}
+            <div className="exp-kpi-card">
+              <div className="exp-kpi-number">{bMetrics.avgDurationSec}s</div>
+              <div className="exp-kpi-label">Avg Engagement</div>
+              <div className="exp-kpi-explanation">
                 Median duration: {bMetrics.medianDurationSec}s
               </div>
             </div>
 
-            <div className="ba-metric-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-              <div className="ba-metric-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                Tester Feedback
-              </div>
-              <div className="ba-metric-num" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
-                {bMetrics.totalFeedback}
-              </div>
-              <div className="ba-metric-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
-                Qualitative survey responses
-              </div>
+            {/* 5. Tester Feedback */}
+            <div className="exp-kpi-card">
+              <div className="exp-kpi-number">{bMetrics.totalFeedback}</div>
+              <div className="exp-kpi-label">Feedback</div>
+              <div className="exp-kpi-explanation">Qualitative survey responses</div>
             </div>
           </div>
 
-          {/* MOST INTERACTED ELEMENTS / CLICK DISTRIBUTION */}
-          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          {/* PART 8 #1: USER ACTIVITY TIMELINE */}
+          <div className="exp-light-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  CLICK DISTRIBUTION & ATTENTION TARGETS
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  TELEMETRY CHRONOLOGY
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
-                  Most Interacted Elements
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                  User Activity Timeline
                 </h3>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
-                Total: <strong style={{ color: '#ffffff' }}>{clickDistribution.totalClicks}</strong> clicks across <strong style={{ color: '#ffffff' }}>{clickDistribution.elements.length}</strong> unique element(s)
+
+              {/* Legend */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#e4e4e7', borderRadius: '1px' }} />
+                  Views
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#09090b', borderRadius: '1px' }} />
+                  Clicks
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#52525b', borderRadius: '1px' }} />
+                  Forms
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '1px' }} />
+                  Feedback
+                </span>
               </div>
             </div>
 
-            {clickDistribution.elements.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
-                No button or link clicks recorded yet.
+            {timelineBuckets.length === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: '#71717a', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
+                No chronological activity recorded yet.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', minWidth: '480px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', textAlign: 'left', color: 'var(--color-gray-500)' }}>
-                      <th style={{ padding: '10px 12px' }}>ELEMENT / CTA LABEL</th>
-                      <th style={{ padding: '10px 12px' }}>TOTAL CLICKS</th>
-                      <th style={{ padding: '10px 12px' }}>UNIQUE VISITORS</th>
-                      <th style={{ padding: '10px 12px' }}>AVG CLICKS / VISITOR</th>
-                      <th style={{ padding: '10px 12px' }}>SESSIONS</th>
-                      <th style={{ padding: '10px 12px' }}>SHARE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clickDistribution.elements.map((el, i) => (
-                      <tr key={el.key} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                        <td style={{ padding: '12px', color: '#ffffff', fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ color: 'var(--color-silver-300)', fontSize: '0.6875rem' }}>#{i + 1}</span>
-                            <span>{el.label}</span>
-                          </div>
-                          <div style={{ fontSize: '0.625rem', color: 'var(--color-gray-500)', marginTop: '2px' }}>
-                            {el.element}
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px', color: '#ffffff', fontWeight: 700 }}>
-                          {el.totalClicks}
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--color-silver-300)' }}>
-                          {el.uniqueVisitors}
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--color-silver-300)' }}>
-                          {el.avgClicksPerVisitor}
-                        </td>
-                        <td style={{ padding: '12px', color: 'var(--color-silver-300)' }}>
-                          {el.sessionsCount}
-                        </td>
-                        <td style={{ padding: '12px', color: '#ffffff' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '60px', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)' }}>
-                              <div style={{ width: `${Math.min(100, el.percentage)}%`, height: '100%', backgroundColor: '#ffffff' }} />
-                            </div>
-                            <span style={{ fontSize: '0.6875rem' }}>{el.percentage}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Visual Bar Columns */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${timelineBuckets.length}, 1fr)`,
+                    gap: '12px',
+                    alignItems: 'flex-end',
+                    height: '110px',
+                    padding: '8px 0',
+                    borderBottom: '1px solid #e4e4e7',
+                  }}
+                >
+                  {timelineBuckets.map((bucket) => {
+                    const heightPct = Math.max(8, Math.min(100, Math.round((bucket.total / maxBucketCount) * 100)));
+                    return (
+                      <div
+                        key={bucket.id}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          height: '100%',
+                          justifyContent: 'flex-end',
+                          gap: '6px',
+                        }}
+                      >
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 600, color: '#09090b' }}>
+                          {bucket.total}
+                        </span>
+                        <div
+                          style={{
+                            width: '100%',
+                            maxWidth: '36px',
+                            height: `${heightPct}%`,
+                            backgroundColor: '#09090b',
+                            borderRadius: '2px 2px 0 0',
+                            display: 'flex',
+                            flexDirection: 'column-reverse',
+                            overflow: 'hidden',
+                          }}
+                          title={`Time: ${bucket.timeLabel} | Total: ${bucket.total} (Clicks: ${bucket.clicks}, Views: ${bucket.views}, Forms: ${bucket.forms}, Feedback: ${bucket.feedback})`}
+                        >
+                          {bucket.feedback > 0 && (
+                            <div style={{ height: `${(bucket.feedback / bucket.total) * 100}%`, backgroundColor: '#2563eb' }} />
+                          )}
+                          {bucket.forms > 0 && (
+                            <div style={{ height: `${(bucket.forms / bucket.total) * 100}%`, backgroundColor: '#52525b' }} />
+                          )}
+                          {bucket.clicks > 0 && (
+                            <div style={{ height: `${(bucket.clicks / bucket.total) * 100}%`, backgroundColor: '#09090b' }} />
+                          )}
+                          {bucket.views > 0 && (
+                            <div style={{ height: `${(bucket.views / bucket.total) * 100}%`, backgroundColor: '#e4e4e7' }} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* X-Axis Labels */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${timelineBuckets.length}, 1fr)`, gap: '12px', textAlign: 'center' }}>
+                  {timelineBuckets.map((bucket) => (
+                    <div key={bucket.id} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#71717a' }}>
+                      {bucket.timeLabel}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* BEHAVIORAL SIGNALS (Strict Observation vs Interpretation vs Conclusion) */}
-          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                EMPIRICAL BEHAVIORAL SIGNALS
+          {/* PART 8 #2 & PART 11: INTERACTION DISTRIBUTION & MOST INTERACTED ELEMENTS */}
+          <div className="exp-light-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  CLICK DISTRIBUTION &amp; ATTENTION TARGETS
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                  Most Interacted Elements
+                </h3>
               </div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#52525b' }}>
+                Total: <strong style={{ color: '#09090b' }}>{clickDistribution.totalClicks}</strong> clicks across <strong style={{ color: '#09090b' }}>{clickDistribution.elements.length}</strong> unique element{clickDistribution.elements.length === 1 ? '' : 's'}
+              </div>
+            </div>
+
+            {clickDistribution.elements.length === 0 ? (
+              <div style={{ padding: '28px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
+                No button or link clicks recorded yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Horizontal Bar Chart (Part 8 #2 & Part 11) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {clickDistribution.elements.map((el, i) => (
+                    <div key={el.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ color: '#71717a', fontWeight: 600 }}>0{i + 1}</span>
+                          <span style={{ color: '#09090b', fontWeight: 600 }}>{el.label}</span>
+                        </div>
+                        <div style={{ color: '#09090b', fontWeight: 700 }}>
+                          {el.totalClicks} {el.totalClicks === 1 ? 'click' : 'clicks'} ({el.percentage}%)
+                        </div>
+                      </div>
+
+                      {/* Visual Bar */}
+                      <div style={{ height: '7px', backgroundColor: '#f4f4f5', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${Math.max(2, Math.min(100, el.percentage))}%`,
+                            height: '100%',
+                            backgroundColor: i === 0 ? '#09090b' : i === 1 ? '#52525b' : '#71717a',
+                            borderRadius: '3px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Small Ranking Table */}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginTop: '8px' }}>
+                  <table className="exp-table-light">
+                    <thead>
+                      <tr>
+                        <th>RANK &amp; ELEMENT</th>
+                        <th>TOTAL CLICKS</th>
+                        <th>UNIQUE VISITORS</th>
+                        <th>AVG / VISITOR</th>
+                        <th>SHARE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clickDistribution.elements.map((el, i) => (
+                        <tr key={el.key}>
+                          <td style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ color: '#71717a' }}>#{i + 1}</span>
+                              <span style={{ color: '#09090b' }}>{el.label}</span>
+                            </div>
+                            <div style={{ fontSize: '0.625rem', color: '#71717a', marginTop: '2px' }}>
+                              {el.element}
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 700, color: '#09090b' }}>{el.totalClicks}</td>
+                          <td>{el.uniqueVisitors}</td>
+                          <td>{el.avgClicksPerVisitor}</td>
+                          <td>{el.percentage}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* PART 8 #3: VISITOR FUNNEL */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                CONVERSION &amp; DROP-OFF
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                Visitor Funnel
+              </h3>
+              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', marginTop: '2px' }}>
+                Shows how visitors progress from landing to prototype views, interaction, forms, and feedback.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {funnelStages.map((stage, idx) => (
+                <div key={stage.step} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#71717a', fontWeight: 600 }}>0{stage.step}</span>
+                      <strong style={{ color: '#09090b' }}>{stage.title}</strong>
+                      {!stage.hasData && (
+                        <span style={{ fontSize: '0.6875rem', color: '#a1a1aa', fontStyle: 'italic' }}>
+                          — No recorded activity
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ color: '#09090b', fontWeight: 700 }}>
+                        {stage.count} {stage.count === 1 ? 'visitor' : 'visitors'}
+                      </span>
+                      <span style={{ color: '#52525b' }}>({stage.percentage}%)</span>
+                      {stage.step > 1 && stage.dropOff > 0 && (
+                        <span style={{ color: '#b91c1c', fontSize: '0.6875rem', fontWeight: 500 }}>
+                          -{stage.dropOff} ({stage.dropOffPct}% drop-off)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Funnel Bar */}
+                  <div style={{ height: '8px', backgroundColor: '#f4f4f5', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${stage.hasData ? Math.max(2, Math.min(100, stage.percentage)) : 0}%`,
+                        height: '100%',
+                        backgroundColor: stage.step === 1 ? '#09090b' : stage.step === 2 ? '#27272a' : stage.step === 3 ? '#52525b' : stage.step === 4 ? '#71717a' : '#2563eb',
+                        borderRadius: '4px',
+                        transition: 'width 240ms ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* PART 9: USER JOURNEY VISUALIZATION */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                JOURNEY VISUALIZATION
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                User Journey Flow
+              </h3>
+              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', marginTop: '2px' }}>
+                Visual connected pipeline showing progression from visitor arrival to interaction and feedback.
+              </p>
+            </div>
+
+            {/* Responsive Flow: Horizontal on Desktop, Vertical on Mobile */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                padding: '16px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '4px',
+                border: '1px solid #e4e4e7',
+              }}
+            >
+              {[
+                { label: 'VISITOR', count: bMetrics.totalVisitors, events: bMetrics.totalEvents, pct: '100%' },
+                { label: 'PROTOTYPE', count: bMetrics.totalVisitors, events: bMetrics.totalVisitors, pct: '100%' },
+                {
+                  label: 'INTERACTION',
+                  count: clickDistribution.uniqueClickers,
+                  events: clickDistribution.totalClicks,
+                  pct: bMetrics.totalVisitors > 0 ? `${Math.round((clickDistribution.uniqueClickers / bMetrics.totalVisitors) * 100)}%` : '0%',
+                },
+                {
+                  label: 'FEEDBACK',
+                  count: bMetrics.totalFeedback,
+                  events: bMetrics.totalFeedback,
+                  pct: bMetrics.totalVisitors > 0 ? `${Math.round((bMetrics.totalFeedback / bMetrics.totalVisitors) * 100)}%` : '0%',
+                },
+              ].map((node, i, arr) => (
+                <React.Fragment key={node.label}>
+                  <div
+                    style={{
+                      flex: '1 1 140px',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '4px',
+                      padding: '14px',
+                      textAlign: 'center',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                    }}
+                  >
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#71717a', letterSpacing: '0.1em' }}>
+                      {node.label}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                      {node.count}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b', marginTop: '2px' }}>
+                      {node.events} event{node.events === 1 ? '' : 's'} ({node.pct})
+                    </div>
+                  </div>
+
+                  {i < arr.length - 1 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#a1a1aa',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <ArrowRight size={18} className="hidden sm:inline" />
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* PART 12: OBSERVATION / INTERPRETATION / CONCLUSION */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                EPISTEMIC SAFETY MODEL
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
                 Observed Behavior vs. Interpretation vs. Conclusion
               </h3>
-              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '4px' }}>
+              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', marginTop: '2px' }}>
                 WIQN strictly isolates physical measurements from hypothesis and validation conclusions to avoid over-interpreting early clicks.
               </p>
             </div>
 
             {behavioralSignals.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
                 Signals will be generated as visitors test your prototype.
               </div>
             ) : (
-              <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {behavioralSignals.map((sig) => (
                   <div
                     key={sig.id}
                     style={{
-                      backgroundColor: '#0c0c0f',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      padding: '16px',
-                      borderRadius: '2px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '4px',
+                      backgroundColor: '#ffffff',
+                      overflow: 'hidden',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: '#ffffff' }}>
+                    {/* Signal Header */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        backgroundColor: '#f8f9fa',
+                        borderBottom: '1px solid #e4e4e7',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: '#09090b' }}>
                         {sig.title}
                       </span>
                       <span
                         style={{
                           fontFamily: 'var(--font-mono)',
                           fontSize: '0.625rem',
+                          fontWeight: 600,
                           padding: '2px 8px',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          color: 'var(--color-silver-300)',
-                          borderRadius: '2px',
+                          borderRadius: '3px',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #d4d4d8',
+                          color: '#09090b',
                         }}
                       >
                         {sig.significance} SIGNAL
                       </span>
                     </div>
 
-                    <div style={{ borderLeft: '2px solid #ffffff', paddingLeft: '10px' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#ffffff', textTransform: 'uppercase' }}>
-                        OBSERVATION (MEASURED)
+                    {/* 3-Layer Visual Structure (Part 12) */}
+                    <div className="exp-epistemic-chain" style={{ padding: '14px 16px' }}>
+                      {/* Layer 1: OBSERVED */}
+                      <div className="exp-epistemic-layer">
+                        <div className="exp-epistemic-tag" style={{ color: '#09090b' }}>
+                          01 // OBSERVED (DIRECTLY MEASURED)
+                        </div>
+                        <div className="exp-epistemic-text">
+                          {sig.observation}
+                        </div>
                       </div>
-                      <div style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                        {sig.observation}
-                      </div>
-                    </div>
 
-                    <div style={{ borderLeft: '2px solid var(--color-silver-300)', paddingLeft: '10px' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
-                        INTERPRETATION (HYPOTHESIS)
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                        {sig.interpretation}
-                      </div>
-                    </div>
+                      <div style={{ textAlign: 'center', color: '#a1a1aa', margin: '-4px 0' }}>↓</div>
 
-                    <div style={{ borderLeft: '2px solid rgba(255, 255, 255, 0.3)', paddingLeft: '10px' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase' }}>
-                        CONCLUSION (CAVEAT)
+                      {/* Layer 2: INTERPRETED */}
+                      <div className="exp-epistemic-layer interpreted">
+                        <div className="exp-epistemic-tag" style={{ color: '#52525b' }}>
+                          02 // INTERPRETATION (WORKING HYPOTHESIS)
+                        </div>
+                        <div className="exp-epistemic-text">
+                          {sig.interpretation}
+                        </div>
                       </div>
-                      <div style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#d4d4d8', marginTop: '2px' }}>
-                        {sig.conclusion}
+
+                      <div style={{ textAlign: 'center', color: '#a1a1aa', margin: '-4px 0' }}>↓</div>
+
+                      {/* Layer 3: CONCLUSION */}
+                      <div className="exp-epistemic-layer conclusion">
+                        <div className="exp-epistemic-tag" style={{ color: '#71717a' }}>
+                          03 // CONCLUSION (RESPONSIBLE TAKEAWAY)
+                        </div>
+                        <div className="exp-epistemic-text">
+                          {sig.conclusion}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -488,142 +915,461 @@ export function BehavioralAnalyticsView({
             )}
           </div>
 
-          {/* 7 STRUCTURED EVIDENCE CARDS */}
+          {/* PART 13 & 14: 7 EVIDENCE DIMENSIONS WITH CONFIDENCE BADGES */}
           <div>
-            <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 STRUCTURED EVIDENCE PACK
               </div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
                 7 Evidence Dimensions
               </h3>
+              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', marginTop: '2px' }}>
+                Compact evidence cards with clear confidence badges. Click &ldquo;View details&rdquo; to expand supporting records.
+              </p>
             </div>
 
-            <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
+            <div className="exp-evidence-grid">
               {/* Card 1: WHAT USERS DID */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  1. {evidenceCards.whatUsersDid.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    01 // WHAT USERS DID
+                  </span>
+                  {renderConfidenceBadge(bMetrics.totalVisitors >= 10 ? 'MODERATE' : 'EARLY', `${bMetrics.totalVisitors} session(s)`)}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {bMetrics.totalVisitors} visitors · {bMetrics.totalEvents} actions
+                </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
                   {evidenceCards.whatUsersDid.statement}
                 </p>
-                <ul style={{ paddingLeft: '16px', margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {evidenceCards.whatUsersDid.details.map((d, i) => (
-                    <li key={i}>{d}</li>
-                  ))}
-                </ul>
+
+                <button
+                  onClick={() => toggleDimension('whatUsersDid')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whatUsersDid' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whatUsersDid' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whatUsersDid' && (
+                  <ul style={{ paddingLeft: '16px', margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.71875rem', color: '#52525b', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whatUsersDid.details.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {/* Card 2: WHAT USERS CLICKED */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  2. {evidenceCards.whatUsersClicked.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    02 // WHAT USERS CLICKED
+                  </span>
+                  {renderConfidenceBadge(clickDistribution.totalClicks >= 15 ? 'MODERATE' : 'EARLY', `${clickDistribution.totalClicks} click(s)`)}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {clickDistribution.totalClicks} clicks · {clickDistribution.elements.length} target{clickDistribution.elements.length === 1 ? '' : 's'}
+                </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
                   {evidenceCards.whatUsersClicked.statement}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                  {evidenceCards.whatUsersClicked.items.map((it, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                      <span style={{ color: '#ffffff' }}>• {it.label}</span>
-                      <span style={{ color: 'var(--color-silver-300)' }}>{it.totalClicks} clicks ({it.uniqueVisitors} visitors)</span>
-                    </div>
-                  ))}
-                </div>
+
+                <button
+                  onClick={() => toggleDimension('whatUsersClicked')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whatUsersClicked' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whatUsersClicked' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whatUsersClicked' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.71875rem', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whatUsersClicked.items.map((it, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#09090b' }}>• {it.label}</span>
+                        <span style={{ color: '#71717a' }}>{it.totalClicks} clicks</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Card 3: WHERE USERS DROPPED */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  3. {evidenceCards.whereUsersDropped.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    03 // WHERE USERS DROPPED
+                  </span>
+                  {renderConfidenceBadge(bMetrics.totalVisitors >= 5 ? 'MODERATE' : 'EARLY', 'Funnel telemetry')}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {funnel.primaryDropOffStep ? `Drop-off: ${funnel.primaryDropOffStep}` : 'No significant drop-off'}
+                </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
                   {evidenceCards.whereUsersDropped.statement}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
-                  {evidenceCards.whereUsersDropped.dropOffs.length > 0 ? (
-                    evidenceCards.whereUsersDropped.dropOffs.map((d, i) => (
-                      <div key={i}>• {d}</div>
-                    ))
-                  ) : (
-                    <div>• No significant step-to-step drop-offs observed.</div>
-                  )}
-                </div>
+
+                <button
+                  onClick={() => toggleDimension('whereUsersDropped')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whereUsersDropped' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whereUsersDropped' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whereUsersDropped' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.71875rem', color: '#52525b', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whereUsersDropped.dropOffs.length > 0 ? (
+                      evidenceCards.whereUsersDropped.dropOffs.map((d, i) => (
+                        <div key={i}>• {d}</div>
+                      ))
+                    ) : (
+                      <div>• No major step-to-step drop-offs observed.</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Card 4: WHAT USERS SAID */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  4. {evidenceCards.whatUsersSaid.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    04 // WHAT USERS SAID
+                  </span>
+                  {renderConfidenceBadge(bMetrics.totalFeedback > 0 ? 'MODERATE' : 'INSUFFICIENT', `${bMetrics.totalFeedback} response(s)`)}
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {bMetrics.totalFeedback} feedback response{bMetrics.totalFeedback === 1 ? '' : 's'}
+                </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
                   {evidenceCards.whatUsersSaid.statement}
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {evidenceCards.whatUsersSaid.quotes.length > 0 ? (
-                    evidenceCards.whatUsersSaid.quotes.map((q, i) => (
-                      <div key={i} style={{ fontFamily: 'var(--font-primary)', fontStyle: 'italic', fontSize: '0.8125rem', color: '#d4d4d8', borderLeft: '2px solid rgba(255,255,255,0.2)', paddingLeft: '10px' }}>
-                        "{q}"
+
+                <button
+                  onClick={() => toggleDimension('whatUsersSaid')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whatUsersSaid' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whatUsersSaid' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whatUsersSaid' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whatUsersSaid.quotes.length > 0 ? (
+                      evidenceCards.whatUsersSaid.quotes.map((q, i) => (
+                        <div key={i} style={{ fontStyle: 'italic', fontSize: '0.75rem', color: '#18181b', borderLeft: '2px solid #09090b', paddingLeft: '8px' }}>
+                          &ldquo;{q}&rdquo;
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#a1a1aa' }}>
+                        No qualitative comments submitted yet.
                       </div>
-                    ))
-                  ) : (
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
-                      No qualitative comments submitted yet.
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Card 5: WHAT WE KNOW SO FAR */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  5. {evidenceCards.whatWeKnow.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    05 // WHAT WE KNOW SO FAR
+                  </span>
+                  {renderConfidenceBadge('MODERATE', 'Empirically measured')}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {evidenceCards.whatWeKnow.facts.map((f, i) => (
-                    <div key={i}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: '#ffffff' }}>
-                        • {f.title}: {f.statement}
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-primary)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                        Evidence: {f.evidence}
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {evidenceCards.whatWeKnow.facts.length} empirical fact{evidenceCards.whatWeKnow.facts.length === 1 ? '' : 's'}
                 </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
+                  Calculated from real interactions without over-interpreting unproven intent.
+                </p>
+
+                <button
+                  onClick={() => toggleDimension('whatWeKnow')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whatWeKnow' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whatWeKnow' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whatWeKnow' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whatWeKnow.facts.map((f, i) => (
+                      <div key={i} style={{ fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 600, color: '#09090b' }}>• {f.title}: {f.statement}</div>
+                        <div style={{ color: '#71717a', fontSize: '0.6875rem', marginTop: '1px' }}>Evidence: {f.evidence}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Card 6: WHAT WE DON'T KNOW YET */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  6. {evidenceCards.whatWeDontKnowYet.title}
+              <div className="exp-evidence-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    06 // WHAT WE DON&apos;T KNOW YET
+                  </span>
+                  {renderConfidenceBadge('EARLY', 'Unverified assumptions')}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
-                  {evidenceCards.whatWeDontKnowYet.uncertainties.map((u, i) => (
-                    <div key={i} style={{ display: 'flex', gap: '8px' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.4)' }}>?</span>
-                      <span>{u}</span>
-                    </div>
-                  ))}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {evidenceCards.whatWeDontKnowYet.uncertainties.length} key uncertainties
                 </div>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5 }}>
+                  Critical boundaries where data does not yet prove retention or purchase willingness.
+                </p>
+
+                <button
+                  onClick={() => toggleDimension('whatWeDontKnowYet')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#09090b',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 0',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <span>{expandedDimension === 'whatWeDontKnowYet' ? 'Hide details' : 'View details'}</span>
+                  {expandedDimension === 'whatWeDontKnowYet' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {expandedDimension === 'whatWeDontKnowYet' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: 'var(--font-primary)', fontSize: '0.75rem', color: '#52525b', borderTop: '1px solid #f0f0f2', paddingTop: '8px' }}>
+                    {evidenceCards.whatWeDontKnowYet.uncertainties.map((u, i) => (
+                      <div key={i}>? {u}</div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Card 7: WHAT TO TEST NEXT */}
-              <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid #ffffff', padding: '20px', borderRadius: '2px', gridColumn: '1 / -1' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                  7. {evidenceCards.whatToTestNext.title}
+              <div className="exp-evidence-card" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', fontWeight: 700, color: '#71717a' }}>
+                    07 // WHAT TO TEST NEXT
+                  </span>
+                  {renderConfidenceBadge('MODERATE', 'Evidence-grounded action items')}
                 </div>
-                <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '10px', marginTop: '10px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                  {evidenceCards.whatToTestNext.recommendations.length} recommended next action{evidenceCards.whatToTestNext.recommendations.length === 1 ? '' : 's'}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px', marginTop: '6px' }}>
                   {evidenceCards.whatToTestNext.recommendations.map((rec, i) => (
-                    <div key={i} style={{ backgroundColor: '#141418', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '2px', fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#ffffff' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', display: 'block', marginBottom: '4px' }}>
+                    <div
+                      key={i}
+                      style={{
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #e4e4e7',
+                        padding: '12px 14px',
+                        borderRadius: '4px',
+                        fontSize: '0.8125rem',
+                        color: '#09090b',
+                      }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#71717a', display: 'block', marginBottom: '4px' }}>
                         ACTION {i + 1}
                       </span>
                       {rec}
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PART 15: WHAT WE KNOW SO FAR (EVIDENCE SUMMARY LIST) */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                EVIDENCE SUMMARY
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                What We Know So Far
+              </h3>
+            </div>
+
+            {evidenceCards.whatWeKnow.facts.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
+                No interactions recorded yet. As soon as visitors test your prototype, calculated findings will appear here.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {evidenceCards.whatWeKnow.facts.map((fact, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '4px',
+                      padding: '14px 16px',
+                      backgroundColor: '#ffffff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 700, color: '#09090b' }}>
+                        {fact.title}
+                      </span>
+                      {renderConfidenceBadge(fact.confidence || 'EARLY')}
+                    </div>
+
+                    <p style={{ fontSize: '0.84375rem', color: '#18181b', lineHeight: 1.5, margin: 0 }}>
+                      {fact.statement}
+                    </p>
+
+                    <div style={{ backgroundColor: '#f8f9fa', padding: '8px 10px', borderRadius: '3px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b' }}>
+                      <strong>Evidence:</strong> {fact.evidence}
+                    </div>
+
+                    {fact.limitations && (
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: '#71717a' }}>
+                        <strong>Limitation:</strong> {fact.limitations}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* PART 16: SUGGESTIONS FOR IMPROVEMENT */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                ACTIONABLE RECOMMENDATION
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                Suggestions for Improvement
+              </h3>
+            </div>
+
+            <div
+              style={{
+                border: '1px solid #e4e4e7',
+                borderRadius: '4px',
+                padding: '18px 20px',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              {/* WHAT HAPPENED */}
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                  WHAT HAPPENED
+                </div>
+                <p style={{ fontSize: '0.875rem', color: '#09090b', lineHeight: 1.5, margin: 0 }}>
+                  {clickDistribution.elements[0]
+                    ? `Visitors interacted with "${clickDistribution.elements[0].label}" ${clickDistribution.elements[0].totalClicks} time(s).`
+                    : `${bMetrics.totalVisitors} visitors recorded ${bMetrics.totalEvents} tracked actions.`}
+                </p>
+              </div>
+
+              <div style={{ color: '#a1a1aa', margin: '-4px 0' }}>↓</div>
+
+              {/* POSSIBLE EXPLANATION */}
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                  POSSIBLE EXPLANATION
+                </div>
+                <p style={{ fontSize: '0.84375rem', color: '#52525b', lineHeight: 1.5, margin: 0 }}>
+                  {bMetrics.totalVisitors >= 5
+                    ? 'The primary prototype pathway is receiving measurable attention, but secondary flows remain undiscovered.'
+                    : 'The sample size is still in early exploration; further testing is needed before inferring persistent friction.'}
+                </p>
+              </div>
+
+              <div style={{ color: '#a1a1aa', margin: '-4px 0' }}>↓</div>
+
+              {/* SUGGESTED ACTION */}
+              <div style={{ backgroundColor: '#f8f9fa', padding: '12px 14px', borderRadius: '4px', border: '1px solid #e4e4e7' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#09090b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+                  SUGGESTED ACTION
+                </div>
+                <p style={{ fontSize: '0.84375rem', color: '#09090b', fontWeight: 600, margin: 0 }}>
+                  {bMetrics.totalVisitors >= 5
+                    ? 'Make the next action button more visually discoverable, then share with 5 more testers.'
+                    : 'Share your prototype link with 3 to 5 targeted users to build an honest validation sample.'}
+                </p>
               </div>
             </div>
           </div>
@@ -634,239 +1380,211 @@ export function BehavioralAnalyticsView({
       {/* SUB-TAB 2: EVENT EXPLORER (CHRONOLOGICAL STREAM) */}
       {/* ======================================================== */}
       {subTab === 'explorer' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Header & Filter Controls */}
-          <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '20px', borderRadius: '2px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Header & Filter Controls (Part 10) */}
+          <div className="exp-light-card" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
                   Chronological Event Stream
                 </h3>
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                  {paginationInfo.totalCount} total filtered action(s) across {bMetrics.totalVisitors} visitor(s)
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginTop: '2px' }}>
+                  {paginationInfo.totalCount} filtered action{paginationInfo.totalCount === 1 ? '' : 's'} across {bMetrics.totalVisitors} visitor{bMetrics.totalVisitors === 1 ? '' : 's'}
                 </p>
               </div>
 
               {/* Visitor filter selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                  Filter by Visitor:
-                </span>
-                <select
-                  value={visitorFilter}
-                  onChange={(e) => {
-                    setVisitorFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  style={{
-                    backgroundColor: '#121216',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#ffffff',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    padding: '6px 10px',
-                    borderRadius: '2px',
-                    outline: 'none',
-                  }}
-                >
-                  <option value="all">All Visitors ({visitors.length})</option>
-                  {visitors.map((v) => (
-                    <option key={v.visitorId} value={v.visitorId}>
-                      {v.displayLabel} ({v.actionsCount} actions)
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Category Filter Chips */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {(['all', 'clicks', 'pages', 'forms', 'scroll', 'sessions'] as const).map((cat) => {
-                const active = categoryFilter === cat;
-                const labels: Record<string, string> = {
-                  all: 'All Events',
-                  clicks: 'Clicks Only',
-                  pages: 'Page Views',
-                  forms: 'Forms',
-                  scroll: 'Scroll',
-                  sessions: 'Sessions & Pulses',
-                };
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setCategoryFilter(cat);
+              {visitors.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label htmlFor="exp-visitor-filter-select" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
+                    VISITOR:
+                  </label>
+                  <select
+                    id="exp-visitor-filter-select"
+                    value={visitorFilter}
+                    onChange={(e) => {
+                      setVisitorFilter(e.target.value);
                       setPage(1);
                     }}
                     style={{
-                      padding: '5px 12px',
                       fontFamily: 'var(--font-mono)',
-                      fontSize: '0.6875rem',
-                      borderRadius: '2px',
-                      border: active ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.1)',
-                      backgroundColor: active ? '#ffffff' : '#121216',
-                      color: active ? '#000000' : 'var(--color-silver-300)',
+                      fontSize: '0.75rem',
+                      padding: '6px 10px',
+                      backgroundColor: '#ffffff',
+                      color: '#09090b',
+                      border: '1px solid #e4e4e7',
+                      borderRadius: '4px',
                       cursor: 'pointer',
                     }}
                   >
-                    {labels[cat]}
-                  </button>
-                );
-              })}
+                    <option value="all">All Visitors ({visitors.length})</option>
+                    {visitors.map((v) => (
+                      <option key={v.visitorId} value={v.visitorId}>
+                        {v.displayLabel} ({v.actionsCount} actions)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Category Filter Pills (Part 10: All, Clicks, Views, Forms, Feedback, Scroll) */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { key: 'all', label: 'All Events' },
+                { key: 'clicks', label: 'Clicks' },
+                { key: 'pages', label: 'Page Views' },
+                { key: 'forms', label: 'Forms' },
+                { key: 'feedback', label: 'Feedback' },
+                { key: 'scroll', label: 'Scroll' },
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => {
+                    setCategoryFilter(cat.key as any);
+                    setPage(1);
+                  }}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.6875rem',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    border: categoryFilter === cat.key ? '1px solid #09090b' : '1px solid #e4e4e7',
+                    backgroundColor: categoryFilter === cat.key ? '#09090b' : '#ffffff',
+                    color: categoryFilter === cat.key ? '#ffffff' : '#52525b',
+                    cursor: 'pointer',
+                    minHeight: '36px',
+                    transition: 'all 160ms ease',
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Event Stream List */}
-          {loadingEvents ? (
-            <div style={{ padding: '48px', textAlign: 'center', backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
-                Loading event stream...
-              </p>
-            </div>
-          ) : explorerEvents.length === 0 ? (
-            <div style={{ padding: '48px', textAlign: 'center', backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
-                No events match this filter combination.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {explorerEvents.map((ev) => {
-                const isClick = ev.eventType === 'CLICK';
-                const isPage = ev.eventType === 'PAGE_VIEW';
-                const isScroll = ev.eventType === 'SCROLL_DEPTH';
-                const isForm = ev.eventType.includes('FORM');
+          {/* Clean Event Table (Part 10) */}
+          <div className="exp-light-card" style={{ padding: 0, overflow: 'hidden' }}>
+            {loadingEvents ? (
+              <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
+                <RefreshCw size={16} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
+                Loading events...
+              </div>
+            ) : explorerEvents.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
+                No events found matching current filter.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table className="exp-table-light">
+                  <thead>
+                    <tr>
+                      <th>TIME</th>
+                      <th>EVENT</th>
+                      <th>ELEMENT</th>
+                      <th>PAGE</th>
+                      <th>VISITOR</th>
+                      <th>ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {explorerEvents.map((ev, i) => {
+                      const timeStr = new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                      const rawT = (ev.eventType || '').toUpperCase();
 
-                return (
-                  <div
-                    key={ev.id}
-                    onClick={() => setSelectedEvent(ev)}
-                    className="ba-event-row"
-                    style={{
-                      backgroundColor: '#0a0a0d',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      padding: '14px 18px',
-                      borderRadius: '2px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '12px',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                      {/* Timestamp */}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-gray-500)', minWidth: '70px' }}>
-                        {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
+                      let badgeType = 'view';
+                      if (rawT.includes('CLICK') || rawT.includes('TAP')) badgeType = 'click';
+                      else if (rawT.includes('SCROLL')) badgeType = 'scroll';
+                      else if (rawT.includes('FORM')) badgeType = 'form';
+                      else if (rawT.includes('FEEDBACK')) badgeType = 'feedback';
 
-                      {/* Event Type Badge */}
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.625rem',
-                          padding: '2px 8px',
-                          borderRadius: '2px',
-                          textTransform: 'uppercase',
-                          fontWeight: 600,
-                          backgroundColor: isClick ? '#ffffff' : isPage ? 'rgba(255,255,255,0.1)' : isScroll ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)',
-                          color: isClick ? '#000000' : '#ffffff',
-                        }}
-                      >
-                        {ev.displayType || ev.eventType}
-                      </span>
+                      return (
+                        <tr key={ev.id || i} style={{ cursor: 'pointer' }} onClick={() => setSelectedEvent(ev)}>
+                          <td style={{ color: '#71717a', whiteSpace: 'nowrap' }}>{timeStr}</td>
+                          <td>
+                            <span className={`exp-event-badge ${badgeType}`}>
+                              {ev.displayType || ev.eventType}
+                            </span>
+                          </td>
+                          <td style={{ color: '#09090b', fontWeight: 500, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.label || ev.element || '—'}
+                          </td>
+                          <td style={{ color: '#52525b', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {ev.page}
+                          </td>
+                          <td style={{ color: '#09090b', fontWeight: 600 }}>
+                            {ev.visitorLabel || 'Visitor'}
+                          </td>
+                          <td>
+                            <span style={{ color: '#09090b', textDecoration: 'underline', fontSize: '0.6875rem' }}>
+                              Details →
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                      {/* Event Description / Label */}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#ffffff', fontWeight: 600 }}>
-                        {ev.label || ev.elementText || ev.page}
-                      </span>
-
-                      {/* Page Tag */}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', backgroundColor: '#141418', padding: '2px 6px', borderRadius: '2px' }}>
-                        {ev.page}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      {/* Visitor Tag */}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                        {ev.visitorLabel || 'Visitor'}
-                      </span>
-
-                      {/* Session Tag */}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                        {ev.sessionLabel || 'Session'}
-                      </span>
-
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                        Details →
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Pagination Controls */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: '#0a0a0d',
-              border: '1px solid var(--border-subtle)',
-              padding: '12px 18px',
-              borderRadius: '2px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-            }}
-          >
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={!paginationInfo.hasPrevPage || loadingEvents}
+            {/* Pagination Controls */}
+            <div
               style={{
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: paginationInfo.hasPrevPage ? '#ffffff' : 'var(--color-gray-500)',
-                padding: '6px 12px',
-                borderRadius: '2px',
-                cursor: paginationInfo.hasPrevPage ? 'pointer' : 'default',
-                display: 'inline-flex',
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: '4px',
+                padding: '12px 18px',
+                borderTop: '1px solid #e4e4e7',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                backgroundColor: '#fafafa',
               }}
             >
-              <ChevronLeft size={14} />
-              <span>Previous</span>
-            </button>
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={!paginationInfo.hasPrevPage || loadingEvents}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e4e4e7',
+                  color: paginationInfo.hasPrevPage ? '#09090b' : '#a1a1aa',
+                  padding: '6px 12px',
+                  borderRadius: '3px',
+                  cursor: paginationInfo.hasPrevPage ? 'pointer' : 'default',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  minHeight: '36px',
+                }}
+              >
+                <ChevronLeft size={14} />
+                <span>Previous</span>
+              </button>
 
-            <span style={{ color: 'var(--color-silver-300)' }}>
-              Page <strong style={{ color: '#ffffff' }}>{paginationInfo.page}</strong> of <strong style={{ color: '#ffffff' }}>{paginationInfo.totalPages}</strong> ({paginationInfo.totalCount} total actions)
-            </span>
+              <span style={{ color: '#52525b' }}>
+                Page <strong style={{ color: '#09090b' }}>{paginationInfo.page}</strong> of <strong style={{ color: '#09090b' }}>{paginationInfo.totalPages}</strong> ({paginationInfo.totalCount} total)
+              </span>
 
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={!paginationInfo.hasNextPage || loadingEvents}
-              style={{
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: paginationInfo.hasNextPage ? '#ffffff' : 'var(--color-gray-500)',
-                padding: '6px 12px',
-                borderRadius: '2px',
-                cursor: paginationInfo.hasNextPage ? 'pointer' : 'default',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <span>Next</span>
-              <ChevronRight size={14} />
-            </button>
+              <button
+                onClick={() => setPage(page + 1)}
+                disabled={!paginationInfo.hasNextPage || loadingEvents}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e4e4e7',
+                  color: paginationInfo.hasNextPage ? '#09090b' : '#a1a1aa',
+                  padding: '6px 12px',
+                  borderRadius: '3px',
+                  cursor: paginationInfo.hasNextPage ? 'pointer' : 'default',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  minHeight: '36px',
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -875,47 +1593,44 @@ export function BehavioralAnalyticsView({
       {/* SUB-TAB 3: USER JOURNEYS & FUNNEL */}
       {/* ======================================================== */}
       {subTab === 'journeys' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          {/* 5-Step Lightweight Funnel */}
-          <div className="ba-card ba-funnel-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                LIGHTWEIGHT PROGRESSION FUNNEL
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Deep-Dive Funnel */}
+          <div className="exp-light-card">
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                PROGRESSION FUNNEL
               </div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
-                Visitor Progression & Drop-Off Points
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                Visitor Progression &amp; Drop-Off Points
               </h3>
-              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                Identifies progression from first page visit through CTA interaction, form engagement, and feedback.
-              </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {funnel.steps.map((step) => (
-                <div key={step.stepIndex} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#ffffff', fontWeight: 600 }}>{step.name}</span>
-                      <span style={{ color: 'var(--color-gray-500)', fontSize: '0.6875rem' }}>— {step.description}</span>
+                <div key={step.stepIndex} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#09090b', fontWeight: 600 }}>{step.name}</span>
+                      <span style={{ color: '#71717a', fontSize: '0.6875rem' }}>— {step.description}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ color: '#ffffff', fontWeight: 700 }}>{step.count} visitor(s)</span>
-                      <span style={{ color: 'var(--color-silver-300)' }}>({step.overallPercentage}%)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: '#09090b', fontWeight: 700 }}>{step.count} visitor{step.count === 1 ? '' : 's'}</span>
+                      <span style={{ color: '#52525b' }}>({step.overallPercentage}%)</span>
                       {step.stepIndex > 1 && step.dropOffCount > 0 && (
-                        <span style={{ color: '#f87171', fontSize: '0.6875rem' }}>
+                        <span style={{ color: '#b91c1c', fontSize: '0.6875rem' }}>
                           -{step.dropOffCount} ({step.dropOffPercentage}% drop-off)
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Funnel Progress Bar */}
-                  <div style={{ height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '8px', backgroundColor: '#f4f4f5', borderRadius: '4px', overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.max(2, Math.min(100, step.overallPercentage))}%`,
                         height: '100%',
-                        backgroundColor: step.stepIndex === 1 ? '#ffffff' : step.stepIndex === 2 ? '#d4d4d8' : step.stepIndex === 3 ? '#a1a1aa' : step.stepIndex === 4 ? '#71717a' : '#52525b',
+                        backgroundColor: step.stepIndex === 1 ? '#09090b' : step.stepIndex === 2 ? '#27272a' : step.stepIndex === 3 ? '#52525b' : step.stepIndex === 4 ? '#71717a' : '#2563eb',
+                        borderRadius: '4px',
                       }}
                     />
                   </div>
@@ -925,52 +1640,49 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* Observed User Paths */}
-          <div className="ba-card ba-paths-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '28px', borderRadius: '2px' }}>
+          <div className="exp-light-card">
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 OBSERVED SEQUENTIAL PATHS
               </div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
                 Observed User Paths
               </h3>
-              <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                Observed action sequences across sessions. Strictly observational; does not claim causality.
-              </p>
             </div>
 
             {observedPaths.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+              <div style={{ padding: '24px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
                 No multi-step user paths recorded yet.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {observedPaths.map((p, idx) => (
                   <div
                     key={idx}
                     style={{
-                      backgroundColor: '#121216',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      padding: '14px 18px',
-                      borderRadius: '2px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #e4e4e7',
+                      padding: '12px 16px',
+                      borderRadius: '4px',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       flexWrap: 'wrap',
-                      gap: '12px',
+                      gap: '8px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
                         Path #{idx + 1}:
                       </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#ffffff', fontWeight: 600 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#09090b', fontWeight: 600 }}>
                         {p.pathSummary}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-                      <span style={{ color: '#ffffff', fontWeight: 700 }}>{p.sessionsCount} session(s)</span>
-                      <span style={{ color: 'var(--color-silver-300)' }}>({p.percentage}%)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      <span style={{ color: '#09090b', fontWeight: 700 }}>{p.sessionsCount} session{p.sessionsCount === 1 ? '' : 's'}</span>
+                      <span style={{ color: '#52525b' }}>({p.percentage}%)</span>
                     </div>
                   </div>
                 ))}
@@ -979,32 +1691,32 @@ export function BehavioralAnalyticsView({
           </div>
 
           {/* Scroll Depth Milestones */}
-          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '24px', borderRadius: '2px' }}>
+          <div className="exp-light-card">
             <div style={{ marginBottom: '14px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                SCROLL DEPTH PENETRATION
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                SCROLL PENETRATION
               </div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
                 Scroll Depth Reached by Visitors
               </h3>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
               {[
                 { depth: '25%', data: scrollDistribution.reaching25 },
                 { depth: '50%', data: scrollDistribution.reaching50 },
                 { depth: '75%', data: scrollDistribution.reaching75 },
                 { depth: '100%', data: scrollDistribution.reaching100 },
               ].map((item) => (
-                <div key={item.depth} style={{ backgroundColor: '#121216', border: '1px solid rgba(255,255,255,0.08)', padding: '14px', borderRadius: '2px' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', fontWeight: 600 }}>
+                <div key={item.depth} style={{ backgroundColor: '#f8f9fa', border: '1px solid #e4e4e7', padding: '14px', borderRadius: '4px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#09090b', fontWeight: 600 }}>
                     Reached {item.depth}
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.375rem', fontWeight: 700, color: '#ffffff', marginTop: '4px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.375rem', fontWeight: 700, color: '#09090b', marginTop: '4px' }}>
                     {item.data.percentage}%
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
-                    {item.data.count} visitor(s)
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', marginTop: '2px' }}>
+                    {item.data.count} visitor{item.data.count === 1 ? '' : 's'}
                   </div>
                 </div>
               ))}
@@ -1018,39 +1730,31 @@ export function BehavioralAnalyticsView({
       {/* ======================================================== */}
       {subTab === 'visitors' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="ba-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px 20px', borderRadius: '2px' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
+          <div className="exp-light-card">
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
               Individual Anonymous Visitor Profiles
             </h3>
-            <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginTop: '2px' }}>
+            <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#52525b', marginTop: '2px' }}>
               Click any visitor to inspect their sequential interaction timeline. Zero personal identities stored.
             </p>
           </div>
 
           {visitors.length === 0 ? (
-            <div style={{ padding: '36px 20px', textAlign: 'center', backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+            <div className="exp-light-card" style={{ padding: '36px 20px', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
                 No visitor profiles recorded yet.
               </p>
             </div>
           ) : (
-            <div className="ba-grid-compact" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               {visitors.map((v) => (
                 <div
                   key={v.visitorId}
-                  className="ba-card ba-visitor-card"
-                  style={{
-                    backgroundColor: '#0a0a0d',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    padding: '16px 18px',
-                    borderRadius: '2px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
+                  className="exp-light-card"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 700, color: '#ffffff' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', fontWeight: 700, color: '#09090b' }}>
                       {v.displayLabel}
                     </span>
                     <span
@@ -1058,9 +1762,10 @@ export function BehavioralAnalyticsView({
                         fontFamily: 'var(--font-mono)',
                         fontSize: '0.625rem',
                         padding: '2px 8px',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        color: 'var(--color-silver-300)',
-                        borderRadius: '2px',
+                        border: '1px solid #e4e4e7',
+                        color: '#52525b',
+                        borderRadius: '3px',
+                        backgroundColor: '#f8f9fa',
                       }}
                     >
                       {v.deviceType}
@@ -1069,20 +1774,20 @@ export function BehavioralAnalyticsView({
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
                     <div>
-                      <span style={{ color: 'var(--color-gray-500)' }}>Actions: </span>
-                      <strong style={{ color: '#ffffff' }}>{v.actionsCount}</strong>
+                      <span style={{ color: '#71717a' }}>Actions: </span>
+                      <strong style={{ color: '#09090b' }}>{v.actionsCount}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--color-gray-500)' }}>Sessions: </span>
-                      <strong style={{ color: '#ffffff' }}>{v.sessionsCount}</strong>
+                      <span style={{ color: '#71717a' }}>Sessions: </span>
+                      <strong style={{ color: '#09090b' }}>{v.sessionsCount}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--color-gray-500)' }}>Pages: </span>
-                      <strong style={{ color: '#ffffff' }}>{v.pagesViewedCount}</strong>
+                      <span style={{ color: '#71717a' }}>Pages: </span>
+                      <strong style={{ color: '#09090b' }}>{v.pagesViewedCount}</strong>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--color-gray-500)' }}>Feedback: </span>
-                      <strong style={{ color: v.hasFeedback ? '#4ade80' : 'var(--color-gray-500)' }}>
+                      <span style={{ color: '#71717a' }}>Feedback: </span>
+                      <strong style={{ color: v.hasFeedback ? '#15803d' : '#71717a' }}>
                         {v.hasFeedback ? `Yes (${v.feedbackRating || 'N/A'}/5)` : 'None'}
                       </strong>
                     </div>
@@ -1090,8 +1795,8 @@ export function BehavioralAnalyticsView({
 
                   <button
                     onClick={() => setInspectedVisitor(v)}
-                    className="btn-secondary"
-                    style={{ fontSize: '0.6875rem', padding: '6px 12px', marginTop: '4px' }}
+                    className="exp-btn-secondary"
+                    style={{ fontSize: '0.6875rem', padding: '6px 12px', marginTop: '4px', minHeight: '36px' }}
                   >
                     View Visitor Timeline ({v.actionsCount}) →
                   </button>
@@ -1110,7 +1815,8 @@ export function BehavioralAnalyticsView({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
             zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
@@ -1120,76 +1826,62 @@ export function BehavioralAnalyticsView({
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="ba-modal-box"
             style={{
-              backgroundColor: '#0c0c0f',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e4e4e7',
               maxWidth: '560px',
               width: '100%',
-              padding: '28px',
-              borderRadius: '2px',
+              padding: '24px',
+              borderRadius: '4px',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase' }}>
                 EVENT DETAILS
               </div>
-              <button onClick={() => setSelectedEvent(null)} style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer' }}>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                style={{ background: 'none', border: 'none', color: '#09090b', cursor: 'pointer', padding: '4px' }}
+                aria-label="Close modal"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
               {selectedEvent.label || selectedEvent.eventType}
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Event Type</span>
-                <span style={{ color: '#ffffff', fontWeight: 600 }}>{selectedEvent.displayType || selectedEvent.eventType}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f2', paddingBottom: '6px' }}>
+                <span style={{ color: '#71717a' }}>Event Type</span>
+                <span style={{ color: '#09090b', fontWeight: 600 }}>{selectedEvent.displayType || selectedEvent.eventType}</span>
               </div>
-              {selectedEvent.eventType === 'TIME_ON_PAGE' && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                  <span style={{ color: 'var(--color-gray-500)' }}>Duration (Time Spent)</span>
-                  <span style={{ color: '#ffffff', fontWeight: 700 }}>
-                    {selectedEvent.metadata?.durationSeconds ?? selectedEvent.metadata?.pulse ?? 'N/A'} seconds
-                  </span>
-                </div>
-              )}
-              {selectedEvent.metadata?.pageTitle && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                  <span style={{ color: 'var(--color-gray-500)' }}>Page Title</span>
-                  <span style={{ color: '#ffffff' }}>{selectedEvent.metadata.pageTitle}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Element Target</span>
-                <span style={{ color: '#ffffff', wordBreak: 'break-all' }}>{selectedEvent.element || 'N/A'}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f2', paddingBottom: '6px' }}>
+                <span style={{ color: '#71717a' }}>Element Target</span>
+                <span style={{ color: '#09090b', wordBreak: 'break-all' }}>{selectedEvent.element || 'N/A'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Page Route</span>
-                <span style={{ color: '#ffffff' }}>{selectedEvent.page}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f2', paddingBottom: '6px' }}>
+                <span style={{ color: '#71717a' }}>Page Route</span>
+                <span style={{ color: '#09090b' }}>{selectedEvent.page}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Timestamp</span>
-                <span style={{ color: '#ffffff' }}>{new Date(selectedEvent.timestamp).toLocaleString()}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f2', paddingBottom: '6px' }}>
+                <span style={{ color: '#71717a' }}>Timestamp</span>
+                <span style={{ color: '#09090b' }}>{new Date(selectedEvent.timestamp).toLocaleString()}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Visitor</span>
-                <span style={{ color: '#ffffff' }}>{selectedEvent.visitorLabel || selectedEvent.visitorId}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '6px' }}>
-                <span style={{ color: 'var(--color-gray-500)' }}>Session</span>
-                <span style={{ color: '#ffffff' }}>{selectedEvent.sessionLabel || selectedEvent.sessionId}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f0f0f2', paddingBottom: '6px' }}>
+                <span style={{ color: '#71717a' }}>Visitor</span>
+                <span style={{ color: '#09090b', fontWeight: 600 }}>{selectedEvent.visitorLabel || selectedEvent.visitorId}</span>
               </div>
               {selectedEvent.metadata && (
-                <div style={{ marginTop: '8px' }}>
-                  <span style={{ color: 'var(--color-gray-500)', display: 'block', marginBottom: '4px' }}>Metadata</span>
-                  <pre style={{ backgroundColor: '#141418', padding: '10px', borderRadius: '2px', fontSize: '0.6875rem', overflowX: 'auto', color: '#d4d4d8' }}>
+                <div style={{ marginTop: '6px' }}>
+                  <span style={{ color: '#71717a', display: 'block', marginBottom: '4px' }}>Metadata</span>
+                  <pre style={{ backgroundColor: '#f8f9fa', border: '1px solid #e4e4e7', padding: '10px', borderRadius: '3px', fontSize: '0.6875rem', overflowX: 'auto', color: '#18181b' }}>
                     {JSON.stringify(selectedEvent.metadata, null, 2)}
                   </pre>
                 </div>
@@ -1207,7 +1899,8 @@ export function BehavioralAnalyticsView({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
             zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
@@ -1217,55 +1910,48 @@ export function BehavioralAnalyticsView({
           onClick={() => setInspectedVisitor(null)}
         >
           <div
-            className="ba-modal-box"
             style={{
-              backgroundColor: '#0c0c0f',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e4e4e7',
               maxWidth: '680px',
               width: '100%',
               maxHeight: '85vh',
               overflowY: 'auto',
-              padding: '28px',
-              borderRadius: '2px',
+              padding: '24px',
+              borderRadius: '4px',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase' }}>
                 VISITOR ACTIVITY TIMELINE
               </div>
-              <button onClick={() => setInspectedVisitor(null)} style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer' }}>
+              <button
+                onClick={() => setInspectedVisitor(null)}
+                style={{ background: 'none', border: 'none', color: '#09090b', cursor: 'pointer', padding: '4px' }}
+                aria-label="Close modal"
+              >
                 <X size={18} />
               </button>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
                 {inspectedVisitor.displayLabel}
               </h3>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
-                {inspectedVisitor.actionsCount} actions • {inspectedVisitor.sessionsCount} session(s)
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#52525b' }}>
+                {inspectedVisitor.actionsCount} actions • {inspectedVisitor.sessionsCount} session{inspectedVisitor.sessionsCount === 1 ? '' : 's'}
               </div>
             </div>
 
-            {inspectedVisitor.hasFeedback && (
-              <div style={{ backgroundColor: '#101612', border: '1px solid rgba(74, 222, 128, 0.3)', padding: '12px', borderRadius: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#4ade80', textTransform: 'uppercase' }}>
-                  Tester Feedback ({inspectedVisitor.feedbackRating}/5)
-                </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.8125rem', color: '#ffffff', marginTop: '4px', fontStyle: 'italic' }}>
-                  "{inspectedVisitor.feedbackComment || 'No comment provided'}"
-                </p>
-              </div>
-            )}
-
             {/* Timeline sequence */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
               {inspectedVisitor.timeline.length === 0 ? (
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-gray-500)' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a' }}>
                   No individual action items found for this visitor.
                 </div>
               ) : (
@@ -1273,37 +1959,40 @@ export function BehavioralAnalyticsView({
                   <div
                     key={item.id || i}
                     style={{
-                      backgroundColor: '#121216',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #e4e4e7',
                       padding: '10px 14px',
-                      borderRadius: '2px',
+                      borderRadius: '3px',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.75rem',
+                      gap: '8px',
+                      flexWrap: 'wrap',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ color: 'var(--color-gray-500)', fontSize: '0.6875rem' }}>#{i + 1}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#71717a', fontSize: '0.6875rem' }}>#{i + 1}</span>
                       <span
                         style={{
                           fontSize: '0.625rem',
-                          padding: '1px 6px',
+                          padding: '2px 6px',
                           borderRadius: '2px',
-                          backgroundColor: item.eventType === 'CLICK' ? '#ffffff' : 'rgba(255,255,255,0.1)',
-                          color: item.eventType === 'CLICK' ? '#000000' : '#ffffff',
+                          backgroundColor: item.eventType === 'CLICK' ? '#09090b' : '#ffffff',
+                          color: item.eventType === 'CLICK' ? '#ffffff' : '#09090b',
+                          border: '1px solid #e4e4e7',
                           fontWeight: 600,
                         }}
                       >
                         {item.displayType || item.eventType}
                       </span>
-                      <span style={{ color: '#ffffff', fontWeight: 600 }}>{item.label}</span>
+                      <span style={{ color: '#09090b', fontWeight: 600 }}>{item.label}</span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ color: 'var(--color-silver-300)', fontSize: '0.6875rem' }}>{item.page}</span>
-                      <span style={{ color: 'var(--color-gray-500)', fontSize: '0.6875rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: '#71717a', fontSize: '0.6875rem' }}>{item.page}</span>
+                      <span style={{ color: '#52525b', fontSize: '0.6875rem' }}>
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </span>
                     </div>

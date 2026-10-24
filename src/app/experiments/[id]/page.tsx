@@ -29,7 +29,9 @@ import {
   Send,
   RefreshCw,
   X,
-  MessageSquare
+  MessageSquare,
+  BarChart2,
+  GitCommit,
 } from 'lucide-react';
 
 interface PageProps {
@@ -82,7 +84,7 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Active tab reference for smooth mobile scroll into view (hoisted to top level)
+  // Active tab reference for smooth mobile scroll into view
   const activeTabRef = React.useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -97,13 +99,13 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
   const [shareLinkMode, setShareLinkMode] = useState<'production' | 'local'>('production');
 
-  // Compute production vs local origins using centralized helper
+  // Compute production vs local origins
   const prodOrigin = getProductionAppUrl();
   const localOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const effectiveOrigin = snippetMode === 'production' ? prodOrigin : localOrigin;
   const currentSnippet = `<script src="${effectiveOrigin}/tracker.js" data-experiment="${experimentId}" data-endpoint="${effectiveOrigin}/api/capture" async></script>`;
 
-  // Centralized test and share URLs (defaults to production Vercel deployment URL for share links)
+  // Centralized test and share URLs
   const shareUrls = getShareUrls(
     experimentId,
     experiment?.productName || experiment?.name || 'product prototype',
@@ -148,105 +150,94 @@ export default function ExperimentDetailPage({ params }: PageProps) {
     loadExperiment();
   }, [experimentId]);
 
-  const copyTrackerSnippet = (forceProduction: boolean = false) => {
-    const originToUse = forceProduction ? prodOrigin : effectiveOrigin;
-    const snippet = `<script src="${originToUse}/tracker.js" data-experiment="${experimentId}" data-endpoint="${originToUse}/api/capture" async></script>`;
-    navigator.clipboard.writeText(snippet);
-    setCopiedSnippet(true);
-    setTimeout(() => setCopiedSnippet(false), 2000);
-  };
-
-  const copyTestUrl = (customUrl?: unknown) => {
-    const textToCopy = typeof customUrl === 'string' ? customUrl : publicTestUrl;
-    navigator.clipboard.writeText(textToCopy);
-    setCopiedTestUrl(true);
-    setTimeout(() => setCopiedTestUrl(false), 2000);
-  };
-
-  // Run Server-Side AI Analysis
-  const handleRunAIAnalysis = async () => {
-    setRunningAI(true);
-    setAiError(null);
+  const copyTrackerSnippet = async (isProduction: boolean = true) => {
     try {
-      const res = await authenticatedFetch(`/api/experiments/${experimentId}/ai-analysis`, {
+      const originToUse = isProduction ? prodOrigin : localOrigin;
+      const snippet = `<script src="${originToUse}/tracker.js" data-experiment="${experimentId}" data-endpoint="${originToUse}/api/capture" async></script>`;
+      await navigator.clipboard.writeText(snippet);
+      setCopiedSnippet(true);
+      setTimeout(() => setCopiedSnippet(false), 2400);
+    } catch (err) {
+      console.error('Failed to copy tracker script:', err);
+    }
+  };
+
+  const copyTestUrl = async () => {
+    try {
+      const urlToCopy = shareLinkMode === 'local' ? shareUrls.localTestUrl : shareUrls.productionTestUrl;
+      await navigator.clipboard.writeText(urlToCopy);
+      setCopiedTestUrl(true);
+      setTimeout(() => setCopiedTestUrl(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy test link:', err);
+    }
+  };
+
+  const handleRunAIAnalysis = async () => {
+    try {
+      setRunningAI(true);
+      setAiError(null);
+      const res = await authenticatedFetch(`/api/experiments/${experimentId}/insights`, {
         method: 'POST',
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setAiResult(data.data);
-        if (data.data.suggestedOutcome) {
-          setSelectedDecision(data.data.suggestedOutcome);
-        }
+      if (res.ok) {
+        const json = await res.json();
+        setAiResult(json.data);
         await loadExperiment();
       } else {
-        setAiError(data.error || 'AI analysis service temporarily unavailable. Please try again.');
+        const data = await res.json();
+        setAiError(data.error || 'AI analysis could not complete.');
       }
-    } catch (err) {
-      console.error('Error running AI analysis:', err);
-      setAiError('Network error connecting to AI analysis service. Please try again.');
+    } catch (err: any) {
+      console.error('Error triggering AI analysis:', err);
+      setAiError('Failed to connect to AI validation service.');
     } finally {
       setRunningAI(false);
     }
   };
 
-  // Persist Decision to database
   const handleSaveDecision = async () => {
-    if (!experiment) return;
-    setSavingDecision(true);
-    setDecisionNotice(null);
-
-    const visitors = experiment.metrics?.visitorsCount || 0;
-    const events = experiment.metrics?.interactionsCount || 0;
-    const feedbackCount = experiment.metrics?.feedbackCount || 0;
-
-    const summary = `Based on ${visitors} visitor(s), ${events} tracked action(s), and ${feedbackCount} feedback note(s).`;
-    const isLowData = events < 20 || visitors < 5;
-
+    if (!decisionReasoning.trim()) {
+      alert('Please provide a short explanation for your decision.');
+      return;
+    }
     try {
-      const res = await authenticatedFetch(`/api/experiments/${experiment.id}/decision`, {
+      setSavingDecision(true);
+      const res = await authenticatedFetch(`/api/experiments/${experimentId}/decisions`, {
         method: 'POST',
         body: JSON.stringify({
           outcome: selectedDecision,
-          evidenceSummary: summary,
-          reasoning: decisionReasoning.trim() || `Decision: ${selectedDecision}. Recorded to guide next steps.`,
-          confidence: isLowData ? 'LOW' : 'MODERATE',
-          recommendedNextStep: decisionNextStep.trim() || (isLowData ? 'Share prototype with more testers to collect clearer evidence.' : 'Continue testing and monitoring results.'),
-          limitations: isLowData ? `Early testing: Only ${visitors} visitor(s) and ${events} action(s) recorded so far. More testing needed for high certainty.` : undefined,
+          reasoning: decisionReasoning,
+          recommendedNextStep: decisionNextStep.trim() || undefined,
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        const decisionNameMap: Record<string, string> = {
-          BUILD: 'Build It',
-          IMPROVE: 'Improve It',
-          PIVOT: 'Change Direction',
-          STOP: 'Stop This Idea',
-          TEST_AGAIN: 'Run Another Test',
-        };
-        setDecisionNotice(`Your decision (${decisionNameMap[selectedDecision] || selectedDecision}) has been recorded.`);
+      if (res.ok) {
         setDecisionReasoning('');
         setDecisionNextStep('');
+        setDecisionNotice('Your product decision has been recorded permanently.');
         await loadExperiment();
+        setTimeout(() => setDecisionNotice(null), 4000);
       } else {
-        alert(data.error || 'Failed to save your decision. Please try again.');
+        const data = await res.json();
+        alert(data.error || 'Failed to save product decision.');
       }
     } catch (err) {
       console.error('Error saving decision:', err);
-      alert('Unable to save decision. Please check your connection and try again.');
+      alert('Network error while saving decision.');
     } finally {
       setSavingDecision(false);
     }
   };
 
-  // Persist Qualitative Feedback / Observation
   const handleSaveFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!feedbackComment.trim()) return;
-    setSavingFeedback(true);
-    setFeedbackNotice(null);
-
+    if (!feedbackComment.trim()) {
+      alert('Please enter an observation comment.');
+      return;
+    }
     try {
+      setSavingFeedback(true);
       const res = await authenticatedFetch(`/api/experiments/${experimentId}/feedback`, {
         method: 'POST',
         body: JSON.stringify({
@@ -276,9 +267,9 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#ffffff' }}>
-        <DashboardNav />
-        <div style={{ padding: '80px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: 'var(--color-gray-500)' }}>
+      <div className="wiqn-light-dashboard" style={{ minHeight: '100vh', backgroundColor: '#fcfcfd', color: '#09090b' }}>
+        <DashboardNav theme="light" />
+        <div style={{ padding: '80px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#71717a' }}>
           LOADING EXPERIMENT DETAILS...
         </div>
       </div>
@@ -287,19 +278,19 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
   if (authError) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#ffffff' }}>
-        <DashboardNav />
+      <div className="wiqn-light-dashboard" style={{ minHeight: '100vh', backgroundColor: '#fcfcfd', color: '#09090b' }}>
+        <DashboardNav theme="light" />
         <div style={{ padding: '120px 24px', textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginBottom: '12px' }}>
             ACCESS RESTRICTED
           </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px', color: '#09090b' }}>
             Access Restricted
           </h1>
-          <p style={{ color: 'var(--color-silver-300)', fontSize: '0.9375rem', marginBottom: '28px', lineHeight: 1.6 }}>
+          <p style={{ color: '#52525b', fontSize: '0.9375rem', marginBottom: '28px', lineHeight: 1.6 }}>
             {authError}
           </p>
-          <Link href="/dashboard" className="btn-primary">
+          <Link href="/dashboard" className="exp-btn-primary">
             Return to My Experiments
           </Link>
         </div>
@@ -309,19 +300,19 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
   if (!experiment) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: '#ffffff' }}>
-        <DashboardNav />
+      <div className="wiqn-light-dashboard" style={{ minHeight: '100vh', backgroundColor: '#fcfcfd', color: '#09090b' }}>
+        <DashboardNav theme="light" />
         <div style={{ padding: '120px 24px', textAlign: 'center', maxWidth: '540px', margin: '0 auto' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '12px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginBottom: '12px' }}>
             LOOKUP FAILED
           </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px' }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px', color: '#09090b' }}>
             Experiment Not Found
           </h1>
-          <p style={{ color: 'var(--color-silver-300)', fontSize: '0.9375rem', marginBottom: '28px' }}>
-            We could not find an experiment matching ID: <code style={{ color: '#ffffff' }}>{experimentId}</code>.
+          <p style={{ color: '#52525b', fontSize: '0.9375rem', marginBottom: '28px' }}>
+            We could not find an experiment matching ID: <code style={{ color: '#09090b' }}>{experimentId}</code>.
           </p>
-          <Link href="/dashboard" className="btn-primary">
+          <Link href="/dashboard" className="exp-btn-primary">
             Return to My Experiments
           </Link>
         </div>
@@ -335,87 +326,88 @@ export default function ExperimentDetailPage({ params }: PageProps) {
   const feedbackCount = experiment.metrics?.feedbackCount || 0;
   const isSufficientEvidence = experiment.telemetrySummary?.isSufficientEvidence || false;
 
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#050505', color: 'var(--color-off-white)' }}>
-      <DashboardNav currentExperimentId={experiment.id} currentExperimentName={experiment.name} />
+  // Signal Strength calculation (Part 18)
+  const signalStrength = visitorsCount >= 15 ? 'HIGH' : visitorsCount >= 5 ? 'MODERATE' : 'LOW';
+  const signalStrengthPct = visitorsCount >= 15 ? 100 : visitorsCount >= 5 ? 66 : 33;
 
-      <main className="dash-main-container" style={{ maxWidth: '1320px', margin: '0 auto' }}>
-        {/* Workspace Title Bar */}
-        <div className="dash-welcome-header" style={{ marginBottom: '24px' }}>
-          <div className="dash-welcome-text">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <span className={`badge ${experiment.status === 'ACTIVE' ? 'badge-active' : ''}`}>
-                {experiment.status === 'ACTIVE' ? 'ACTIVE TEST' : experiment.status}
-              </span>
-              <span className={`badge ${experiment.testingMode === 'CARDEX_ALPHA' ? 'badge-cardex' : ''}`}>
-                {experiment.testingMode === 'CARDEX_ALPHA' ? 'CARDEX ALPHA' : 'PRIVATE'}
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                EXPERIMENT ID: {experiment.id}
-              </span>
+  // Evidence Confidence calculation (Part 14 & 17)
+  const evidenceConfidence = visitorsCount >= 15 ? 'HIGH' : visitorsCount >= 5 ? 'MODERATE' : visitorsCount > 0 ? 'EARLY' : 'INSUFFICIENT';
+
+  // Primary evidence-based decision recommendation (Part 20)
+  const primaryDecision = (eventsCount < 20 || visitorsCount < 5) ? 'TEST_AGAIN' : 'IMPROVE';
+
+  return (
+    <div className="wiqn-light-dashboard">
+      <DashboardNav theme="light" currentExperimentId={experiment.id} currentExperimentName={experiment.name} />
+
+      <main style={{ maxWidth: '1320px', margin: '0 auto', padding: '24px 20px 80px 20px', boxSizing: 'border-box' }}>
+        {/* PART 5: EXPERIMENT HEADER */}
+        <div className="exp-light-header">
+          <div className="exp-light-header-left">
+            <div className="exp-v2-badge">
+              <span className="exp-v2-tag">WIQN — V2</span>
+              <span className="exp-status-pill">{experiment.status === 'ACTIVE' ? 'ACTIVE TEST' : experiment.status}</span>
+              {experiment.testingMode === 'CARDEX_ALPHA' && (
+                <span className="exp-mode-pill">CARDEX ALPHA</span>
+              )}
             </div>
 
-            <h1 className="dash-title">
+            <h1 className="exp-light-title">
               {experiment.name}
             </h1>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginTop: '6px' }}>
-              Product: <span style={{ color: '#ffffff' }}>{experiment.productName}</span>
+
+            <div className="exp-light-product">
+              Product: <strong>{experiment.productName || 'ADYK COMPANY'}</strong>
+              <span className="exp-id-mono">ID: {experiment.id}</span>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="dash-header-actions">
+          {/* Action Hierarchy: Primary > Secondary > Tertiary */}
+          <div className="exp-light-header-actions">
+            {/* Primary Action */}
             <button
               onClick={() => setShowShareModal(true)}
-              className="btn-primary"
-              style={{ fontSize: '0.6875rem', padding: '9px 15px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              className="exp-btn-primary"
+              aria-label="Share Testing Link with Testers"
             >
               <Share2 size={13} />
               <span>Share Testing Link</span>
             </button>
 
+            {/* Secondary Action */}
             <button
               onClick={() => copyTrackerSnippet(true)}
-              className="btn-secondary"
-              style={{ fontSize: '0.6875rem', padding: '9px 14px' }}
+              className="exp-btn-secondary"
               title="Copy the tracking script to paste into your website"
+              aria-label="Copy Tracking Code"
             >
-              {copiedSnippet ? <Check size={14} /> : <Copy size={14} />}
-              <span>{copiedSnippet ? 'Tracking Code Copied!' : 'Copy Tracking Code'}</span>
+              {copiedSnippet ? <Check size={13} /> : <Copy size={13} />}
+              <span>{copiedSnippet ? 'Code Copied!' : 'Copy Tracking Code'}</span>
             </button>
 
+            {/* Tertiary Action */}
             <a
               href={experiment.prototypeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary"
-              style={{ fontSize: '0.6875rem', padding: '9px 14px' }}
+              className="exp-btn-tertiary"
+              aria-label="Open Live Prototype in New Tab"
             >
               <span>Open Prototype</span>
-              <ExternalLink size={14} />
+              <ExternalLink size={12} />
             </a>
           </div>
         </div>
 
-        {/* Tab Navigation in Plain English */}
-        <div
-          className="exp-tabs-container"
-          style={{
-            display: 'flex',
-            gap: '4px',
-            borderBottom: '1px solid var(--border-subtle)',
-            marginBottom: '28px',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
+        {/* PART 6: EXPERIMENT NAVIGATION (Overview, Test Prototype, Visitor Activity, Tester Feedback, Insights & AI, Decide Next) */}
+        <div className="exp-light-tabs" role="tablist">
           {[
-            { key: 'overview', label: 'OVERVIEW', icon: Layers },
-            { key: 'prototype', label: 'TEST PROTOTYPE', icon: Play },
-            { key: 'analytics', label: 'VISITOR ACTIVITY', icon: Activity },
-            { key: 'feedback', label: 'TESTER FEEDBACK', icon: MessageSquareQuote },
-            { key: 'insights', label: 'INSIGHTS & AI', icon: Sparkles },
-            { key: 'decision', label: 'DECIDE NEXT', icon: Target },
+            { key: 'overview', label: 'Overview', icon: Layers },
+            { key: 'prototype', label: 'Test Prototype', icon: Play },
+            { key: 'analytics', label: 'Visitor Activity', icon: Activity },
+            { key: 'feedback', label: 'Tester Feedback', icon: MessageSquareQuote },
+            { key: 'insights', label: 'Insights & AI', icon: Sparkles },
+            { key: 'decision', label: 'Decide Next', icon: Target },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -424,24 +416,9 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 key={tab.key}
                 ref={isActive ? activeTabRef : null}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`exp-tab-btn ${isActive ? 'exp-tab-active' : ''}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  padding: '12px 18px',
-                  color: isActive ? '#ffffff' : 'var(--color-silver-300)',
-                  borderBottom: isActive ? '2px solid #ffffff' : '2px solid transparent',
-                  background: isActive ? 'rgba(255, 255, 255, 0.04)' : 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'color 180ms ease, background-color 180ms ease',
-                  flexShrink: 0,
-                }}
+                role="tab"
+                aria-selected={isActive}
+                className={`exp-light-tab-btn ${isActive ? 'active' : ''}`}
               >
                 <Icon size={14} />
                 <span>{tab.label}</span>
@@ -452,28 +429,27 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
-          <div className="exp-overview-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Hypothesis Card */}
-              <div className="exp-card">
-                <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
-                  <span className="eyebrow-dot" />
-                  <span>WHAT YOU ARE TESTING</span>
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  WHAT YOU ARE TESTING
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff', marginBottom: '10px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginBottom: '8px' }}>
                   Your Idea to Test
                 </h3>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-200)', lineHeight: 1.6 }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#52525b', lineHeight: 1.6, margin: 0 }}>
                   {experiment.keyHypothesis}
                 </p>
               </div>
 
               {/* Problem Space */}
-              <div className="exp-card">
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
                   THE PROBLEM YOU ARE SOLVING
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6 }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#52525b', lineHeight: 1.6, margin: 0 }}>
                   {experiment.problem || 'No specific problem description provided yet.'}
                 </p>
               </div>
@@ -481,35 +457,35 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Target & Learning Goal */}
-              <div className="exp-card">
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
                   WHO THIS IS FOR
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '20px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#52525b', lineHeight: 1.6, marginBottom: '18px' }}>
                   {experiment.targetAudience || 'General prospective users and testers.'}
                 </p>
 
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
                   WHAT YOU WANT TO LEARN
                 </div>
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6 }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#52525b', lineHeight: 1.6, margin: 0 }}>
                   {experiment.learningGoal || 'Observe visitor reactions and see whether people complete key actions.'}
                 </p>
               </div>
 
               {/* Public Test Link Card */}
-              <div className="exp-card">
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
                   SHAREABLE PUBLIC TEST LINK
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#ffffff', wordBreak: 'break-all', marginBottom: '16px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', color: '#09090b', wordBreak: 'break-all', marginBottom: '14px', backgroundColor: '#f8f9fa', padding: '8px 12px', borderRadius: '3px', border: '1px solid #e4e4e7' }}>
                   {publicTestUrl}
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <button onClick={copyTestUrl} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <button onClick={copyTestUrl} className="exp-btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px', minHeight: '36px' }}>
                     {copiedTestUrl ? 'Link Copied!' : 'Copy Link'}
                   </button>
-                  <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
+                  <button onClick={() => setShowShareModal(true)} className="exp-btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px', minHeight: '36px' }}>
                     Share with Testers →
                   </button>
                 </div>
@@ -523,12 +499,9 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Viewport Control Bar */}
             <div
-              className="exp-prototype-bar"
+              className="exp-light-card"
               style={{
-                backgroundColor: '#0a0a0d',
-                border: '1px solid var(--border-subtle)',
-                padding: '16px 24px',
-                borderRadius: '2px',
+                padding: '14px 20px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -537,8 +510,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff', flexShrink: 0 }} />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#15803d', flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#09090b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   Interactive Preview: {experiment.prototypeUrl}
                 </span>
               </div>
@@ -546,8 +519,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setShowShareModal(true)}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  className="exp-btn-secondary"
+                  style={{ fontSize: '0.6875rem', padding: '6px 12px', minHeight: '36px' }}
                 >
                   <Share2 size={12} />
                   <span>Share Testing Link</span>
@@ -557,8 +530,8 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                   href={isLocal ? shareUrls.localTestUrl : shareUrls.productionTestUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-primary"
-                  style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  className="exp-btn-primary"
+                  style={{ fontSize: '0.6875rem', padding: '6px 12px', minHeight: '36px' }}
                 >
                   <span>{isLocal ? 'Open Local Tester View' : 'Open Public Tester View'}</span>
                   <ExternalLink size={12} />
@@ -568,14 +541,14 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Sandbox Embed Frame */}
             <div
-              className="exp-sandbox-frame"
               style={{
                 position: 'relative',
                 height: '640px',
-                backgroundColor: '#050505',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '2px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e4e4e7',
+                borderRadius: '4px',
                 overflow: 'hidden',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
               }}
             >
               <iframe
@@ -591,33 +564,25 @@ export default function ExperimentDetailPage({ params }: PageProps) {
               />
             </div>
 
-            {/* Tracking Snippet Integration Notice */}
-            <div
-              className="exp-tracking-card"
-              style={{
-                backgroundColor: '#0a0a0d',
-                border: '1px solid var(--border-subtle)',
-                padding: '24px',
-                borderRadius: '2px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.14em', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
+            {/* Tracking Snippet Box */}
+            <div className="exp-light-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase' }}>
                   AUTOMATIC TRACKING SCRIPT // READY TO USE
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     onClick={() => setSnippetMode('production')}
                     style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.6875rem',
                       padding: '4px 10px',
-                      borderRadius: '2px',
+                      borderRadius: '3px',
                       cursor: 'pointer',
-                      border: snippetMode === 'production' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: snippetMode === 'production' ? '#ffffff' : 'transparent',
-                      color: snippetMode === 'production' ? '#000000' : 'var(--color-silver-300)',
+                      border: snippetMode === 'production' ? '1px solid #09090b' : '1px solid #e4e4e7',
+                      backgroundColor: snippetMode === 'production' ? '#09090b' : '#ffffff',
+                      color: snippetMode === 'production' ? '#ffffff' : '#52525b',
                     }}
                   >
                     PRODUCTION (HTTPS)
@@ -628,38 +593,31 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.6875rem',
                       padding: '4px 10px',
-                      borderRadius: '2px',
+                      borderRadius: '3px',
                       cursor: 'pointer',
-                      border: snippetMode === 'local' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: snippetMode === 'local' ? '#ffffff' : 'transparent',
-                      color: snippetMode === 'local' ? '#000000' : 'var(--color-silver-300)',
+                      border: snippetMode === 'local' ? '1px solid #09090b' : '1px solid #e4e4e7',
+                      backgroundColor: snippetMode === 'local' ? '#09090b' : '#ffffff',
+                      color: snippetMode === 'local' ? '#ffffff' : '#52525b',
                     }}
                   >
-                    LOCAL TESTING (LOCALHOST)
+                    LOCAL TESTING
                   </button>
                 </div>
               </div>
 
-              <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginBottom: '12px', lineHeight: 1.5 }}>
-                {snippetMode === 'production' ? (
-                  <span>
-                    Paste this snippet into the <code style={{ color: '#ffffff' }}>&lt;head&gt;</code> of your website or prototype. It automatically records visits and button clicks without saving personal information or passwords:
-                  </span>
-                ) : (
-                  <span style={{ color: '#d4d4d8' }}>
-                    <strong>FOR LOCAL TESTING ONLY:</strong> Points to your local computer (port 3000). Use the Production version for public testing.
-                  </span>
-                )}
+              <p style={{ fontSize: '0.8125rem', color: '#52525b', marginBottom: '10px', lineHeight: 1.5 }}>
+                Paste this script into the <code>&lt;head&gt;</code> of your website or prototype. It automatically records visits and button clicks without saving personal information:
               </p>
 
               <div
                 style={{
-                  backgroundColor: '#121215',
-                  padding: '12px 16px',
-                  borderRadius: '2px',
+                  backgroundColor: '#f8f9fa',
+                  border: '1px solid #e4e4e7',
+                  padding: '10px 14px',
+                  borderRadius: '3px',
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.75rem',
-                  color: 'var(--color-silver-200)',
+                  color: '#09090b',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -667,78 +625,65 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 }}
               >
                 <code style={{ wordBreak: 'break-all' }}>{currentSnippet}</code>
-                <button onClick={() => copyTrackerSnippet(snippetMode === 'production')} className="btn-ghost" style={{ flexShrink: 0, marginLeft: '12px' }}>
+                <button onClick={() => copyTrackerSnippet(snippetMode === 'production')} className="exp-btn-secondary" style={{ flexShrink: 0, marginLeft: '12px', minHeight: '32px', padding: '4px 10px' }}>
                   {copiedSnippet ? 'Copied' : 'Copy'}
                 </button>
-              </div>
-
-              <div style={{ marginTop: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                <span>HOST: {effectiveOrigin}</span>
-                <span>ENDPOINT: {effectiveOrigin}/api/capture</span>
-                <span>PRIVACY: Form passwords, payment details &amp; sensitive inputs are automatically redacted</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: VISITOR ACTIVITY */}
+        {/* TAB 3: VISITOR ACTIVITY (BehavioralAnalyticsView) */}
         {activeTab === 'analytics' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="exp-section-header">
-              <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
-                <span className="eyebrow-dot" />
-                <span>VISITOR ACTIONS</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ marginBottom: '4px' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+                VISITOR ACTIONS
               </div>
-              <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#09090b', marginBottom: '4px' }}>
                 Visitor Activity
               </h2>
-              <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
-                See how many people tested your prototype, what they clicked, and how long they stayed. Tracking records interactions, not personal identities or intentions.
+              <p style={{ fontSize: '0.875rem', color: '#52525b' }}>
+                See how many people tested your prototype, what they clicked, and how long they stayed.
               </p>
             </div>
 
             {(!experiment.metrics || experiment.metrics.interactionsCount === 0) ? (
               <div
-                className="dash-empty-state exp-empty-state"
+                className="exp-light-card"
                 style={{
-                  backgroundColor: '#0a0a0d',
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
-                  padding: '72px 32px',
+                  padding: '64px 24px',
                   textAlign: 'center',
-                  borderRadius: '2px',
                   maxWidth: '640px',
                   margin: '20px auto',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginBottom: '8px' }}>
                   NO ACTIVITY YET
                 </div>
-                <h3 className="dash-empty-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 700, color: '#09090b', marginBottom: '8px' }}>
                   No Activity Yet
                 </h3>
-                <p className="dash-empty-desc" style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.6, marginBottom: '24px' }}>
+                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: '#52525b', lineHeight: 1.6, marginBottom: '24px' }}>
                   Open your prototype and interact with it, or share it with testers. Their supported interactions will appear here after tracking is installed correctly.
                 </p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                  <button onClick={() => setShowShareModal(true)} className="exp-btn-primary">
                     <span>Share Testing Link</span>
                   </button>
-                  <button onClick={() => copyTrackerSnippet(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 16px' }}>
+                  <button onClick={() => copyTrackerSnippet(true)} className="exp-btn-secondary">
                     <span>Copy Tracking Code</span>
                   </button>
                 </div>
               </div>
             ) : (
-              /* Real Visitor Activity Visualizations & Behavioral Analytics */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <BehavioralAnalyticsView
-                  experimentId={experimentId}
-                  behavioral={experiment.telemetrySummary?.behavioral}
-                  initialEvents={experiment.telemetrySummary?.recentEvents}
-                  metrics={experiment.metrics}
-                  onRefresh={loadExperiment}
-                />
-              </div>
+              <BehavioralAnalyticsView
+                experimentId={experimentId}
+                behavioral={experiment.telemetrySummary?.behavioral}
+                initialEvents={experiment.telemetrySummary?.recentEvents}
+                metrics={experiment.metrics}
+                onRefresh={loadExperiment}
+              />
             )}
           </div>
         )}
@@ -746,129 +691,56 @@ export default function ExperimentDetailPage({ params }: PageProps) {
         {/* TAB 4: TESTER FEEDBACK */}
         {activeTab === 'feedback' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="exp-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: '#ffffff' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
                   Tester Feedback
                 </h3>
-                <p className="exp-desc" style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)' }}>
+                <p style={{ fontSize: '0.875rem', color: '#52525b' }}>
                   Feedback, notes, and observations from people who tested your prototype.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setShowShareModal(true)}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.6875rem', padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                >
-                  <Share2 size={12} />
-                  <span>Invite Testers</span>
-                </button>
-
-                <button
-                  onClick={() => setShowFeedbackModal(true)}
-                  className="btn-primary"
-                  style={{ fontSize: '0.6875rem', padding: '7px 12px' }}
-                >
-                  + Add Observation
-                </button>
-              </div>
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="exp-btn-primary"
+                style={{ fontSize: '0.75rem', padding: '8px 14px' }}
+              >
+                + Add Founder Observation
+              </button>
             </div>
 
-            {feedbackNotice && (
-              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '10px 14px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
-                ✓ {feedbackNotice}
-              </div>
-            )}
-
-            {/* Modal to log observation */}
+            {/* Add Observation Modal */}
             {showFeedbackModal && (
-              <div
-                className="exp-feedback-form"
-                style={{
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
-                  padding: '24px',
-                  borderRadius: '2px',
-                  marginBottom: '12px',
-                }}
-              >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Add Observation
-                </div>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', marginBottom: '14px' }}>
-                  Record what you observed during user testing, or notes from direct tester conversations.
-                </p>
-                <form onSubmit={handleSaveFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                      WHAT DID YOU OBSERVE? (TOPIC OR SCREEN)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={feedbackPrompt}
-                      onChange={(e) => setFeedbackPrompt(e.target.value)}
-                      placeholder="e.g. Signup button on mobile, pricing question"
-                      style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
-                    />
+              <div className="exp-light-card" style={{ border: '2px solid #09090b', padding: '20px' }}>
+                <form onSubmit={handleSaveFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: '#09090b' }}>
+                      Log Qualitative Observation
+                    </h4>
+                    <button type="button" onClick={() => setShowFeedbackModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <X size={16} />
+                    </button>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                      WHAT HAPPENED? (THE TESTER&apos;S EXPERIENCE OR YOUR NOTES)
+                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b', marginBottom: '4px' }}>
+                      WHAT DID YOU OBSERVE? *
                     </label>
                     <textarea
-                      required
                       rows={3}
                       value={feedbackComment}
                       onChange={(e) => setFeedbackComment(e.target.value)}
-                      placeholder="e.g. Tester couldn't find the signup button on mobile until they scrolled all the way to the bottom..."
-                      style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px', outline: 'none' }}
+                      placeholder="e.g., Tester hovered on the CTA for 12 seconds but did not click because..."
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #e4e4e7', borderRadius: '3px', fontSize: '0.8125rem' }}
                     />
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 180px' }}>
-                      <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                        FEEDBACK CATEGORY
-                      </label>
-                      <select
-                        value={feedbackCategory}
-                        onChange={(e) => setFeedbackCategory(e.target.value)}
-                        style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
-                      >
-                        <option value="clarity">Clarity (Did they understand it?)</option>
-                        <option value="friction">Difficulty (Where did they get stuck?)</option>
-                        <option value="value">Usefulness (Did they find it helpful?)</option>
-                        <option value="suggestion">Suggestions (Ideas for improvement)</option>
-                      </select>
-                    </div>
-
-                    <div style={{ flex: '1 1 180px' }}>
-                      <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                        OPTIONAL RATING
-                      </label>
-                      <select
-                        value={feedbackRating}
-                        onChange={(e) => setFeedbackRating(Number(e.target.value))}
-                        style={{ width: '100%', padding: '9px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff', borderRadius: '2px' }}
-                      >
-                        <option value={5}>5 - Clear and easy to use</option>
-                        <option value={4}>4 - Minor note</option>
-                        <option value={3}>3 - Moderate difficulty</option>
-                        <option value={2}>2 - Significant friction</option>
-                        <option value={1}>1 - Critical blocker</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                    <button type="submit" disabled={savingFeedback} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '8px 16px' }}>
-                      {savingFeedback ? 'Saving observation...' : 'Save Observation'}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="submit" disabled={savingFeedback} className="exp-btn-primary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
+                      {savingFeedback ? 'Saving...' : 'Save Observation'}
                     </button>
-                    <button type="button" onClick={() => setShowFeedbackModal(false)} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '8px 16px' }}>
+                    <button type="button" onClick={() => setShowFeedbackModal(false)} className="exp-btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                       Cancel
                     </button>
                   </div>
@@ -878,62 +750,35 @@ export default function ExperimentDetailPage({ params }: PageProps) {
 
             {/* Feedback List from Database */}
             {experiment.feedback && experiment.feedback.length > 0 ? (
-              <div className="exp-feedback-grid">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
                 {experiment.feedback.map((fb: any) => {
                   const isTesterSource = Boolean(fb.visitorId);
-                  const categoryNameMap: Record<string, string> = {
-                    clarity: 'Clarity',
-                    friction: 'Difficulty',
-                    blocker: 'Difficulty',
-                    value: 'Usefulness',
-                    suggestion: 'Suggestions',
-                    usability: 'Usability',
-                    general: 'General Note',
-                  };
-                  const categoryDisplay = categoryNameMap[fb.category?.toLowerCase()] || fb.category?.toUpperCase() || 'GENERAL';
-
                   return (
-                    <div
-                      key={fb.id}
-                      className="exp-feedback-card"
-                    >
+                    <div key={fb.id} className="exp-light-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px' }}>
                       <div>
-                        {/* Source & Category Badges */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {isTesterSource ? (
-                              <span className="badge badge-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <UserCheck size={11} />
-                                <span>Tester feedback</span>
-                              </span>
-                            ) : (
-                              <span className="badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <User size={11} />
-                                <span>Founder observation</span>
-                              </span>
-                            )}
-                            <span className="badge">{categoryDisplay}</span>
-                          </div>
-
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span className={`exp-event-badge ${isTesterSource ? 'feedback' : 'click'}`}>
+                            {isTesterSource ? 'Tester Feedback' : 'Founder Note'}
+                          </span>
                           {fb.rating && (
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b' }}>
                               Rating: {fb.rating}/5
                             </span>
                           )}
                         </div>
 
                         {fb.prompt && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '8px' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginBottom: '6px' }}>
                             Context: &ldquo;{fb.prompt}&rdquo;
                           </div>
                         )}
 
-                        <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.9375rem', color: 'var(--color-white)', lineHeight: 1.55 }}>
+                        <p style={{ fontSize: '0.875rem', color: '#09090b', lineHeight: 1.5, margin: 0 }}>
                           &ldquo;{fb.comment}&rdquo;
                         </p>
                       </div>
 
-                      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '12px', marginTop: '16px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
+                      <div style={{ borderTop: '1px solid #f0f0f2', paddingTop: '8px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
                         Submitted on {new Date(fb.createdAt).toLocaleString()}
                       </div>
                     </div>
@@ -941,30 +786,21 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 })}
               </div>
             ) : (
-              <div
-                className="dash-empty-state exp-empty-state"
-                style={{
-                  backgroundColor: '#0a0a0d',
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
-                  padding: '48px 20px',
-                  textAlign: 'center',
-                  borderRadius: '2px',
-                }}
-              >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
+              <div className="exp-light-card" style={{ padding: '48px 20px', textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#71717a', marginBottom: '4px' }}>
                   NO FEEDBACK YET
                 </div>
-                <h4 className="dash-empty-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: '#ffffff', marginBottom: '6px' }}>
-                  No Feedback Yet
+                <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: '#09090b', marginBottom: '4px' }}>
+                  No Qualitative Feedback Yet
                 </h4>
-                <p className="dash-empty-desc" style={{ fontSize: '0.875rem', color: 'var(--color-silver-300)', maxWidth: '480px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.875rem', color: '#52525b', maxWidth: '440px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
                   Feedback will appear here when testers share their experience. You can also record your own observations.
                 </p>
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                  <button onClick={() => setShowFeedbackModal(true)} className="btn-primary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
+                  <button onClick={() => setShowFeedbackModal(true)} className="exp-btn-primary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                     Add First Observation
                   </button>
-                  <button onClick={() => setShowShareModal(true)} className="btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
+                  <button onClick={() => setShowShareModal(true)} className="exp-btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
                     Invite Testers
                   </button>
                 </div>
@@ -973,697 +809,423 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* TAB 5: INSIGHTS & SUGGESTIONS (AI VALIDATION ENGINE) */}
+        {/* TAB 5: INSIGHTS & AI (PART 17, 18, 19) */}
         {activeTab === 'insights' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* A. Page Heading with Run AI Action */}
-            <div className="exp-section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
-              <div style={{ maxWidth: '780px' }}>
-                <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
-                  <span className="eyebrow-dot" />
-                  <span>UNDERSTAND YOUR RESULTS</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Top Summary Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  INTELLIGENCE DASHBOARD
                 </div>
-                <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
-                  Understand Your Results
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#09090b', marginBottom: '4px' }}>
+                  AI Evidence Summary
                 </h2>
-                <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)', lineHeight: 1.5 }}>
-                  See what people do on your prototype, where they struggle, and what you can improve.
+                <p style={{ fontSize: '0.875rem', color: '#52525b' }}>
+                  Synthesizes telemetry behavior and tester signals into directional findings.
                 </p>
               </div>
 
               <button
                 onClick={handleRunAIAnalysis}
                 disabled={runningAI}
-                className="btn-primary exp-ai-btn"
-                style={{ padding: '10px 18px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                className="exp-btn-primary"
+                style={{ padding: '9px 16px', fontSize: '0.75rem' }}
               >
                 {runningAI ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 <span>{runningAI ? 'Analyzing Evidence...' : 'Run AI Analysis'}</span>
               </button>
             </div>
 
-            {/* AI Error Notice */}
-            {aiError && (
-              <div style={{ backgroundColor: '#18110b', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '12px 16px', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8125rem', color: 'var(--color-silver-200)' }}>
-                  <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
-                  <span>{aiError}</span>
+            {/* PART 17: TOP INTELLIGENCE METRIC CARDS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              {/* Signal Strength (Part 18: Low / Moderate / High) */}
+              <div className="exp-light-card" style={{ padding: '18px 20px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  SIGNAL STRENGTH
                 </div>
-                <button onClick={handleRunAIAnalysis} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '5px 10px' }}>
-                  Retry Analysis
-                </button>
-              </div>
-            )}
-
-            {/* B. Four Summary Metric Cards - Dense 2-Column Grid on Mobile, 4 Columns on Desktop */}
-            <div className="exp-summary-grid">
-              <div className="exp-summary-card">
-                <div className="exp-summary-label">
-                  PEOPLE VISITED
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                    {signalStrength}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
+                    {visitorsCount} visitor{visitorsCount === 1 ? '' : 's'}
+                  </span>
                 </div>
-                <div className="exp-summary-val">
-                  {visitorsCount}
-                </div>
-                <div className="exp-summary-hint">
-                  {visitorsCount === 1 ? '1 different person' : `${visitorsCount} different people`}
-                </div>
-              </div>
-
-              <div className="exp-summary-card">
-                <div className="exp-summary-label">
-                  TOTAL ACTIONS
-                </div>
-                <div className="exp-summary-val">
-                  {eventsCount}
-                </div>
-                <div className="exp-summary-hint">
-                  {eventsCount === 1 ? '1 click or page view' : `${eventsCount} clicks and views`}
+                {/* Visual Signal Strength Bar */}
+                <div style={{ height: '7px', backgroundColor: '#f4f4f5', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${signalStrengthPct}%`,
+                      height: '100%',
+                      backgroundColor: signalStrength === 'HIGH' ? '#15803d' : signalStrength === 'MODERATE' ? '#0369a1' : '#09090b',
+                      borderRadius: '3px',
+                    }}
+                  />
                 </div>
               </div>
 
-              <div className="exp-summary-card">
-                <div className="exp-summary-label">
-                  SESSIONS
+              {/* Evidence Confidence */}
+              <div className="exp-light-card" style={{ padding: '18px 20px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  EVIDENCE CONFIDENCE
                 </div>
-                <div className="exp-summary-val">
-                  {sessionsCount}
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginBottom: '4px' }}>
+                  {evidenceConfidence}
                 </div>
-                <div className="exp-summary-hint">
-                  {sessionsCount === 1 ? '1 test session' : `${sessionsCount} test sessions`}
+                <div style={{ fontSize: '0.75rem', color: '#52525b' }}>
+                  {visitorsCount < 5 ? 'Based on early exploratory cohort' : 'Supported by recurring interaction evidence'}
                 </div>
               </div>
 
-              <div className="exp-summary-card">
-                <div className="exp-summary-label">
-                  FEEDBACK
+              {/* Key Finding */}
+              <div className="exp-light-card" style={{ padding: '18px 20px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  KEY FINDING
                 </div>
-                <div className="exp-summary-val">
-                  {feedbackCount}
+                <p style={{ fontSize: '0.8125rem', color: '#09090b', fontWeight: 500, margin: 0, lineHeight: 1.45 }}>
+                  {eventsCount > 0
+                    ? `Visitors generated ${eventsCount} actions with measured interaction on ${experiment.telemetrySummary?.topInteractions?.[0]?.element || 'prototype'}.`
+                    : 'No telemetry interactions recorded yet.'}
+                </p>
+              </div>
+
+              {/* Recommended Next Step */}
+              <div className="exp-light-card" style={{ padding: '18px 20px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  RECOMMENDED NEXT STEP
                 </div>
-                <div className="exp-summary-hint">
-                  {feedbackCount === 1 ? '1 response note' : `${feedbackCount} response notes`}
+                <p style={{ fontSize: '0.8125rem', color: '#09090b', fontWeight: 600, margin: 0, lineHeight: 1.45 }}>
+                  {eventsCount < 20
+                    ? 'Share link with 3 to 5 more testers to establish a confident sample.'
+                    : 'Focus on clarifying the next action following the primary button click.'}
+                </p>
+              </div>
+            </div>
+
+            {/* PART 19: AI INSIGHT FLOW (VISUAL PIPELINE) */}
+            <div className="exp-light-card">
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  VISUAL PIPELINE
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 700, color: '#09090b', marginTop: '2px' }}>
+                  How WIQN Analyzes Evidence
+                </h3>
+              </div>
+
+              <div className="exp-ai-pipeline">
+                <div className="exp-ai-step">
+                  <span className="exp-ai-step-title">01 // RAW DATA</span>
+                  <span className="exp-ai-step-desc">Autocaptured clicks &amp; visits</span>
+                </div>
+                <span className="exp-ai-pipeline-arrow" style={{ color: '#a1a1aa' }}>→</span>
+
+                <div className="exp-ai-step">
+                  <span className="exp-ai-step-title">02 // BEHAVIOR</span>
+                  <span className="exp-ai-step-desc">Funnels &amp; user paths</span>
+                </div>
+                <span className="exp-ai-pipeline-arrow" style={{ color: '#a1a1aa' }}>→</span>
+
+                <div className="exp-ai-step">
+                  <span className="exp-ai-step-title">03 // EVIDENCE</span>
+                  <span className="exp-ai-step-desc">7 empirical dimensions</span>
+                </div>
+                <span className="exp-ai-pipeline-arrow" style={{ color: '#a1a1aa' }}>→</span>
+
+                <div className="exp-ai-step">
+                  <span className="exp-ai-step-title">04 // AI INTERPRETATION</span>
+                  <span className="exp-ai-step-desc">Epistemic hypotheses</span>
+                </div>
+                <span className="exp-ai-pipeline-arrow" style={{ color: '#a1a1aa' }}>→</span>
+
+                <div className="exp-ai-step">
+                  <span className="exp-ai-step-title">05 // RECOMMENDATION</span>
+                  <span className="exp-ai-step-desc">Build, improve, test again</span>
                 </div>
               </div>
             </div>
 
-            {/* AI Synthesized Results (if run) */}
-            {aiResult && (
-              <div
-                className="exp-ai-result-card"
-                style={{
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '24px',
-                  borderRadius: '2px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '20px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
-                  <div>
-                    <div className="eyebrow exp-eyebrow" style={{ marginBottom: '4px' }}>
-                      <span className="eyebrow-dot" />
-                      <span>AI EVIDENCE SYNTHESIS // {aiResult.provider.toUpperCase()}</span>
-                    </div>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
-                      AI Analysis &amp; Directional Findings
-                    </h3>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <span className="badge badge-active">CONFIDENCE: {aiResult.confidence}</span>
-                    <span className="badge">RECOMMENDATION: {aiResult.suggestedOutcome}</span>
-                  </div>
+            {/* PART 18: ENGAGEMENT DISTRIBUTION BAR CHART & DECISION SIGNAL PATH */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              {/* Engagement Distribution */}
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  ENGAGEMENT BREAKDOWN
                 </div>
-
-                <p style={{ fontSize: '0.9375rem', color: '#ffffff', lineHeight: 1.6 }}>
-                  {aiResult.summary}
-                </p>
-
-                {/* Say-vs-Do Signals Section */}
-                {aiResult.sayVsDoSignals && aiResult.sayVsDoSignals.length > 0 && (
-                  <div className="exp-ai-signal-box" style={{ backgroundColor: '#13110a', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '16px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.08em' }}>
-                      POTENTIAL SAY-VS-DO SIGNAL
-                    </div>
-                    {aiResult.sayVsDoSignals.map((sig: any, idx: number) => (
-                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.875rem' }}>
-                          {sig.title}
-                        </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                          <strong>Stated Feedback:</strong> {sig.statedFeedback}
-                        </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                          <strong>Observed Behavior:</strong> {sig.observedBehavior}
-                        </div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginTop: '2px' }}>
-                          <em>{sig.interpretation}</em>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Hypotheses & Recommendations Grid */}
-                <div className="exp-ai-hyp-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                  {/* Hypotheses */}
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                      WORKING HYPOTHESES (INTERPRETATIONS)
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {aiResult.hypotheses.map((hyp: any, i: number) => (
-                        <div className="exp-ai-hyp-item" key={i} style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
-                            {hyp.statement}
-                          </div>
-                          <div style={{ fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                            Basis: {hyp.basis}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recommendations */}
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                      RECOMMENDED NEXT ACTIONS
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {aiResult.recommendations.map((rec: any, i: number) => (
-                        <div className="exp-ai-hyp-item" key={i} style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.8125rem', color: '#ffffff', fontWeight: 500, marginBottom: '4px' }}>
-                            {rec.action}
-                          </div>
-                          <div style={{ fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                            Rationale: {rec.rationale}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Evidence Limitations */}
-                {aiResult.limitations && aiResult.limitations.length > 0 && (
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                    <strong>EVIDENCE LIMITATIONS: </strong> {aiResult.limitations.join(' | ')}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* C. Testing Progress Panel (When sample is too small) */}
-            {!isSufficientEvidence && (
-              <div
-                className="exp-progress-panel"
-                style={{
-                  backgroundColor: '#0a0a0d',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  padding: '24px',
-                  borderRadius: '2px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <AlertCircle size={18} style={{ color: '#ffffff', flexShrink: 0 }} />
-                  <div>
-                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: '#ffffff' }}>
-                      We&apos;re Still Collecting Evidence
-                    </h3>
-                  </div>
-                </div>
-
-                <p style={{ fontFamily: 'var(--font-primary)', fontSize: '0.875rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                  Your prototype has been visited by {visitorsCount} {visitorsCount === 1 ? 'person' : 'people'} and recorded {eventsCount} {eventsCount === 1 ? 'action' : 'actions'}. We need more testing before drawing reliable conclusions.
-                </p>
-
-                {/* Progress Indicators */}
-                <div className="exp-progress-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', backgroundColor: '#121215', padding: '16px', borderRadius: '2px' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                      <span>VISITORS TARGET</span>
-                      <span>{visitorsCount} / 5 target</span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '1px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, (visitorsCount / 5) * 100)}%`, height: '100%', backgroundColor: '#ffffff' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                      <span>ACTIONS TARGET</span>
-                      <span>{eventsCount} / 20 target</span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '1px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, (eventsCount / 20) * 100)}%`, height: '100%', backgroundColor: '#ffffff' }} />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-silver-300)' }}>
-                    These targets are guidelines for collecting initial evidence.
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={copyTestUrl} className="btn-secondary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
-                      {copiedTestUrl ? 'Link Copied!' : 'Copy Test Link'}
-                    </button>
-                    <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ fontSize: '0.6875rem', padding: '6px 12px' }}>
-                      Share with More Testers
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* D. What We Know So Far */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 600, color: '#ffffff', marginBottom: '2px' }}>
-                  What We Know So Far
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: '#09090b', marginBottom: '14px' }}>
+                  Interaction Volume by Channel
                 </h3>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
-                  Findings calculated directly from your real prototype records.
-                </p>
-              </div>
 
-              {experiment.telemetrySummary?.empiricalFacts && experiment.telemetrySummary.empiricalFacts.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {experiment.telemetrySummary.empiricalFacts.map((fact: any) => (
-                    <div className="exp-fact-card" key={fact.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '16px 18px', borderRadius: '2px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem', fontWeight: 600, color: '#ffffff' }}>
-                          {fact.title}
-                        </span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                          Reliability: <strong style={{ color: '#ffffff' }}>{fact.confidence === 'HIGH' ? 'High' : fact.confidence === 'MODERATE' ? 'Moderate' : 'Early'}</strong>
-                        </span>
+                  {[
+                    { label: 'Page Views', count: visitorsCount, max: Math.max(visitorsCount, eventsCount, 1) },
+                    { label: 'Clicks', count: experiment.telemetrySummary?.behavioral?.clickDistribution?.totalClicks || 0, max: Math.max(visitorsCount, eventsCount, 1) },
+                    { label: 'Form Starts', count: experiment.telemetrySummary?.behavioral?.funnel?.steps?.[2]?.count || 0, max: Math.max(visitorsCount, eventsCount, 1) },
+                    { label: 'Feedback Notes', count: feedbackCount, max: Math.max(visitorsCount, eventsCount, 1) },
+                  ].map((row) => (
+                    <div key={row.label} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                        <span style={{ color: '#52525b' }}>{row.label}</span>
+                        <strong style={{ color: '#09090b' }}>{row.count}</strong>
                       </div>
-                      <p style={{ fontSize: '0.875rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '8px' }}>
-                        {fact.statement}
-                      </p>
-                      <div className="exp-evidence-box" style={{ backgroundColor: '#121215', padding: '8px 12px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '6px' }}>
-                        Supporting Evidence: {fact.evidence}
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-                        Important limitation: {fact.limitations}
+                      <div style={{ height: '6px', backgroundColor: '#f4f4f5', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            width: `${Math.max(2, Math.min(100, Math.round((row.count / (eventsCount || 1)) * 100)))}%`,
+                            height: '100%',
+                            backgroundColor: '#09090b',
+                            borderRadius: '3px',
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px', borderRadius: '2px', color: 'var(--color-silver-300)', fontSize: '0.8125rem' }}>
-                  No interactions recorded yet. As soon as visitors test your prototype, calculated findings will appear here.
-                </div>
-              )}
-            </div>
-
-            {/* E. Suggestions for Improvement */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1875rem', fontWeight: 600, color: '#ffffff', marginBottom: '2px' }}>
-                  Suggestions for Improvement
-                </h3>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)' }}>
-                  Actionable next steps based on real observed behavior and feedback.
-                </p>
               </div>
 
-              {isSufficientEvidence ? (
-                <div className="exp-suggestion-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.16)', padding: '18px 20px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="badge badge-active">SUGGESTED NEXT STEP</span>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '4px' }}>
-                      MEASURED FACT
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#ffffff', marginBottom: '10px' }}>
-                      {experiment.telemetrySummary?.topInteractions?.[0]
-                        ? `Visitors interacted with "${experiment.telemetrySummary.topInteractions[0].element}" ${experiment.telemetrySummary.topInteractions[0].count} time(s).`
-                        : `${visitorsCount} people visited your prototype and took ${eventsCount} actions.`}
-                    </p>
-
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '4px' }}>
-                      POSSIBLE EXPLANATION
-                    </div>
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', marginBottom: '10px' }}>
-                      Visitors are exploring the primary pathway, but clearer next steps could help guide them toward completing the full experience.
-                    </p>
-
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginBottom: '4px' }}>
-                      SUGGESTED ACTION
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: 500 }}>
-                      Make your primary button or next step easier to find, then ask a few more people to try the page and share their reactions.
-                    </p>
-                  </div>
+              {/* Decision Signal Path (Part 18) */}
+              <div className="exp-light-card">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  DECISION SIGNAL PATH
                 </div>
-              ) : (
-                <div className="exp-suggestion-card" style={{ backgroundColor: '#0a0a0d', border: '1px solid var(--border-subtle)', padding: '18px 20px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div className="badge" style={{ alignSelf: 'flex-start' }}>
-                    GENERAL SUGGESTION (NOT AN EXPERIMENT FINDING)
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: '#09090b', marginBottom: '14px' }}>
+                  Evidence-Supported Recommendation
+                </h3>
+
+                <div className="exp-decision-path" style={{ marginBottom: '16px' }}>
+                  {(['BUILD', 'IMPROVE', 'PIVOT', 'STOP', 'TEST_AGAIN'] as DecisionOutcome[]).map((outcome) => {
+                    const isRec = primaryDecision === outcome;
+                    const labels: Record<string, string> = {
+                      BUILD: 'BUILD',
+                      IMPROVE: 'IMPROVE',
+                      PIVOT: 'PIVOT',
+                      STOP: 'STOP',
+                      TEST_AGAIN: 'TEST AGAIN',
+                    };
+                    return (
+                      <div key={outcome} className={`exp-decision-chip ${isRec ? 'recommended' : ''}`}>
+                        {labels[outcome]}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ backgroundColor: '#f8f9fa', padding: '12px 14px', borderRadius: '4px', border: '1px solid #e4e4e7' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#09090b', fontWeight: 700, marginBottom: '2px' }}>
+                    WHY: {primaryDecision === 'TEST_AGAIN' ? 'SAMPLE SIZE INSUFFICIENT' : 'INTERACTION PATTERNS OBSERVED'}
                   </div>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                    Because your experiment is still in the early stages with {visitorsCount} visitor(s), we do not have enough evidence to identify specific usability problems yet.
+                  <p style={{ fontSize: '0.8125rem', color: '#52525b', margin: 0, lineHeight: 1.45 }}>
+                    {primaryDecision === 'TEST_AGAIN'
+                      ? `Your experiment currently has ${visitorsCount} visitor(s) and ${eventsCount} action(s). We advise gathering more testers before committing major engineering.`
+                      : 'Visitors demonstrated active interaction with the main workflow.'}
                   </p>
-                  <div style={{ backgroundColor: '#121215', padding: '12px 14px', borderRadius: '2px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      RECOMMENDED NEXT STEP
-                    </div>
-                    <div style={{ fontSize: '0.8125rem', color: '#ffffff' }}>
-                      Share your prototype with 3 to 5 colleagues, prospective users, or classmates and ask them to complete the primary action.
-                    </div>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Synthesized Findings (if run) */}
+            {aiResult && (
+              <div className="exp-light-card" style={{ border: '2px solid #09090b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
+                      AI SYNTHESIS // {aiResult.provider?.toUpperCase()}
+                    </span>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b' }}>
+                      Directional Findings
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <span className="exp-event-badge feedback">CONFIDENCE: {aiResult.confidence}</span>
+                    <span className="exp-event-badge click">RECOMMENDATION: {aiResult.suggestedOutcome}</span>
                   </div>
                 </div>
-              )}
-            </div>
+
+                <p style={{ fontSize: '0.875rem', color: '#09090b', lineHeight: 1.6, marginBottom: '16px' }}>
+                  {aiResult.summary}
+                </p>
+
+                {aiResult.hypotheses && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                    {aiResult.hypotheses.map((hyp: any, i: number) => (
+                      <div key={i} style={{ backgroundColor: '#f8f9fa', padding: '10px 12px', borderRadius: '3px', border: '1px solid #e4e4e7' }}>
+                        <div style={{ fontSize: '0.8125rem', color: '#09090b', fontWeight: 600 }}>{hyp.statement}</div>
+                        <div style={{ fontSize: '0.6875rem', color: '#71717a', marginTop: '2px' }}>Basis: {hyp.basis}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* TAB 6: DECIDE WHAT TO DO NEXT */}
+        {/* TAB 6: DECIDE NEXT PAGE (PART 20) */}
         {activeTab === 'decision' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div className="exp-section-header" style={{ maxWidth: '820px' }}>
-              <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
-                <span className="eyebrow-dot" />
-                <span>DECISION PLANNING</span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+                DECISION PLANNING
               </div>
-              <h2 className="exp-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.75rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
-                Decide What to Do Next
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: '#09090b', marginBottom: '4px' }}>
+                What should you do next?
               </h2>
-              <p className="exp-desc" style={{ fontSize: '0.9375rem', color: 'var(--color-silver-300)' }}>
-                Choose the best path forward based on your real evidence and test results. Your recorded decisions are saved permanently in your workspace.
+              <p style={{ fontSize: '0.875rem', color: '#52525b' }}>
+                Choose the best path forward based on your real evidence and test results. Your recorded decisions persist permanently.
               </p>
             </div>
 
             {decisionNotice && (
-              <div style={{ backgroundColor: '#0e1410', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '12px 16px', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#ffffff' }}>
+              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: '4px', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#15803d' }}>
                 ✓ {decisionNotice}
               </div>
             )}
 
-            {/* Low-data recommendation banner */}
-            {(eventsCount < 20 || visitorsCount < 5) && (
-              <div style={{ backgroundColor: '#141108', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '16px 18px', borderRadius: '2px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
-                  <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9375rem', fontWeight: 700, color: '#ffffff' }}>
-                    Our Recommendation: Run Another Test
-                  </h4>
-                </div>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-200)', lineHeight: 1.5 }}>
-                  There&apos;s not enough evidence yet to make a confident decision. Your prototype currently has {visitorsCount} visitor(s) and {eventsCount} tracked action(s). Invite more testers before committing significant time or money.
-                </p>
+            {/* Primary Evidence-Based Recommendation (Part 20) */}
+            <div
+              className="exp-light-card"
+              style={{
+                backgroundColor: '#ffffff',
+                border: '2px solid #09090b',
+                padding: '20px 24px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <span className="exp-v2-tag">
+                  PRIMARY RECOMMENDATION
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#52525b' }}>
+                  {visitorsCount} visitors · {eventsCount} actions · {feedbackCount} feedback
+                </span>
               </div>
-            )}
+
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.35rem', fontWeight: 700, color: '#09090b', marginBottom: '6px' }}>
+                {primaryDecision === 'TEST_AGAIN' ? 'RUN ANOTHER TEST' : 'IMPROVE CORE WORKFLOW'}
+              </h3>
+
+              <p style={{ fontSize: '0.875rem', color: '#52525b', lineHeight: 1.5, marginBottom: '14px' }}>
+                {primaryDecision === 'TEST_AGAIN'
+                  ? 'Current evidence is insufficient to make a reliable product decision. Invite more testers before committing significant time or engineering budget.'
+                  : 'Testers engaged with the main interactive path; address noted friction points before scaling.'}
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button onClick={() => setShowShareModal(true)} className="exp-btn-primary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
+                  Share with More Testers
+                </button>
+                <button onClick={copyTestUrl} className="exp-btn-secondary" style={{ fontSize: '0.75rem', padding: '8px 14px' }}>
+                  {copiedTestUrl ? 'Link Copied!' : 'Copy Test Link'}
+                </button>
+              </div>
+            </div>
 
             {/* Five Understandable Options */}
-            <div className="exp-decision-options-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
               {[
-                {
-                  outcome: 'BUILD' as DecisionOutcome,
-                  label: 'Build It',
-                  short: 'The evidence supports moving forward.',
-                  means: 'Begin developing production features based on validated interest.',
-                  evidence: 'Visitors actively completed the primary action and submitted positive feedback.',
-                  uncertainty: 'Long-term retention and willingness to pay remain to be verified in production.',
-                  nextStep: 'Scope a minimal production release focusing only on validated core features.',
-                },
-                {
-                  outcome: 'IMPROVE' as DecisionOutcome,
-                  label: 'Improve It',
-                  short: 'Fix observed problems and test again.',
-                  means: 'Address points where testers got stuck or gave critical feedback.',
-                  evidence: 'Visitors tried the prototype but struggled at specific steps or noted friction.',
-                  uncertainty: 'Whether fixing these issues will sufficiently improve conversion.',
-                  nextStep: 'Refine confusing copy, simplify layout, and run another test.',
-                },
-                {
-                  outcome: 'PIVOT' as DecisionOutcome,
-                  label: 'Change Direction',
-                  short: 'Test a different approach.',
-                  means: 'The core problem or solution needs significant rethinking.',
-                  evidence: 'Visitors showed low engagement or expressed that the solution does not solve their problem.',
-                  uncertainty: 'Which alternative direction will resonate better with your audience.',
-                  nextStep: 'Interview 5 people from your target audience to discover their primary unaddressed problem.',
-                },
-                {
-                  outcome: 'STOP' as DecisionOutcome,
-                  label: 'Stop This Idea',
-                  short: 'Stop investing in this direction.',
-                  means: 'Close this experiment and preserve your time, energy, and resources.',
-                  evidence: 'Clear evidence that users do not need or want this product.',
-                  uncertainty: 'Whether timing or a completely different market might have worked.',
-                  nextStep: 'Document what you learned and move on to your next experiment idea.',
-                },
-                {
-                  outcome: 'TEST_AGAIN' as DecisionOutcome,
-                  label: 'Run Another Test',
-                  short: 'Collect more evidence first.',
-                  means: 'Gather more visitors and feedback before making a final commitment.',
-                  evidence: 'Sample size is currently too small to draw dependable conclusions.',
-                  uncertainty: 'Most interaction patterns remain unverified until more data is collected.',
-                  nextStep: 'Share your prototype link with more testers to build an honest sample.',
-                },
+                { outcome: 'BUILD' as DecisionOutcome, label: 'Build It', short: 'Evidence supports moving forward.' },
+                { outcome: 'IMPROVE' as DecisionOutcome, label: 'Improve It', short: 'Fix observed problems and test again.' },
+                { outcome: 'PIVOT' as DecisionOutcome, label: 'Change Direction', short: 'Test a different core approach.' },
+                { outcome: 'STOP' as DecisionOutcome, label: 'Stop This Idea', short: 'Preserve time and resources.' },
+                { outcome: 'TEST_AGAIN' as DecisionOutcome, label: 'Run Another Test', short: 'Collect more evidence first.' },
               ].map((item) => {
                 const isSelected = selectedDecision === item.outcome;
                 return (
                   <div
                     key={item.outcome}
                     onClick={() => setSelectedDecision(item.outcome)}
-                    className={`exp-decision-option-card ${isSelected ? 'selected' : ''}`}
+                    className="exp-light-card"
+                    style={{
+                      cursor: 'pointer',
+                      border: isSelected ? '2px solid #09090b' : '1px solid #e4e4e7',
+                      backgroundColor: isSelected ? '#f8f9fa' : '#ffffff',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
                   >
                     <div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 700 }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: '#09090b' }}>
                         {item.label}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: isSelected ? '#333333' : 'var(--color-silver-300)', marginTop: '4px', lineHeight: 1.4 }}>
+                      <div style={{ fontSize: '0.75rem', color: '#52525b', marginTop: '2px', lineHeight: 1.4 }}>
                         {item.short}
                       </div>
-                    </div>
-
-                    <div style={{ fontSize: '0.6875rem', color: isSelected ? '#555555' : 'var(--color-gray-500)', borderTop: isSelected ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
-                      {item.means}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Selected Option Deep-Dive Details */}
-            {(() => {
-              const detailsMap: Record<DecisionOutcome, { label: string; means: string; evidence: string; uncertainty: string; nextStep: string }> = {
-                BUILD: {
-                  label: 'Build It',
-                  means: 'Begin developing production features based on validated interest.',
-                  evidence: 'Visitors actively completed the primary action and submitted positive feedback.',
-                  uncertainty: 'Long-term retention and willingness to pay remain to be verified in production.',
-                  nextStep: 'Scope a minimal production release focusing only on validated core features.',
-                },
-                IMPROVE: {
-                  label: 'Improve It',
-                  means: 'Address points where testers got stuck or gave critical feedback.',
-                  evidence: 'Visitors tried the prototype but struggled at specific steps or noted friction.',
-                  uncertainty: 'Whether fixing these issues will sufficiently improve conversion.',
-                  nextStep: 'Refine confusing copy, simplify layout, and run another test.',
-                },
-                PIVOT: {
-                  label: 'Change Direction',
-                  means: 'The core problem or solution needs significant rethinking.',
-                  evidence: 'Visitors showed low engagement or expressed that the solution does not solve their problem.',
-                  uncertainty: 'Which alternative direction will resonate better with your audience.',
-                  nextStep: 'Interview 5 people from your target audience to discover their primary unaddressed problem.',
-                },
-                STOP: {
-                  label: 'Stop This Idea',
-                  means: 'Close this experiment and preserve your time, energy, and resources.',
-                  evidence: 'Clear evidence that users do not need or want this product.',
-                  uncertainty: 'Whether timing or a completely different market might have worked.',
-                  nextStep: 'Document what you learned and move on to your next experiment idea.',
-                },
-                TEST_AGAIN: {
-                  label: 'Run Another Test',
-                  means: 'Gather more visitors and feedback before making a final commitment.',
-                  evidence: 'Sample size is currently too small to draw dependable conclusions.',
-                  uncertainty: 'Most interaction patterns remain unverified until more data is collected.',
-                  nextStep: 'Share your prototype link with more testers to build an honest sample.',
-                },
-              };
-              const current = detailsMap[selectedDecision];
+            {/* Selected Option Form */}
+            <div className="exp-light-card">
+              <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 700, color: '#09090b', marginBottom: '14px' }}>
+                Record Your Decision
+              </h4>
 
-              return (
-                <div
-                  className="exp-decision-deepdive"
-                  style={{
-                    backgroundColor: '#0a0a0d',
-                    border: '1px solid rgba(255, 255, 255, 0.16)',
-                    padding: '24px',
-                    borderRadius: '2px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '20px',
-                  }}
-                >
-                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                        SELECTED OPTION:
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff' }}>
-                        {current.label}
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                        DATA RELIABILITY:
-                      </div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: eventsCount >= 20 ? '#ffffff' : 'var(--color-silver-300)' }}>
-                        {eventsCount >= 20 ? 'Supported by initial testing' : 'Low data — early exploratory decision'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Warning if choosing to build with low data */}
-                  {selectedDecision === 'BUILD' && eventsCount < 20 && (
-                    <div style={{ backgroundColor: '#181205', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '12px 14px', borderRadius: '2px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <AlertCircle size={16} style={{ color: '#ffffff', flexShrink: 0 }} />
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-silver-200)', lineHeight: 1.4 }}>
-                        Notice: You have chosen to build this idea, but only {eventsCount} action(s) have been tracked. We recommend collecting more evidence first to avoid building something users might not need.
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 4 Details Grid */}
-                  <div className="exp-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', backgroundColor: '#121215', padding: '16px', borderRadius: '2px' }}>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', marginBottom: '4px' }}>
-                        WHAT THIS CHOICE MEANS
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5 }}>
-                        {current.means}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', marginBottom: '4px' }}>
-                        WHICH REAL EVIDENCE SUPPORTS IT
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5 }}>
-                        {current.evidence}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', marginBottom: '4px' }}>
-                        WHAT REMAINS UNCERTAIN
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5 }}>
-                        {current.uncertainty}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', marginBottom: '4px' }}>
-                        RECOMMENDED NEXT ACTION
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5 }}>
-                        {current.nextStep}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* User Inputs Form */}
-                  <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                      WHY DID YOU CHOOSE THIS DIRECTION? (YOUR REASONING) *
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={decisionReasoning}
-                      onChange={(e) => setDecisionReasoning(e.target.value)}
-                      placeholder={`Explain why you are choosing to ${current.label.toLowerCase()} based on what you saw in your prototype or what testers told you...`}
-                      style={{ width: '100%', padding: '10px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none', fontSize: '0.8125rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                      WHAT IS YOUR IMMEDIATE NEXT STEP?
-                    </label>
-                    <input
-                      type="text"
-                      value={decisionNextStep}
-                      onChange={(e) => setDecisionNextStep(e.target.value)}
-                      placeholder={current.nextStep}
-                      style={{ width: '100%', padding: '10px 12px', backgroundColor: '#121215', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '2px', outline: 'none', fontSize: '0.8125rem' }}
-                    />
-                  </div>
-
-                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                      Persists permanently to your workspace database
-                    </span>
-
-                    <button
-                      onClick={handleSaveDecision}
-                      disabled={savingDecision}
-                      className="btn-primary"
-                      style={{ fontSize: '0.75rem', padding: '9px 18px' }}
-                    >
-                      {savingDecision ? 'Saving decision...' : 'Save My Decision'}
-                    </button>
-                  </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    WHY DID YOU CHOOSE THIS DIRECTION? (YOUR REASONING) *
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={decisionReasoning}
+                    onChange={(e) => setDecisionReasoning(e.target.value)}
+                    placeholder="Explain why you are making this choice based on real test behavior or tester feedback..."
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e4e4e7', borderRadius: '4px', fontSize: '0.8125rem' }}
+                  />
                 </div>
-              );
-            })()}
 
-            {/* Decision History / Audit Trail from Database */}
+                <div>
+                  <label style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    WHAT IS YOUR IMMEDIATE NEXT STEP?
+                  </label>
+                  <input
+                    type="text"
+                    value={decisionNextStep}
+                    onChange={(e) => setDecisionNextStep(e.target.value)}
+                    placeholder="e.g., Share prototype with 5 founders on Peerlist..."
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #e4e4e7', borderRadius: '4px', fontSize: '0.8125rem' }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveDecision}
+                  disabled={savingDecision}
+                  className="exp-btn-primary"
+                  style={{ alignSelf: 'flex-start', minHeight: '40px' }}
+                >
+                  {savingDecision ? 'Saving decision...' : 'Save My Decision'}
+                </button>
+              </div>
+            </div>
+
+            {/* Decision History */}
             {experiment.decisions && experiment.decisions.length > 0 && (
-              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '20px' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#ffffff', letterSpacing: '0.08em', marginBottom: '12px', textTransform: 'uppercase' }}>
-                  YOUR RECORDED DECISIONS ({experiment.decisions.length})
+              <div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  RECORDED DECISION HISTORY ({experiment.decisions.length})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {experiment.decisions.map((dec: any) => {
-                    const outcomeNameMap: Record<string, string> = {
-                      BUILD: 'Build It',
-                      IMPROVE: 'Improve It',
-                      PIVOT: 'Change Direction',
-                      STOP: 'Stop This Idea',
-                      TEST_AGAIN: 'Run Another Test',
-                    };
-                    const outcomeLabel = outcomeNameMap[dec.outcome] || dec.outcome;
-
-                    return (
-                      <div className="exp-audit-card" key={dec.id} style={{ backgroundColor: '#0a0a0d', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '16px 18px', borderRadius: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                          <span className="badge badge-active">{outcomeLabel}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)' }}>
-                            Decided on {new Date(dec.decidedAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '0.8125rem', color: '#ffffff', lineHeight: 1.5, marginBottom: '6px' }}>
-                          {dec.reasoning}
-                        </p>
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)' }}>
-                          NEXT STEP: {dec.recommendedNextStep}
-                        </div>
-                        {dec.limitations && (
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)', marginTop: '4px' }}>
-                            NOTE: {dec.limitations}
-                          </div>
-                        )}
+                  {experiment.decisions.map((dec: any) => (
+                    <div key={dec.id} className="exp-light-card" style={{ padding: '14px 18px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span className="exp-v2-tag">{dec.outcome}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a' }}>
+                          {new Date(dec.decidedAt).toLocaleString()}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <p style={{ fontSize: '0.84375rem', color: '#09090b', margin: '4px 0' }}>{dec.reasoning}</p>
+                      {dec.recommendedNextStep && (
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#52525b' }}>
+                          Next: {dec.recommendedNextStep}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1677,28 +1239,29 @@ export default function ExperimentDetailPage({ params }: PageProps) {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 100,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 1000,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '12px',
+            padding: '16px',
           }}
+          onClick={() => setShowShareModal(false)}
         >
           <div
-            className="exp-modal-box"
             style={{
-              backgroundColor: '#0a0a0d',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '3px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e4e4e7',
+              borderRadius: '4px',
               padding: '24px',
-              maxWidth: '540px',
+              maxWidth: '520px',
               width: '100%',
-              boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
               position: 'relative',
               boxSizing: 'border-box',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setShowShareModal(false)}
@@ -1708,174 +1271,51 @@ export default function ExperimentDetailPage({ params }: PageProps) {
                 right: '16px',
                 background: 'none',
                 border: 'none',
-                color: 'var(--color-silver-300)',
+                color: '#71717a',
                 cursor: 'pointer',
               }}
+              aria-label="Close modal"
             >
               <X size={18} />
             </button>
 
-            <div className="eyebrow exp-eyebrow" style={{ marginBottom: '6px' }}>
-              <span className="eyebrow-dot" />
-              <span>SHAREABLE TEST LINK</span>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', letterSpacing: '0.12em', color: '#71717a', textTransform: 'uppercase', marginBottom: '4px' }}>
+              SHAREABLE TEST LINK
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, color: '#09090b', marginBottom: '6px' }}>
               Invite Real Testers
             </h3>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--color-silver-300)', lineHeight: 1.5, marginBottom: '16px' }}>
-              Anyone with this link can test your prototype and submit feedback directly. No Wiqn account or login required.
+            <p style={{ fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.5, marginBottom: '16px' }}>
+              Anyone with this link can test your prototype and submit feedback directly. No account required.
             </p>
-
-            {/* Environment Toggle if in Local Dev */}
-            {isLocal && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-silver-300)', textTransform: 'uppercase' }}>
-                    TARGET ENVIRONMENT
-                  </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: shareLinkMode === 'production' ? '#52c41a' : '#faad14' }}>
-                    {shareLinkMode === 'production' ? '● PRODUCTION (HTTPS)' : '● LOCALHOST'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShareLinkMode('production')}
-                    style={{
-                      flex: 1,
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.6875rem',
-                      padding: '7px 10px',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                      border: shareLinkMode === 'production' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: shareLinkMode === 'production' ? '#ffffff' : 'transparent',
-                      color: shareLinkMode === 'production' ? '#000000' : 'var(--color-silver-300)',
-                      fontWeight: shareLinkMode === 'production' ? 600 : 400,
-                    }}
-                  >
-                    PRODUCTION
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShareLinkMode('local')}
-                    style={{
-                      flex: 1,
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.6875rem',
-                      padding: '7px 10px',
-                      borderRadius: '2px',
-                      cursor: 'pointer',
-                      border: shareLinkMode === 'local' ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: shareLinkMode === 'local' ? '#ffffff' : 'transparent',
-                      color: shareLinkMode === 'local' ? '#000000' : 'var(--color-silver-300)',
-                      fontWeight: shareLinkMode === 'local' ? 600 : 400,
-                    }}
-                  >
-                    LOCAL DEV
-                  </button>
-                </div>
-                {shareLinkMode === 'local' && (
-                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '6px', lineHeight: 1.4 }}>
-                    Notice: This localhost URL only opens on this computer. Switch to PRODUCTION to share with external testers.
-                  </p>
-                )}
-                {shareLinkMode === 'production' && (
-                  <p style={{ fontSize: '0.6875rem', color: 'var(--color-silver-300)', marginTop: '6px', lineHeight: 1.4 }}>
-                    Production URL: Anyone with this link can test your prototype from any phone or computer.
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Test URL Box */}
             <div
               style={{
-                backgroundColor: '#121215',
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #e4e4e7',
                 padding: '10px 14px',
-                borderRadius: '2px',
+                borderRadius: '3px',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.75rem',
-                color: '#ffffff',
+                color: '#09090b',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '18px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                overflowX: 'auto',
+                gap: '8px',
+                marginBottom: '16px',
               }}
             >
-              <span style={{ wordBreak: 'break-all' }}>{publicTestUrl}</span>
-              <button
-                onClick={() => copyTestUrl(publicTestUrl)}
-                className="btn-ghost"
-                style={{ flexShrink: 0, marginLeft: '10px', fontSize: '0.6875rem', padding: '4px 8px' }}
-              >
+              <span style={{ wordBreak: 'break-all', overflow: 'hidden' }}>{publicTestUrl}</span>
+              <button onClick={copyTestUrl} className="exp-btn-secondary" style={{ flexShrink: 0, padding: '4px 10px', minHeight: '32px' }}>
                 {copiedTestUrl ? 'Copied!' : 'Copy'}
               </button>
             </div>
 
-            {/* One-Click Share Destinations */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: 'var(--color-gray-500)', textTransform: 'uppercase' }}>
-                SHARE DIRECTLY VIA:
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                <a
-                  href={shareUrls.whatsapp}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
-                >
-                  WhatsApp
-                </a>
-
-                <a
-                  href={shareUrls.x}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
-                >
-                  X (Twitter)
-                </a>
-
-                <a
-                  href={shareUrls.linkedin}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
-                >
-                  LinkedIn
-                </a>
-
-                <a
-                  href={shareUrls.email}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.75rem', padding: '8px', textAlign: 'center', justifyContent: 'center' }}
-                >
-                  Email
-                </a>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '18px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.625rem', color: 'var(--color-gray-500)' }}>
-                Attribution: Exp {experiment.id}
-              </span>
-              <a
-                href={publicTestUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary"
-                style={{ fontSize: '0.6875rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-              >
-                <span>Open Test View</span>
-                <ExternalLink size={12} />
-              </a>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowShareModal(false)} className="exp-btn-secondary" style={{ minHeight: '38px', padding: '8px 16px' }}>
+                Done
+              </button>
             </div>
           </div>
         </div>

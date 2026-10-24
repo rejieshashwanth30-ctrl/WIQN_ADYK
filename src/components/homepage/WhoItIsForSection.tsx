@@ -33,7 +33,7 @@ const AUDIENCES = [
 export const WhoItIsForSection: React.FC = () => {
   return (
     <section
-      id="about"
+      id="built-for"
       style={{
         padding: 'clamp(72px, 11vh, 128px) 20px',
         backgroundColor: '#ffffff',
@@ -45,7 +45,7 @@ export const WhoItIsForSection: React.FC = () => {
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>AUDIENCE</span>
+              <span>05 // BUILT FOR</span>
             </div>
           </div>
 

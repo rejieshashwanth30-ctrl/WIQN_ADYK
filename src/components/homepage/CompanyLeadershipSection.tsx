@@ -39,7 +39,7 @@ export const CompanyLeadershipSection: React.FC = () => {
           <div style={{ marginBottom: '14px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>LEADERSHIP &amp; ORIGINS</span>
+              <span>07 // BUILT BY</span>
             </div>
           </div>
 
