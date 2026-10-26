@@ -67,20 +67,20 @@ export const Footer: React.FC<FooterProps> = ({ theme = 'dark' }) => {
             }}
             aria-label="Footer Navigation"
           >
+            <Link href="#features" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+              Features
+            </Link>
             <Link href="#how-it-works" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
               How It Works
             </Link>
-            <Link href="#loop" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-              Validation Loop
-            </Link>
-            <Link href="#evidence" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-              Evidence
+            <Link href="#why-wiqn" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+              Why WIQN
             </Link>
             <Link href="#about" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
               About
             </Link>
-            <Link href="#company" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-              Company
+            <Link href="#built-by" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+              Built By
             </Link>
             <Link href="#contact" style={{ color: 'inherit', textDecoration: 'none' }} className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
               Contact

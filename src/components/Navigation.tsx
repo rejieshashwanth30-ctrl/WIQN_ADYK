@@ -65,16 +65,16 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
               <BrandLogo size={32} showWordmark={true} wordmarkVariant="default" theme={isLight ? 'light' : 'dark'} />
             </Link>
 
-            {/* Desktop Navigation Links (Part 29) */}
+            {/* Desktop Navigation Links */}
             <nav className="nav-links-desktop" aria-label="Main Navigation">
-              <Link href="#product" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-                Product
+              <Link href="#features" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+                Features
               </Link>
               <Link href="#how-it-works" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 How It Works
               </Link>
-              <Link href="#evidence" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
-                Evidence
+              <Link href="#why-wiqn" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
+                Why WIQN
               </Link>
               <Link href="#about" className={isLight ? 'nav-link-item-light' : 'nav-link-item'}>
                 About
@@ -149,11 +149,11 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
               </div>
 
               <Link
-                href="#product"
+                href="#features"
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                Product
+                Features
               </Link>
 
               <Link
@@ -165,11 +165,11 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
               </Link>
 
               <Link
-                href="#evidence"
+                href="#why-wiqn"
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                Evidence
+                Why WIQN
               </Link>
 
               <Link
@@ -181,11 +181,11 @@ export const Navigation: React.FC<NavigationProps> = ({ theme = 'dark' }) => {
               </Link>
 
               <Link
-                href="#company"
+                href="#built-by"
                 onClick={() => setMobileOpen(false)}
                 className={`mobile-drawer-link ${isLight ? 'mobile-drawer-link-light' : ''}`}
               >
-                Company
+                Built By
               </Link>
 
               <Link

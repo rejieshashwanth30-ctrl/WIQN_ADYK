@@ -3065,6 +3065,327 @@ img, canvas, video, svg {
     text-align: center;
   }
 }
+/* ==========================================================================
+   WIQN COMPACT VISUAL UX & PRODUCT CAPABILITY SYSTEM
+   ========================================================================== */
 
+.wiqn-section-compact {
+  padding: clamp(38px, 6vh, 60px) 20px;
+  position: relative;
+  box-sizing: border-box;
+  scroll-margin-top: 72px;
+}
 
+.wiqn-section-header {
+  text-align: center;
+  margin-bottom: clamp(24px, 4vh, 36px);
+}
 
+.wiqn-section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.65rem, 3.8vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #09090b;
+  margin-bottom: 8px;
+}
+
+.wiqn-section-subtitle {
+  font-size: clamp(0.875rem, 1.8vw, 1rem);
+  color: #52525b;
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Compact Hero Pipeline */
+.hero-pipeline-wrapper {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  max-width: 860px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.hero-pipeline-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hero-pipeline-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  border: 1px solid #e4e4e7;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #09090b;
+  letter-spacing: 0.05em;
+  transition: all 180ms ease;
+}
+
+.hero-pipeline-node:hover {
+  background-color: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+.hero-pipeline-arrow {
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Features Grid */
+.wiqn-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.wiqn-feature-card {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justifyContent: space-between;
+  gap: 12px;
+  transition: all 200ms ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.wiqn-feature-card:hover {
+  border-color: #18181b;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+}
+
+.wiqn-feature-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.wiqn-feature-tag {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #71717a;
+  text-transform: uppercase;
+}
+
+.wiqn-feature-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #09090b;
+  margin-bottom: 2px;
+}
+
+.wiqn-feature-micro {
+  font-size: 0.78125rem;
+  color: #52525b;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.wiqn-feature-visual-box {
+  background-color: #fafafa;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  padding: 10px 12px;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justifyContent: center;
+  box-sizing: border-box;
+}
+
+/* Decision Bar */
+.wiqn-decision-bar {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.wiqn-decision-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wiqn-decision-chip {
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  border: 1px solid #e4e4e7;
+  background-color: #f8f9fa;
+  color: #52525b;
+  cursor: pointer;
+  transition: all 160ms ease;
+  user-select: none;
+}
+
+.wiqn-decision-chip:hover {
+  border-color: #71717a;
+  color: #09090b;
+}
+
+.wiqn-decision-chip.active {
+  background-color: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+/* How WIQN Works Desktop Horizontal Flow */
+.how-works-horizontal {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.how-step-node {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  transition: all 180ms ease;
+}
+
+.how-step-node:hover {
+  border-color: #09090b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* How WIQN Works Mobile Grouped Layout */
+.how-works-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.how-group-card {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 14px;
+}
+
+/* Why WIQN 4-Step Comparison */
+.why-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.why-comparison-card {
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 180ms ease;
+}
+
+.why-comparison-card:hover {
+  border-color: #09090b;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS OVERRIDES (320px - 768px)
+   ========================================================================== */
+@media (max-width: 900px) {
+  .wiqn-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .why-comparison-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .how-works-horizontal {
+    display: none;
+  }
+  .how-works-mobile {
+    display: flex;
+  }
+  .wiqn-decision-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hero-pipeline-track {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .wiqn-features-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .why-comparison-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .hero-pipeline-node {
+    padding: 5px 8px;
+    font-size: 0.625rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .wiqn-section-compact {
+    padding: 28px 12px;
+  }
+  .wiqn-feature-card {
+    padding: 12px;
+  }
+  .hero-pipeline-wrapper {
+    padding: 8px 10px;
+  }
+  .hero-pipeline-node {
+    font-size: 0.5625rem;
+    padding: 4px 6px;
+  }
+  .hero-pipeline-arrow {
+    display: none;
+  }
+}

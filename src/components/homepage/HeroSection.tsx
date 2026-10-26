@@ -1,42 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, ArrowDown } from 'lucide-react';
 
-const JOURNEY_STEPS = [
-  { num: '01', label: 'IDEA', detail: 'Falsifiable Hypothesis' },
-  { num: '02', label: 'PROTOTYPE', detail: 'Interactive URL' },
-  { num: '03', label: 'REAL USERS', detail: 'Authentic Testers' },
-  { num: '04', label: 'BEHAVIOR', detail: 'Telemetry & Clicks' },
-  { num: '05', label: 'FEEDBACK', detail: 'Qualitative Signals' },
-  { num: '06', label: 'AI INSIGHTS', detail: 'Epistemic Synthesis' },
-  { num: '07', label: 'DECISION', detail: 'Build, Improve, Pivot' },
+const PIPELINE_STEPS = [
+  { num: '01', label: 'IDEA', icon: '💡' },
+  { num: '02', label: 'PROTOTYPE', icon: '🖥️' },
+  { num: '03', label: 'REAL USERS', icon: '👥' },
+  { num: '04', label: 'EVIDENCE', icon: '⚡' },
+  { num: '05', label: 'AI INSIGHTS', icon: '✦' },
+  { num: '06', label: 'DECISION', icon: '🎯' },
 ];
 
 export const HeroSection: React.FC = () => {
-  const [activeStep, setActiveStep] = useState(0);
-
-  // Subtle cyclic stepping animation for the hero journey
-  useEffect(() => {
-    // Respect prefers-reduced-motion
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-    const interval = setInterval(() => {
-      setActiveStep((prev) => (prev + 1) % JOURNEY_STEPS.length);
-    }, 2400);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <section
       id="hero"
       style={{
         position: 'relative',
-        minHeight: 'calc(100vh - 72px)',
-        paddingTop: 'clamp(84px, 12vh, 120px)',
-        paddingBottom: 'clamp(56px, 8vh, 80px)',
+        paddingTop: 'clamp(56px, 8vh, 88px)',
+        paddingBottom: 'clamp(36px, 5vh, 52px)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
@@ -50,74 +34,61 @@ export const HeroSection: React.FC = () => {
     >
       <div style={{ maxWidth: '960px', margin: '0 auto', width: '100%' }}>
         {/* Eyebrow Badge */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '18px' }}>
           <div className="eyebrow-light">
             <span className="eyebrow-dot-light" />
-            <span>WIQN &nbsp;//&nbsp; PRODUCT VALIDATION &amp; EXPERIMENTATION PLATFORM</span>
+            <span>AI-POWERED PRODUCT VALIDATION</span>
           </div>
         </div>
 
-        {/* Main Headline (Part 26) */}
+        {/* Main Headline */}
         <h1
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(2.35rem, 5.8vw, 4.5rem)',
+            fontSize: 'clamp(2.2rem, 5.2vw, 4.2rem)',
             fontWeight: 700,
             letterSpacing: '-0.035em',
-            lineHeight: 1.06,
+            lineHeight: 1.08,
             color: '#09090b',
-            marginBottom: '20px',
+            marginBottom: '16px',
             textWrap: 'balance',
           }}
         >
           Test Ideas. Discover Truth. Build Smarter.
         </h1>
 
-        {/* Supporting Headline (Part 26) */}
+        {/* Short Description */}
         <p
           style={{
             fontFamily: 'var(--font-primary)',
-            fontSize: 'clamp(1rem, 2.2vw, 1.25rem)',
-            fontWeight: 500,
-            color: '#18181b',
+            fontSize: 'clamp(0.95rem, 2vw, 1.15rem)',
+            fontWeight: 450,
+            color: '#52525b',
             lineHeight: 1.5,
-            maxWidth: '740px',
-            margin: '0 auto 16px auto',
+            maxWidth: '720px',
+            margin: '0 auto 28px auto',
             textWrap: 'pretty',
           }}
         >
           Validate product ideas with real users, behavioral evidence, feedback, and AI-powered insights before investing heavily in development.
         </p>
 
-        {/* First Viewport Explanation: What is WIQN? Who is it for? Why does it matter? */}
-        <p
-          style={{
-            fontSize: 'clamp(0.9375rem, 1.8vw, 1.0625rem)',
-            color: '#52525b',
-            lineHeight: 1.6,
-            maxWidth: '680px',
-            margin: '0 auto 36px auto',
-          }}
-        >
-          Built for founders, product builders, and startups. Connect your live prototype or website, invite authentic testers, autocapture physical clicks and friction, and decide whether to build, improve, or pivot with data-driven conviction.
-        </p>
-
-        {/* Primary & Secondary CTAs (Part 26) */}
+        {/* Primary & Secondary CTAs */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '14px',
+            gap: '12px',
             flexWrap: 'wrap',
-            marginBottom: '48px',
+            marginBottom: '32px',
           }}
         >
           <Link
             href="/experiments/new"
             className="btn-primary-light"
             aria-label="Start Validating"
-            style={{ padding: '14px 28px', fontSize: '0.875rem' }}
+            style={{ padding: '12px 24px', fontSize: '0.8125rem' }}
           >
             <span>Start Validating</span>
             <ArrowUpRight size={15} />
@@ -127,141 +98,64 @@ export const HeroSection: React.FC = () => {
             href="#how-it-works"
             className="btn-secondary-light"
             aria-label="See How It Works"
-            style={{ padding: '14px 24px', fontSize: '0.875rem' }}
+            style={{ padding: '12px 22px', fontSize: '0.8125rem' }}
           >
             <span>See How It Works</span>
             <ArrowDown size={14} />
           </Link>
         </div>
 
-        {/* Subtle Hero Motion: The Validation Journey Line */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e4e4e7',
-            borderRadius: '6px',
-            padding: '20px 22px',
-            textAlign: 'left',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
-            maxWidth: '860px',
-            margin: '0 auto',
-          }}
-        >
+        {/* Very Compact Visual Pipeline: IDEA → PROTOTYPE → REAL USERS → EVIDENCE → AI INSIGHTS → DECISION */}
+        <div className="hero-pipeline-wrapper">
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '16px',
-              flexWrap: 'wrap',
-              gap: '8px',
+              marginBottom: '10px',
+              borderBottom: '1px solid #f4f4f5',
+              paddingBottom: '8px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: '#09090b',
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.6875rem',
-                  letterSpacing: '0.12em',
-                  color: '#09090b',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                }}
-              >
-                THE EMPIRICAL VALIDATION JOURNEY
-              </span>
-            </div>
             <span
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.625rem',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
                 color: '#71717a',
-                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
               }}
             >
-              STAGE {JOURNEY_STEPS[activeStep].num} // {JOURNEY_STEPS[activeStep].label} ACTIVE
+              VALIDATION PIPELINE
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.5625rem',
+                color: '#10b981',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+              }}
+            >
+              ● CONTINUOUS EVIDENCE LOOP
             </span>
           </div>
 
-          {/* Stepper Grid (Horizontal on Desktop, Clean 5-column flow) */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '10px',
-            }}
-          >
-            {JOURNEY_STEPS.map((step, idx) => {
-              const isCurrent = activeStep === idx;
-              return (
-                <div
-                  key={step.label}
-                  onClick={() => setActiveStep(idx)}
-                  style={{
-                    backgroundColor: isCurrent ? '#09090b' : '#f8f9fa',
-                    border: isCurrent ? '1px solid #09090b' : '1px solid #e4e4e7',
-                    borderRadius: '4px',
-                    padding: '12px 12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    cursor: 'pointer',
-                    transition: 'all 240ms cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.625rem',
-                        color: isCurrent ? '#a1a1aa' : '#71717a',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {step.num}
-                    </span>
-                    {isCurrent && (
-                      <span
-                        style={{
-                          width: '5px',
-                          height: '5px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ffffff',
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      color: isCurrent ? '#ffffff' : '#09090b',
-                    }}
-                  >
-                    {step.label}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.6875rem',
-                      color: isCurrent ? '#d4d4d8' : '#71717a',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {step.detail}
-                  </div>
+          <div className="hero-pipeline-track">
+            {PIPELINE_STEPS.map((step, idx) => (
+              <React.Fragment key={step.num}>
+                <div className="hero-pipeline-node">
+                  <span style={{ fontSize: '0.75rem' }}>{step.icon}</span>
+                  <span>{step.label}</span>
                 </div>
-              );
-            })}
+                {idx < PIPELINE_STEPS.length - 1 && (
+                  <span className="hero-pipeline-arrow" aria-hidden="true">
+                    →
+                  </span>
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>

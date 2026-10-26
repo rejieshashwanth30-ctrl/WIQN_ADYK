@@ -4,10 +4,9 @@ import React from 'react';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/homepage/HeroSection';
-import { ValidationLoopSection } from '@/components/homepage/ValidationLoopSection';
-import { BehavioralEvidenceSection } from '@/components/homepage/BehavioralEvidenceSection';
-import { TheProblemSection } from '@/components/homepage/TheProblemSection';
-import { WhoItIsForSection } from '@/components/homepage/WhoItIsForSection';
+import { WiqnFeaturesSection } from '@/components/homepage/WiqnFeaturesSection';
+import { HowWiqnWorksSection } from '@/components/homepage/HowWiqnWorksSection';
+import { WhyWiqnSection } from '@/components/homepage/WhyWiqnSection';
 import { AboutWiqnSection } from '@/components/homepage/AboutWiqnSection';
 import { CompanyLeadershipSection } from '@/components/homepage/CompanyLeadershipSection';
 import { ContactSection } from '@/components/homepage/ContactSection';
@@ -35,33 +34,30 @@ export default function HomePage() {
       {/* Light Theme Navigation Header */}
       <Navigation theme="light" />
 
-      {/* Main Content Sections: Exact 9-section compact architecture */}
+      {/* Main Content Sections: Exact 8-section compact visual UX architecture */}
       <main style={{ position: 'relative', zIndex: 1 }}>
-        {/* 01 — Hero */}
+        {/* 01 — HERO */}
         <HeroSection />
 
-        {/* 02 — How WIQN Works */}
-        <ValidationLoopSection />
+        {/* 02 — WIQN FEATURES (Visual Feature Map & Decision Indicator) */}
+        <WiqnFeaturesSection />
 
-        {/* 03 — What WIQN Measures */}
-        <BehavioralEvidenceSection />
+        {/* 03 — HOW WIQN WORKS (Desktop Horizontal Flow & Mobile Grouped Flow) */}
+        <HowWiqnWorksSection />
 
-        {/* 04 — Why WIQN */}
-        <TheProblemSection />
+        {/* 04 — WHY WIQN (Don't Just Build. Prove It.) */}
+        <WhyWiqnSection />
 
-        {/* 05 — Built For */}
-        <WhoItIsForSection />
-
-        {/* 06 — About WIQN */}
+        {/* 05 — ABOUT WIQN (Compact + Better Decisions) */}
         <AboutWiqnSection />
 
-        {/* 07 — Built By (Rejiesh Ashwanth V) */}
+        {/* 06 — BUILT BY (Rejiesh Ashwanth V Only) */}
         <CompanyLeadershipSection />
 
-        {/* 08 — Contact (Dineshraj S & Rejiesh Ashwanth V) */}
+        {/* 07 — CONTACT (Dineshraj S Founder + Rejiesh + Phone + Email + Instagram) */}
         <ContactSection />
 
-        {/* 09 — Final CTA */}
+        {/* 08 — FINAL CTA */}
         <FinalCtaSection />
       </main>
 

@@ -1,192 +1,144 @@
 'use client';
 
 import React from 'react';
-import { Target, Layers, Sparkles, CheckCircle2, XCircle } from 'lucide-react';
+import { Target, CheckCircle2 } from 'lucide-react';
 
 export const AboutWiqnSection: React.FC = () => {
   return (
     <section
       id="about"
+      className="wiqn-section-compact"
       style={{
-        padding: 'clamp(64px, 10vh, 112px) 20px',
         backgroundColor: '#ffffff',
-        borderTop: '1px solid #e4e4e7',
       }}
     >
-      <div style={{ maxWidth: '1040px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '880px', margin: '0 auto', width: '100%' }}>
         {/* Section Header */}
-        <div style={{ textAlign: 'center', marginBottom: '44px' }}>
-          <div style={{ marginBottom: '14px' }}>
+        <div className="wiqn-section-header">
+          <div style={{ marginBottom: '12px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>06 // ABOUT WIQN</span>
+              <span>05 // ABOUT WIQN</span>
             </div>
           </div>
-
-          <h2
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2rem, 4.4vw, 3rem)',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.12,
-              color: '#09090b',
-              marginBottom: '14px',
-            }}
-          >
-            Product Validation, Grounded in Truth.
-          </h2>
-
+          <h2 className="wiqn-section-title">ABOUT WIQN</h2>
           <p
             style={{
               fontSize: 'clamp(0.9375rem, 1.8vw, 1.0625rem)',
-              color: '#52525b',
-              maxWidth: '620px',
-              margin: '0 auto',
+              color: '#3f3f46',
               lineHeight: 1.6,
+              maxWidth: '740px',
+              margin: '0 auto 24px auto',
             }}
           >
-            WIQN is an AI-powered product validation and experimentation platform that transforms raw prototype behavior into actionable decisions.
+            WIQN is an AI-powered product validation and experimentation platform designed to help founders, developers, students, indie hackers, and product teams test ideas with real users before investing heavily in development.
           </p>
         </div>
 
-        {/* 4-Step Founder Comprehension Model (Part 1) */}
+        {/* Compact Visual: Better Decisions */}
         <div
           style={{
-            backgroundColor: '#f8f9fa',
+            backgroundColor: '#fafafa',
             border: '1px solid #e4e4e7',
             borderRadius: '6px',
-            padding: '24px',
-            marginBottom: '32px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
           }}
         >
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.6875rem',
-              letterSpacing: '0.12em',
-              color: '#71717a',
-              textTransform: 'uppercase',
-              marginBottom: '16px',
-              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '10px',
+              borderBottom: '1px solid #e4e4e7',
+              paddingBottom: '8px',
+              flexWrap: 'wrap',
+              gap: '6px',
             }}
           >
-            THE WIQN PRINCIPLE // FOUR QUESTIONS EVERY FOUNDER MUST ANSWER
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                color: '#71717a',
+                textTransform: 'uppercase',
+              }}
+            >
+              OUTCOME // BETTER DECISIONS
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.5625rem',
+                color: '#10b981',
+                fontWeight: 600,
+              }}
+            >
+              ● HIGH CONVICTION ROADMAP
+            </span>
           </div>
 
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
             }}
           >
-            {[
-              { num: '01', q: 'What happened?', a: 'Autocapture physical clicks, journeys, and time spent on your prototype.' },
-              { num: '02', q: 'What does the data show?', a: 'Analyze click distribution, conversion funnels, and real drop-off points.' },
-              { num: '03', q: 'What might it mean?', a: 'Synthesize behavioral signals with qualitative feedback via epistemic AI.' },
-              { num: '04', q: 'What should I do next?', a: 'Get evidence-grounded recommendations: build, improve, or pivot.' },
-            ].map((step) => (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                color: '#09090b',
+                fontWeight: 600,
+              }}
+            >
               <div
-                key={step.num}
                 style={{
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e4e4e7',
-                  borderRadius: '4px',
-                  padding: '16px',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#09090b',
+                  color: '#ffffff',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6875rem', color: '#71717a', fontWeight: 600 }}>
-                  STEP {step.num}
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.9375rem', fontWeight: 700, color: '#09090b' }}>
-                  {step.q}
-                </div>
-                <div style={{ fontSize: '0.8125rem', color: '#52525b', lineHeight: 1.45 }}>
-                  {step.a}
-                </div>
+                <Target size={13} />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Clear Positioning: What WIQN Is vs Is NOT (Part 32) */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '16px',
-          }}
-        >
-          {/* What WIQN IS */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e4e4e7',
-              borderRadius: '4px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={18} style={{ color: '#15803d' }} />
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 700, color: '#09090b' }}>
-                What WIQN Is
-              </h3>
+              <span>Better Decisions</span>
             </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.84375rem', color: '#52525b' }}>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#09090b', fontWeight: 600 }}>•</span>
-                <span>An <strong>AI-powered product validation</strong> &amp; experimentation platform.</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#09090b', fontWeight: 600 }}>•</span>
-                <span>A lightweight testing harness for live prototypes, landing pages, and web apps.</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#09090b', fontWeight: 600 }}>•</span>
-                <span>An epistemic truth engine that isolates measured behavior from speculative assumptions.</span>
-              </li>
-            </ul>
-          </div>
 
-          {/* What WIQN IS NOT */}
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e4e4e7',
-              borderRadius: '4px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <XCircle size={18} style={{ color: '#71717a' }} />
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.0625rem', fontWeight: 700, color: '#09090b' }}>
-                What WIQN Is NOT
-              </h3>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flexWrap: 'wrap',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.6875rem',
+                color: '#52525b',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} color="#10b981" /> Build Smarter
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} color="#10b981" /> Prevent Waste
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} color="#10b981" /> Data-Driven Truth
+              </span>
             </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.84375rem', color: '#71717a' }}>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#a1a1aa' }}>✕</span>
-                <span>NOT a website builder or no-code drag-and-drop page editor.</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#a1a1aa' }}>✕</span>
-                <span>NOT an IDE or code compiler.</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#a1a1aa' }}>✕</span>
-                <span>NOT a bloated generic marketing analytics dashboard.</span>
-              </li>
-            </ul>
           </div>
         </div>
       </div>

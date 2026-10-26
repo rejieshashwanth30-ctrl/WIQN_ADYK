@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { ArrowUpRight } from 'lucide-react';
 
-const LinkedInIcon = ({ size = 15 }: { size?: number }) => (
+const LinkedInIcon = ({ size = 14 }: { size?: number }) => (
   <svg
     width={size}
     height={size}
@@ -25,92 +25,60 @@ const LinkedInIcon = ({ size = 15 }: { size?: number }) => (
 export const CompanyLeadershipSection: React.FC = () => {
   return (
     <section
-      id="company"
+      id="built-by"
+      className="wiqn-section-compact"
       style={{
-        padding: 'clamp(72px, 11vh, 128px) 20px',
         backgroundColor: '#fafafa',
         borderTop: '1px solid #e4e4e7',
         borderBottom: '1px solid #e4e4e7',
       }}
     >
-      <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+      <div id="company" style={{ position: 'relative', top: '-72px', visibility: 'hidden' }} />
+      <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
         {/* Section Header */}
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <div style={{ marginBottom: '14px' }}>
+        <div className="wiqn-section-header">
+          <div style={{ marginBottom: '12px' }}>
             <div className="eyebrow-light">
               <span className="eyebrow-dot-light" />
-              <span>07 // BUILT BY</span>
+              <span>06 // BUILT BY</span>
             </div>
           </div>
-
-          <h2
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(2rem, 4.4vw, 3.25rem)',
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.12,
-              color: '#09090b',
-              marginBottom: '14px',
-            }}
-          >
-            Built by
-          </h2>
-
-          <p
-            style={{
-              fontSize: 'clamp(0.9375rem, 1.8vw, 1.0625rem)',
-              color: '#52525b',
-              maxWidth: '560px',
-              margin: '0 auto',
-              lineHeight: 1.5,
-            }}
-          >
-            The creator and engineering leadership behind the WIQN validation platform.
-          </p>
+          <h2 className="wiqn-section-title">BUILT BY</h2>
         </div>
 
-        {/* Profile Card: Rejiesh Ashwanth V */}
+        {/* Rejiesh Ashwanth V Only — Compact & Premium */}
         <div
-          className="editorial-card"
           style={{
-            maxWidth: '680px',
-            margin: '0 auto 28px auto',
-            padding: 'clamp(24px, 4vw, 36px)',
             backgroundColor: '#ffffff',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
+            border: '1px solid #e4e4e7',
+            borderRadius: '6px',
+            padding: '20px 24px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '18px',
+            flexWrap: 'wrap',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '22px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Real Uploaded Photo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div
               style={{
-                width: '100px',
-                height: '100px',
+                width: '64px',
+                height: '64px',
                 borderRadius: '50%',
                 overflow: 'hidden',
                 flexShrink: 0,
-                border: '2px solid #e4e4e7',
+                border: '1px solid #e4e4e7',
                 backgroundColor: '#f4f4f5',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
                 position: 'relative',
               }}
             >
               <Image
                 src="/brand/rejiesh-ashwanth.jpg"
-                alt="Rejiesh Ashwanth V, CEO and Co-Founder of ADYK Multi Venture Company"
-                width={100}
-                height={100}
+                alt="Rejiesh Ashwanth V, CEO & Co-Founder — ADYK Multi Venture Company"
+                width={64}
+                height={64}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -121,15 +89,15 @@ export const CompanyLeadershipSection: React.FC = () => {
               />
             </div>
 
-            <div style={{ flex: 1, minWidth: '220px' }}>
+            <div>
               <h3
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(1.25rem, 2.5vw, 1.45rem)',
+                  fontSize: '1.125rem',
                   fontWeight: 700,
                   color: '#09090b',
                   letterSpacing: '0.01em',
-                  marginBottom: '4px',
+                  marginBottom: '2px',
                 }}
               >
                 REJIESH ASHWANTH V
@@ -137,92 +105,41 @@ export const CompanyLeadershipSection: React.FC = () => {
               <div
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
+                  fontSize: '0.6875rem',
                   color: '#52525b',
                   letterSpacing: '0.04em',
-                  lineHeight: 1.5,
-                  marginBottom: '12px',
                 }}
               >
                 CEO &amp; Co-Founder — ADYK Multi Venture Company
               </div>
-
-              <a
-                href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 14px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f4f4f5',
-                  border: '1px solid #e4e4e7',
-                  color: '#09090b',
-                  fontSize: '0.75rem',
-                  fontFamily: 'var(--font-mono)',
-                  textDecoration: 'none',
-                  transition: 'all 160ms ease',
-                }}
-                aria-label="View LinkedIn profile of Rejiesh Ashwanth V"
-              >
-                <LinkedInIcon size={14} />
-                <span>View LinkedIn</span>
-                <ArrowUpRight size={13} />
-              </a>
             </div>
           </div>
 
-          <p
+          <a
+            href="https://www.linkedin.com/in/rejiesh-ashwanth-v-33ab1b37b"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
-              fontSize: '0.84375rem',
-              color: '#52525b',
-              lineHeight: 1.6,
-              borderTop: '1px solid #f4f4f5',
-              paddingTop: '16px',
-              margin: 0,
-            }}
-          >
-            Leading product architecture, experimentation telemetry intelligence, and engineering execution at ADYK Multi Venture Company.
-          </p>
-        </div>
-
-        {/* Company Attribution Statement */}
-        <div
-          style={{
-            maxWidth: '680px',
-            margin: '0 auto',
-            padding: '16px 20px',
-            borderRadius: '6px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e4e4e7',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            textAlign: 'center',
-          }}
-        >
-          <p
-            style={{
-              fontSize: '0.8125rem',
-              color: '#52525b',
-              lineHeight: 1.55,
-              margin: 0,
-            }}
-          >
-            WIQN is engineered as part of ADYK&apos;s mission to create high-leverage technology products that empower founders to build with clarity and conviction.
-          </p>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              backgroundColor: '#f4f4f5',
+              border: '1px solid #e4e4e7',
               color: '#09090b',
-              letterSpacing: '0.04em',
+              fontSize: '0.6875rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              textDecoration: 'none',
+              transition: 'all 160ms ease',
             }}
+            aria-label="View LinkedIn profile of Rejiesh Ashwanth V"
           >
-            Launched by <strong>ADYK Multi Venture Company</strong>
-          </span>
+            <LinkedInIcon size={13} />
+            <span>LinkedIn</span>
+            <ArrowUpRight size={11} />
+          </a>
         </div>
       </div>
     </section>

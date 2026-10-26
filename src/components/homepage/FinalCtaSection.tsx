@@ -2,83 +2,63 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, ChevronDown } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 export const FinalCtaSection: React.FC = () => {
   return (
     <section
       id="cta"
+      className="wiqn-section-compact"
       style={{
-        padding: 'clamp(80px, 12vh, 140px) 20px',
         backgroundColor: '#fafafa',
         borderTop: '1px solid #e4e4e7',
         textAlign: 'center',
       }}
     >
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '16px' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto', width: '100%' }}>
+        <div style={{ marginBottom: '12px' }}>
           <div className="eyebrow-light">
             <span className="eyebrow-dot-light" />
-            <span>09 // START VALIDATING</span>
+            <span>08 // START VALIDATING</span>
           </div>
         </div>
 
         <h2
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(2.35rem, 5.5vw, 4.25rem)',
+            fontSize: 'clamp(2rem, 4.4vw, 3.25rem)',
             fontWeight: 700,
-            letterSpacing: '-0.035em',
-            lineHeight: 1.08,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.12,
             color: '#09090b',
-            marginBottom: '18px',
+            marginBottom: '12px',
             textWrap: 'balance',
           }}
         >
-          DON&apos;T JUST BUILD.
-          <br />
-          PROVE IT.
+          READY TO TEST YOUR IDEA?
         </h2>
 
         <p
           style={{
-            fontSize: 'clamp(1rem, 2vw, 1.1875rem)',
+            fontSize: 'clamp(0.9375rem, 1.8vw, 1.0625rem)',
             color: '#52525b',
-            lineHeight: 1.6,
-            maxWidth: '640px',
-            margin: '0 auto 36px auto',
+            lineHeight: 1.5,
+            maxWidth: '520px',
+            margin: '0 auto 24px auto',
           }}
         >
-          Run an experiment. Put your prototype in front of real users. Collect evidence. Learn what deserves to be built.
+          Turn real user behavior into evidence before you build further.
         </p>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '14px',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <Link
             href="/experiments/new"
             className="btn-primary-light"
             style={{ padding: '14px 28px', fontSize: '0.875rem' }}
             aria-label="Start Validating"
           >
-            <span>Start Validating</span>
-            <ArrowUpRight size={16} />
-          </Link>
-
-          <Link
-            href="#how-it-works"
-            className="btn-secondary-light"
-            style={{ padding: '14px 24px', fontSize: '0.875rem' }}
-            aria-label="Explore WIQN"
-          >
-            <span>Explore WIQN</span>
-            <ChevronDown size={15} />
+            <span>START VALIDATING</span>
+            <ArrowUpRight size={15} />
           </Link>
         </div>
       </div>
