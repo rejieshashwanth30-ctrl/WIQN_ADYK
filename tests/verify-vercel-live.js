@@ -1,7 +1,7 @@
 const https = require('https');
 
 function checkLiveDeployment() {
-  https.get('https://adykwiqn.vercel.app/', (res) => {
+  https.get('https://www.wiqn.in/', (res) => {
     let body = '';
     res.on('data', (c) => (body += c));
     res.on('end', () => {
