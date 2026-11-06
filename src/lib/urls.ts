@@ -56,8 +56,8 @@ export function getProductionAppUrl(): string {
     return `https://${process.env.VERCEL_URL.trim().replace(/\/+$/, '')}`;
   }
 
-  // 4. Default Vercel production fallback (points to verified active 200 OK production deployment)
-  return 'https://adykwiqn.vercel.app';
+  // 4. Canonical production fallback
+  return 'https://www.wiqn.in';
 }
 
 /**

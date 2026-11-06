@@ -37,21 +37,18 @@ loadEnv();
 let supabaseUrl = (
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   process.env.SUPABASE_URL ||
-  'https://xfklxcjoyyefovpgysqz.supabase.co'
+  'https://xwwpvtmvbujtynyanywl.supabase.co'
 ).trim().replace(/^["']|["']$/g, '');
 
 let supabaseKey = (
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV'
+  'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0'
 ).trim().replace(/^["']|["']$/g, '');
 
-if (supabaseUrl.includes('xwwpvtmvbujtynyanywl') || supabaseKey === 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0') {
+if (supabaseUrl.includes('xfklxcjoyyefovpgysqz')) {
   supabaseUrl = 'https://xwwpvtmvbujtynyanywl.supabase.co';
   supabaseKey = 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0';
-} else if (supabaseUrl.includes('xfklxcjoyyefovpgysqz') || supabaseKey === 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV') {
-  supabaseUrl = 'https://xfklxcjoyyefovpgysqz.supabase.co';
-  supabaseKey = 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV';
 }
 
 const prisma = new PrismaClient();

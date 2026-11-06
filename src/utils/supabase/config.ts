@@ -6,14 +6,8 @@
  */
 
 export const KNOWN_SUPABASE_PROJECTS = {
-  // Production Vercel project (primary: active users and live deployment)
-  PRODUCTION_XFKL: {
-    id: 'xfklxcjoyyefovpgysqz',
-    url: 'https://xfklxcjoyyefovpgysqz.supabase.co',
-    key: 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV',
-  },
-  // Alternate / secondary project
-  ALTERNATE_XWW: {
+  // Verified Active Production Project (Neon PostgreSQL sync, live users)
+  PRODUCTION_XWW: {
     id: 'xwwpvtmvbujtynyanywl',
     url: 'https://xwwpvtmvbujtynyanywl.supabase.co',
     key: 'sb_publishable_6rNhhVwAY04T2dInW6eUaw_1MbDHiL0',
@@ -34,41 +28,43 @@ export function getSupabaseConfig(): { supabaseUrl: string; supabaseKey: string 
     ''
   ).trim().replace(/^["']|["']$/g, '');
 
-  // 1. Detect if either URL or key points to XFKL (production project):
-  const isXfkl =
-    envUrl.includes(KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.id) ||
-    envKey === KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.key;
+  // 1. Detect if environment variables or settings point to the deprecated/dead XFKL project:
+  // Auto-remap to the verified active production project (XWW)
+  const isDeadXfkl =
+    envUrl.includes('xfklxcjoyyefovpgysqz') ||
+    envKey === 'sb_publishable_bDztOr8pGNRUVRkrxWGlEA_a-9weanV' ||
+    envKey.includes('bDztOr8pGNRUVRkrxWGlEA');
 
-  if (isXfkl) {
+  if (isDeadXfkl) {
     return {
-      supabaseUrl: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.url,
-      supabaseKey: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.key,
+      supabaseUrl: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.url,
+      supabaseKey: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.key,
     };
   }
 
-  // 2. Detect if either URL or key points to XWW (alternate project):
+  // 2. Active production project credentials (XWW)
   const isXww =
-    envUrl.includes(KNOWN_SUPABASE_PROJECTS.ALTERNATE_XWW.id) ||
-    envKey === KNOWN_SUPABASE_PROJECTS.ALTERNATE_XWW.key;
+    envUrl.includes(KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.id) ||
+    envKey === KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.key;
 
   if (isXww) {
     return {
-      supabaseUrl: KNOWN_SUPABASE_PROJECTS.ALTERNATE_XWW.url,
-      supabaseKey: KNOWN_SUPABASE_PROJECTS.ALTERNATE_XWW.key,
+      supabaseUrl: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.url,
+      supabaseKey: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.key,
     };
   }
 
-  // 3. Custom external project credentials if fully provided:
-  if (envUrl && envKey) {
+  // 3. Custom external project credentials if fully provided and not the dead domain:
+  if (envUrl && envKey && !envUrl.includes('xfklxcjoyyefovpgysqz')) {
     return {
       supabaseUrl: envUrl,
       supabaseKey: envKey,
     };
   }
 
-  // 4. Canonical fallback: Production Vercel project (XFKL)
+  // 4. Canonical fallback: Verified Active Production Project (XWW)
   return {
-    supabaseUrl: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.url,
-    supabaseKey: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XFKL.key,
+    supabaseUrl: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.url,
+    supabaseKey: KNOWN_SUPABASE_PROJECTS.PRODUCTION_XWW.key,
   };
 }

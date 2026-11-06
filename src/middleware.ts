@@ -15,8 +15,9 @@ export const config = {
      * - tracker.js (public autocapture script)
      * - brand (public brand images)
      * - robots.txt, sitemap.xml
-     * - static image/asset extensions
+     * - static image/font/style asset extensions
+     * - public API routes that never need middleware auth: /api/capture, /api/health, /api/test
      */
-    '/((?!_next/static|_next/image|favicon.ico|tracker.js|brand|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|tracker\\.js|brand|robots\\.txt|sitemap\\.xml|api/capture|api/health|api/test|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|css|js\\.map)$).*)',
   ],
 };
